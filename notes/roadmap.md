@@ -2,7 +2,7 @@
 
 Part of the [process exploration](README.md). The static slice and a finite-tree
 storage model now have an [implementation](../README.md).
-General numerical adapters, portable causal controllers, held-out trajectory
+General nonlinear adapters, portable causal controllers, held-out trajectory
 replay, and real simulator integration remain future work. The implemented
 frozen contract covers static replay only.
 
@@ -32,7 +32,10 @@ The [fixed affine adapter](affine-process-adapter.md) now exercises those
 operations within the full claim/result contract, with direct evaluation,
 ambient analytical sensitivities and support-bound audits. The utility example
 holds the physical model constant while changing the uncertainty assumptions.
-Adjustable affine recourse and closest-breaking searches remain future work.
+The [linear dispatch adapter](../docs/linear-dispatch.md) now adds bounded controls,
+coupled equipment limits and finite-scenario audits under fixed or fully observed
+static operation. Continuous-domain recourse and closest-breaking searches remain
+future work.
 
 The opt-in [quadratic/residopt experiment](quadratic-residopt-experiment.md)
 now compares exact SDP compilation with an independent trust-region bound for
@@ -84,13 +87,17 @@ The two implemented models share an LP interface that validates inputs and
 recomputes primal residuals. Independent analytical checks guard both verdicts
 and objective values. Tests inject unresolved termination, false infeasibility,
 and invalid optimal solutions; these remain inconclusive. The finite storage
-tree is the first scenario-based model. General adapters remain proposed below.
+tree is the first scenario-based model.
 
-Add finite scenarios and an LP recourse adapter for a bounded supported model
-class. Compare analytical and numerical outcomes. Make error paths part of
-the behavior contract: invalid units, an empty domain, unresolved membership,
-infeasible controls, local solver failure, time limits, and surrogate-only
-evaluations must remain distinguishable.
+Implemented for bounded linear operation: `LinearProcessAdapter` reuses physical
+affine outputs and adds `LinearControl` bounds plus always-applied operating limits.
+Finite audits check every returned physical dispatch exactly or prove joint
+infeasibility using nonnegative row combinations over the bounded control box.
+Solver status alone cannot establish a verdict. The two-boiler example compares
+fixed commands, redispatch and a larger shared fuel supply under the same finite
+loads. Tests include false infeasibility, invalid primal and dual candidates,
+extreme scaling, selected requirements and partial coverage with a valid witness.
+General nonlinear and surrogate evaluations remain separate future capabilities.
 
 Add a nonlinear local-search example with a known recoverable realization
 where a poor solve can fail. The required outcome is `inconclusive`, unless

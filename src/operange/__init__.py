@@ -1,6 +1,7 @@
 """Process-engineering sensitivity and robustness DSL with portable evidence."""
 
 from .affine import AffineOutput, AffineProcessAdapter, AffineRequirement, AffineTerm
+from .linear_process import LinearControl, LinearProcessAdapter
 from .vector import VectorParameter
 from .profiles import PiecewiseLinearProfile
 from .geometries import BudgetSet, EllipsoidSet, SimplexSet
@@ -57,6 +58,8 @@ __all__ = [
     "AffineProcessAdapter",
     "AffineRequirement",
     "AffineTerm",
+    "LinearControl",
+    "LinearProcessAdapter",
     "VectorParameter",
     "PiecewiseLinearProfile",
     "BudgetSet",

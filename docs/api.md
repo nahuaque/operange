@@ -18,6 +18,7 @@ Import these from `operange`:
 | Domain composition and loading | `Intersection`, `Union`, `Product`, `domain_from_manifest`, `domain_from_json` |
 | Operating permissions and severity | `DecisionRule`, `RecoursePolicy`, `Distance`, `NormalizedLInf` |
 | Fixed affine model | `AffineProcessAdapter`, `AffineOutput`, `AffineTerm`, `AffineRequirement` |
+| Adjustable linear model | `LinearProcessAdapter`, `LinearControl`; reuses `AffineOutput`, `AffineTerm`, `AffineRequirement` |
 | Supplied time profile | `PiecewiseLinearProfile` |
 
 `Claim(adapter, domain, recourse, requirements=None, distance=None)` binds a
@@ -37,6 +38,7 @@ Units describe quantities and derivatives without converting values.
 | Adapter | Evaluation and sensitivity | Robustness |
 | --- | --- | --- |
 | `AffineProcessAdapter` | Fixed affine responses; analytical first derivatives in physical or normalized coordinates | Direct physical enumeration of finite sets; linear-support audits over supported boxes, simplexes, budgets, ellipsoids and polytopes; no adjustable recourse or distance searches |
+| `LinearProcessAdapter` | Joint feasibility of bounded controls, coupled operating limits and selected requirements at a verified member; no dispatch derivatives | Complete `FiniteSet` audits under fixed or fully observed static operation; exact physical feasibility checks and bounded-control infeasibility certificates; no continuous-domain audits or distance searches |
 | `reference.HeatRecoveryAdapter` | Static constant-COP heat model with declared recourse; analytical local and directional first derivatives where supported | Box audits, boundary and positive-shortfall breaking searches within its verified static model and normalized distance |
 | `reference.ThermalStorageAdapter` | Two-period finite-tree dispatch with fixed, causal or perfect-foresight permissions; no sensitivity operator | Audits of the declared finite tree, including incompatible futures; no continuous-domain radius or general multistage search |
 | `reference.StartupLoadAdapter` | Supplied piecewise-linear load profiles with fixed start times, amplitude/duration scales and timing jitter; peaks and time integrals | Complete finite uncertainty enumeration with continuous-time coverage of the declared interpolation; no adaptive scheduling, derivatives or distance searches |
@@ -56,6 +58,23 @@ arithmetic on the declared floats and round toward positive infinity for checks.
 Continuous affine audits carry coefficient-rounding corrections and directed
 support bounds into physical residual units. Unsupported or numerically unresolved
 calculations retain their diagnostics.
+
+`LinearControl(name, unit, lower, upper, physical_kind="declared_process_control")`
+declares finite physical bounds. `LinearProcessAdapter(name, input_space, outputs,
+requirements, controls, operating_limits=(), solver_tolerance=1e-9)` reuses affine
+expressions in physical inputs and controls. All operating limits and control
+bounds always apply; only `requirements` can be selected by a claim.
+`model.as_claim(domain)` defaults to independent static adjustment after observing
+every input. Explicit rules must use stage `"operation"`; a rule can instead fix
+its control. A `"fixed"` policy must fix every control. Partial observation and
+causal or perfect-foresight modes are unsupported in this adapter.
+
+Linear evaluation includes the selected requirements in its feasibility problem.
+An infeasible response proves their joint incompatibility with the model and
+operating permissions; it does not assign individual requirement violations to
+a nonexistent dispatch. A feasible result returns checked controls and residuals,
+without claiming a unique or optimal dispatch. See the
+[linear dispatch guide](linear-dispatch.md) for the example and certificate.
 
 Heat-recovery results retain a feasible objective lower bound and a conservative
 analytical upper bound. If the feasible response misses the service requirement

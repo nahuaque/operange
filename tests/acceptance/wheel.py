@@ -1,6 +1,6 @@
 """Run with -I outside the checkout, in a venv containing only the process wheel.
 
-Copy steam_header.py, startup.py, pinch.py and
+Copy steam_header.py, linear_dispatch.py, startup.py, pinch.py and
 prototype_result_v1.json here.
 There are no pytest, repository, optional solver, or test-environment imports.
 """
@@ -113,6 +113,48 @@ def main():
     require(
         exported["restored_result_id"] == results["audit"].result_id,
         "export identity changed",
+    )
+
+    dispatch = runpy.run_path(str(directory / "linear_dispatch.py"))
+    dispatch_results = {
+        name: process.result_from_json(json.dumps(data))
+        for name, data in dispatch["run_example"]().items()
+    }
+    for name, verdict in (
+        ("fixed", "fail"),
+        ("adjustable", "fail"),
+        ("enlarged_fuel_supply", "pass"),
+    ):
+        result = dispatch_results[name]
+        require(result.payload.verdict == verdict, f"linear {name} verdict changed")
+        require(
+            result.payload.coverage.method == "complete_finite", "linear scope changed"
+        )
+        require(
+            process.result_from_json(result.to_json(compact=True)).to_dict()
+            == result.to_dict(),
+            "compact linear results changed",
+        )
+    require(
+        dispatch_results["enlarged_fuel_supply"].contract.domain
+        == dispatch_results["adjustable"].contract.domain,
+        "fuel capacity change altered the scenario domain",
+    )
+    dispatch_model, dispatch_domain = dispatch["example"]()
+    failure = dispatch_results["adjustable"].payload.witness
+    require(failure is not None, "linear failure witness missing")
+    replay = dispatch_model.as_claim(dispatch_domain).evaluate_result(
+        failure.realizations[0]
+    )
+    require(
+        replay.payload.feasibility == "infeasible", "linear witness does not replay"
+    )
+    require(
+        any(
+            e.subject == "recourse_infeasibility" and e.outcome == "verified"
+            for e in replay.evidence
+        ),
+        "linear infeasibility certificate missing",
     )
 
     startup = runpy.run_path(str(directory / "startup.py"))

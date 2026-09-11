@@ -141,6 +141,11 @@ CI applies this check on Python 3.10–3.13.
 
 ## Reference models and downstream code
 
+For adjustable operation in a caller-declared model, use the
+[linear dispatch guide](linear-dispatch.md). It extends the shared-utility study
+with bounded boiler controls and joint equipment constraints, comparing fixed
+commands with fully observed redispatch over finite scenarios.
+
 `operange.reference` contains bounded heat-recovery, storage,
 startup-profile and heat-cascade models. The repository's
 `examples.heat_recovery` and
@@ -156,6 +161,7 @@ alone can certify arbitrary nonlinear whole-plant robustness.
 :maxdepth: 1
 
 api
+linear-dispatch
 startup
 pinch
 methods

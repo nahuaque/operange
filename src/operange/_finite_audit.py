@@ -18,6 +18,7 @@ def audit_finite(
     method,
     scope=None,
     coverage_details=None,
+    failure_constraints=None,
     diagnostic="A declared scenario could not be evaluated; complete coverage is unavailable.",
 ):
     """Keep model-specific failure proofs separate from enumeration mechanics.
@@ -38,10 +39,14 @@ def audit_finite(
             unresolved.append(scenario.name)
     witness = None
     for result in evaluations.values():
-        affected = tuple(
-            c.constraint_ref
-            for c in result.payload.constraint_checks
-            if c.assessment == "violated" and c.constraint_ref in claim.requirements
+        affected = (
+            failure_constraints(claim, result)
+            if failure_constraints is not None
+            else tuple(
+                c.constraint_ref
+                for c in result.payload.constraint_checks
+                if c.assessment == "violated" and c.constraint_ref in claim.requirements
+            )
         )
         if (
             result.execution == "completed"

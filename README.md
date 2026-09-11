@@ -70,10 +70,18 @@ change and JSON round trips. The complete consumer example is
 | Model | Implemented questions | Scope |
 | --- | --- | --- |
 | Caller-declared affine model: constant plus weighted inputs and fixed controls | Point evaluation, analytical first sensitivities and linear-requirement audits | Supported uncertainty domains; no adjustable affine recourse or nearest-failure search |
+| Caller-declared linear model with bounded controls | Joint dispatch feasibility, finite-scenario audits and checked infeasibility witnesses | Fixed or fully observed single-stage operation; coupled equipment limits always apply; no dispatch derivatives or distance searches |
 | Heat-recovery reference model | Heat-delivery evaluation, optimized-response sensitivities, full-box audits, feasibility boundary, positive-shortfall breaking search and engineering-change comparison | Static, constant COP, two uncertain inputs and fully observed electrical-power recourse |
 | Thermal-storage reference model | Fixed, causal and perfect-foresight audits; conflicting futures; equipment and earlier-information changes | Complete declared finite two-period tree; no general trajectory solver or sensitivity operator |
 | Supplied startup profiles | Peak and integrated load, shared-capacity audits and comparison of fixed start schedules | Finite amplitude/duration/timing scenarios; all time segments of the declared piecewise-linear profiles; no motor dynamics or adaptive scheduler |
 | Heat-cascade reference model | Minimum heating/cooling targets, maximum heat recovery, pinch locations and utility-target audits | Finite steady-state sensible-heat scenarios at fixed ΔTmin; no installed exchanger-network feasibility or sensitivity operator |
+
+The [linear dispatch guide](docs/linear-dispatch.md) adds two adjustable boilers
+and a shared fuel supply. Redispatch handles either individual process-load peak;
+the combined peak remains infeasible. Increasing the shared fuel capacity passes
+all four declared scenarios. Each pass includes checked physical controls, and
+each failure includes a constraint combination that rules out all permitted
+controls. Solver termination alone cannot establish either conclusion.
 
 The [startup example](docs/startup.md)
 keeps a compressor start distinct from ordinary load variation. Two synthetic
