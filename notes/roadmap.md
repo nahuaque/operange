@@ -1,0 +1,164 @@
+# Roadmap and open decisions
+
+Part of the [process exploration](README.md). The static slice and a finite-tree
+storage model now have an [implementation](../README.md).
+General numerical adapters, portable causal controllers, held-out trajectory
+replay, and real simulator integration remain future work. The implemented
+frozen contract covers static replay only.
+
+## Package boundary before expansion
+
+The [scope decision](package-boundary.md) fixes the target as a process-engineering
+sensitivity and robustness DSL. Its [result contract](result-contract.md)
+now implements evaluation, sensitivity, and robustness outputs, validated against
+the [worked acceptance cases](result-contract-cases.md). New structured APIs
+sit alongside the prototype methods. The analytical heat response supports
+Jacobian and directional queries with named physical or normalized coordinates;
+unsupported response types and operators are explicit. Portable exports bundle
+contracts and evaluations with evidence and content digests. Storage results
+retain shared information-node controls and conflicting-future cardinality.
+
+The next [shared DSL slice](dsl-primitives.md) is now implemented: named scalar
+coordinate spaces, an uncertainty-domain protocol with box and generic finite
+implementations, explicit distance and recourse primitives, and a common `Claim`
+bound to a model adapter. Both reference models use these interfaces. Domain
+operations and adapter proof capabilities are separate; unsupported bindings
+do not inherit either reference model's numerical guarantees. The
+[geometry slice](uncertainty-geometries.md) now implements labeled vectors,
+polytopes, simplexes, budget sets, ellipsoids and typed composition. Membership,
+normalization, nonemptiness witnesses and portable manifests are explicit;
+the four numerical geometries additionally provide checked linear support bounds.
+The [fixed affine adapter](affine-process-adapter.md) now exercises those
+operations within the full claim/result contract, with direct evaluation,
+ambient analytical sensitivities and support-bound audits. The utility example
+holds the physical model constant while changing the uncertainty assumptions.
+Adjustable affine recourse and closest-breaking searches remain future work.
+
+The opt-in [quadratic/residopt experiment](quadratic-residopt-experiment.md)
+now compares exact SDP compilation with an independent trust-region bound for
+one fixed quadratic over an ellipsoid. Both feed the existing result contract.
+The native checker is faster in the measured workload; residopt remains optional.
+The [coupled design experiment](coupled-design-experiment.md) now runs in consumer
+example code: three shared equipment sizes, three robust constraints, a material
+objective, and independent feasibility/optimality checks. Residopt's compiled
+and hybrid paths work; the native reference remains competitive. No general
+design-optimizer API was added to the DSL.
+
+The residopt investigation is parked. Prototype Markdown rendering, monetary
+repair fields, CAPEX ordering, and selected-repair logic now live in repository
+consumer examples. Engineering-change evaluation and re-audit remain in the
+core. The [API guide](../docs/api.md) documents shared and reference
+APIs and the versioned engineering result format. An isolated installed-wheel
+acceptance check exercises
+the [public consumer example](../docs/index.md), without workspace or
+optional solver dependencies. Release versioning and publication remain separate.
+The implementation slices below remain references for the engineering DSL.
+
+## 1. Make the analytical example executable
+
+Implemented, including analytical verification, repair comparison, and static
+frozen-contract replay.
+
+Start with the [heat-recovery example](heat-recovery-example.md), a small
+realization schema, box membership, static recourse, normalized L-infinity
+distance, a finite repair catalog, and a Markdown report. Keep the analytical
+formulas independent of the numerical backend so they can check its results.
+
+Acceptance conditions:
+
+- Recover the feasibility-boundary radius `4/7` and the 10 kW breaking-witness
+  radius `201/350`, with their different interpretations.
+- Verify witness membership, physical balances, and impossibility of recovery.
+- Rank all catalog repairs against the original domain and service requirement.
+- Identify the source-heat limit and explain why compressor capacity alone
+  does not fix it.
+- Preserve units and distinguish original-claim repairs from reduced service.
+- Show guarantee scope and numerical tolerances beside the result.
+
+This first slice does not need a general bilevel solver, property package,
+historian connection, or a large collection of uncertainty constructors.
+
+## 2. Establish numerical evidence contracts
+
+The two implemented models share an LP interface that validates inputs and
+recomputes primal residuals. Independent analytical checks guard both verdicts
+and objective values. Tests inject unresolved termination, false infeasibility,
+and invalid optimal solutions; these remain inconclusive. The finite storage
+tree is the first scenario-based model. General adapters remain proposed below.
+
+Add finite scenarios and an LP recourse adapter for a bounded supported model
+class. Compare analytical and numerical outcomes. Make error paths part of
+the behavior contract: invalid units, an empty domain, unresolved membership,
+infeasible controls, local solver failure, time limits, and surrogate-only
+evaluations must remain distinguishable.
+
+Add a nonlinear local-search example with a known recoverable realization
+where a poor solve can fail. The required outcome is `inconclusive`, unless
+other evidence resolves it; it must never become a certified breaking witness
+merely because the attempted solve failed.
+
+Only claim minimum distance when the outer search also has the needed global
+bounds. Convex inner recourse alone does not provide that guarantee.
+
+## 3. Validate the trajectory contract
+
+The [two-period storage tree](thermal-storage-example.md) is implemented. It
+demonstrates fixed-policy, causal-policy-class, and perfect-foresight outcomes
+separately, including shared preparation decisions, state continuity, terminal
+conditions, and a minimum pair of individually feasible but incompatible futures.
+The repair comparison distinguishes storage capacity, charging power, and an
+explicit earlier-information intervention. Evidence covers the declared finite
+tree; it does not establish robustness over continuous or unlisted trajectories.
+
+Next, freeze the model, tree, controller, initial-state rule, and evidence settings.
+Replay ordered held-out paths without future observations or retuning. A
+round-trip contract manifest should resolve the same model and controller,
+not merely retain their display names.
+
+## 4. Attempt one real simulator adapter
+
+The [startup-profile slice](../docs/startup.md) now accepts externally
+supplied piecewise-linear load profiles, fixed start commands and finite
+amplitude/duration/timing scenarios. It checks shared peaks and optional time
+integrals over all declared time segments and compares staggered schedules.
+This is a bounded transient response model, not a general trajectory domain or
+simulator integration. General dynamics and continuous uncertainty remain below.
+
+Choose a small external model whose equations, operating permissions, and
+failure modes can be inspected. DWSIM is one possible integration to assess;
+no compatibility is assumed here. Start with a fixed controller or narrowly
+defined recourse so that the meaning of a counterexample remains reviewable.
+
+Measure model evaluations, runtime, unresolved runs, verified violations, and
+the fraction of candidates for which recovery can actually be ruled out.
+If evidence supports only candidate failures, the report should say so.
+That outcome may still be useful, but would change the initial product promise.
+
+## Later extensions
+
+Add trajectories from historical data, degradation with maintenance decisions,
+fault combinations, and model-form
+alternatives when a concrete example demands them. Keep probability-law
+ambiguity as a distinct later track with its own claims and witness semantics.
+
+Investigate backend reuse before writing new optimization machinery; see the
+references and restrictions in [Evidence and backends](evidence-and-backends.md).
+Extract shared engineering/evidence infrastructure only when concrete models
+demonstrate the need. Report infrastructure remains downstream.
+
+## Decisions to revisit after the first example
+
+| Question | Working assumption | Evidence that would change it |
+| --- | --- | --- |
+| Repository and distribution | Standalone Operange project with an engineering-only scope | Revisit only if shared infrastructure becomes necessary |
+| Main claim type? | Static capacity and a finite-tree causal service claim | A real use case requires a broader model or frozen controller |
+| Closest failure or robustness radius? | Show both when the same geometry supports them | Domain topology, discrete modes, or solver cost makes one misleading |
+| Distance defaults? | User-declared engineering scales | A well-validated historical model supports a different severity measure |
+| Meaning of "repair"? | Audit caller-supplied changes preserving the service claim; consumers value and select them | Design-dependent uncertainty requires a broader engineering contract |
+| First simulator? | Defer until the analytical and tree examples work | An available small model offers independent recourse verification |
+| Evidence threshold for shipping? | Every verdict explains what was actually established | User studies show a different artifact is needed to support decisions |
+
+Success means downstream code can evaluate a process response, inspect its
+sensitivities, reproduce a failure, and re-audit engineering changes using
+structured evidence. That is the criterion for deciding which abstractions
+deserve to become public API.

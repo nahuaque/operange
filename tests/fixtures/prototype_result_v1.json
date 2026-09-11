@@ -1,0 +1,3087 @@
+{
+  "evaluation": {
+    "artifacts": {
+      "contract": {
+        "constraints": [
+          {
+            "constraint_id": "heat_balance",
+            "expression": "q - COP * p",
+            "kind": "equation",
+            "relation": "eq",
+            "residual_ref": "heat_balance_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "source_balance",
+            "expression": "s - (COP - 1) * p",
+            "kind": "equation",
+            "relation": "eq",
+            "residual_ref": "source_balance_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "compressor_capacity",
+            "expression": "p - power_capacity_mw",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "compressor_capacity_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "source_capacity",
+            "expression": "s - source_capacity_mw * (1 - source_derating)",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "source_capacity_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "power_nonnegative",
+            "expression": "-p",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "power_nonnegative_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "source_nonnegative",
+            "expression": "-s",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "source_nonnegative_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "heat_nonnegative",
+            "expression": "-q",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "heat_nonnegative_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "heat_demand",
+            "expression": "required_heat - delivered_heat",
+            "kind": "requirement",
+            "relation": "le",
+            "residual_ref": "requirement_residual",
+            "tolerance": 1e-08
+          }
+        ],
+        "design": {
+          "power_capacity_mw": 2.0,
+          "source_capacity_mw": 6.0
+        },
+        "domain": {
+          "kind": "box",
+          "parameters": [
+            {
+              "lower": 0.0,
+              "name": "demand_increase",
+              "nominal": 0.0,
+              "provenance": "Synthetic engineering envelope; not calibrated history",
+              "scale": 0.25,
+              "unit": "fraction",
+              "upper": 0.25
+            },
+            {
+              "lower": 0.0,
+              "name": "source_derating",
+              "nominal": 0.0,
+              "provenance": "Synthetic engineering envelope; not calibrated history",
+              "scale": 0.25,
+              "unit": "fraction",
+              "upper": 0.25
+            }
+          ]
+        },
+        "model": {
+          "cop": 4.0,
+          "output_definitions": {
+            "delivery_margin": "delivered_heat - required_heat",
+            "required_heat": "base_heat_mw * (1 + demand_increase) + reserve_mw"
+          },
+          "requirement": {
+            "base_heat_mw": 6.0,
+            "reserve_mw": 0.0
+          }
+        },
+        "model_id": "heat_recovery_constant_cop_v1",
+        "numerical_policy": {
+          "absolute_tolerance": 1e-08
+        },
+        "operating": {
+          "feasibility_scope": "physical_constraints_only",
+          "observation": "all disturbances before controls",
+          "recourse": "fully_observed_static",
+          "recourse_policy": {
+            "mode": "static",
+            "rules": [
+              {
+                "control": "electrical_power",
+                "fixed_value": null,
+                "observes": [
+                  "source_derating",
+                  "demand_increase"
+                ],
+                "stage": "operation",
+                "unit": "MW"
+              }
+            ]
+          },
+          "requirement_refs": [
+            "heat_demand"
+          ],
+          "response": "maximize_delivered_heat"
+        },
+        "quantities": [
+          {
+            "axes": [],
+            "physical_kind": "dimensionless",
+            "quantity_id": "source_derating",
+            "role": "input",
+            "unit": "fraction"
+          },
+          {
+            "axes": [],
+            "physical_kind": "dimensionless",
+            "quantity_id": "demand_increase",
+            "role": "input",
+            "unit": "fraction"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "delivered_heat",
+            "role": "output",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "required_heat",
+            "role": "output",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "delivery_margin",
+            "role": "output",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "requirement_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "electrical_power",
+            "quantity_id": "electrical_power",
+            "role": "control",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "source_heat",
+            "role": "output",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "heat_balance_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "source_balance_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "electrical_power",
+            "quantity_id": "compressor_capacity_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "source_capacity_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "electrical_power",
+            "quantity_id": "power_nonnegative_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "source_nonnegative_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "heat_nonnegative_residual",
+            "role": "residual",
+            "unit": "MW"
+          }
+        ]
+      },
+      "evaluations": []
+    },
+    "contract_ref": {
+      "artifact_id": "sha256:88d40f6141ceab190b0c9737f29dfee929cff1c651dbf2a2e89ef84fde87a4af",
+      "digest": "88d40f6141ceab190b0c9737f29dfee929cff1c651dbf2a2e89ef84fde87a4af",
+      "schema_version": "process_contract/v1"
+    },
+    "diagnostics": [],
+    "evidence": [
+      {
+        "assumptions": [],
+        "backend": null,
+        "details": {
+          "comparison": "inclusive exact bounds",
+          "outside_coordinates": []
+        },
+        "evidence_id": "membership",
+        "measurements": [],
+        "method": "box_bounds",
+        "outcome": "verified",
+        "subject": "domain_membership",
+        "tolerances": []
+      },
+      {
+        "assumptions": [],
+        "backend": "SciPy 1.15.3 / HiGHS (linprog)",
+        "details": {
+          "message": "LP optimum agrees with the analytical global capacity bound",
+          "solver_status": "optimal"
+        },
+        "evidence_id": "solver",
+        "measurements": [
+          {
+            "name": "maximum_primal_residual",
+            "unit": "model_units",
+            "value": 0.0
+          },
+          {
+            "name": "reference_error",
+            "unit": "model_units",
+            "value": 0.0
+          }
+        ],
+        "method": "linear_program",
+        "outcome": "verified",
+        "subject": "operating_solve",
+        "tolerances": [
+          {
+            "name": "absolute_tolerance",
+            "unit": "model_units",
+            "value": 1e-08
+          }
+        ]
+      },
+      {
+        "assumptions": [
+          "constant COP > 1",
+          "nonnegative source and compressor capacities"
+        ],
+        "backend": null,
+        "details": {
+          "formula": "min(COP * power_capacity, COP/(COP-1) * source_capacity * (1-source_derating))"
+        },
+        "evidence_id": "capacity",
+        "measurements": [
+          {
+            "name": "upper_capacity",
+            "unit": "MW",
+            "value": 7.2
+          },
+          {
+            "name": "agreement_error",
+            "unit": "MW",
+            "value": 0.0
+          }
+        ],
+        "method": "analytical_capacity",
+        "outcome": "verified",
+        "subject": "global_response_bound",
+        "tolerances": [
+          {
+            "name": "absolute_tolerance",
+            "unit": "MW",
+            "value": 1e-08
+          }
+        ]
+      }
+    ],
+    "execution": "completed",
+    "kind": "evaluation",
+    "payload": {
+      "constraint_checks": [
+        {
+          "assessment": "satisfied",
+          "constraint_ref": "heat_balance",
+          "evidence_refs": [
+            "solver"
+          ],
+          "residual": {
+            "quantity_ref": "heat_balance_residual",
+            "value": 0.0
+          }
+        },
+        {
+          "assessment": "satisfied",
+          "constraint_ref": "source_balance",
+          "evidence_refs": [
+            "solver"
+          ],
+          "residual": {
+            "quantity_ref": "source_balance_residual",
+            "value": 0.0
+          }
+        },
+        {
+          "assessment": "satisfied",
+          "constraint_ref": "compressor_capacity",
+          "evidence_refs": [
+            "solver"
+          ],
+          "residual": {
+            "quantity_ref": "compressor_capacity_residual",
+            "value": -0.19999999999999996
+          }
+        },
+        {
+          "assessment": "satisfied",
+          "constraint_ref": "source_capacity",
+          "evidence_refs": [
+            "solver"
+          ],
+          "residual": {
+            "quantity_ref": "source_capacity_residual",
+            "value": 0.0
+          }
+        },
+        {
+          "assessment": "satisfied",
+          "constraint_ref": "power_nonnegative",
+          "evidence_refs": [
+            "solver"
+          ],
+          "residual": {
+            "quantity_ref": "power_nonnegative_residual",
+            "value": -1.8
+          }
+        },
+        {
+          "assessment": "satisfied",
+          "constraint_ref": "source_nonnegative",
+          "evidence_refs": [
+            "solver"
+          ],
+          "residual": {
+            "quantity_ref": "source_nonnegative_residual",
+            "value": -5.4
+          }
+        },
+        {
+          "assessment": "satisfied",
+          "constraint_ref": "heat_nonnegative",
+          "evidence_refs": [
+            "solver"
+          ],
+          "residual": {
+            "quantity_ref": "heat_nonnegative_residual",
+            "value": -7.2
+          }
+        },
+        {
+          "assessment": "satisfied",
+          "constraint_ref": "heat_demand",
+          "evidence_refs": [
+            "solver"
+          ],
+          "residual": {
+            "quantity_ref": "requirement_residual",
+            "value": -0.8999999999999995
+          }
+        }
+      ],
+      "feasibility": "feasible",
+      "included_constraints": [
+        "heat_balance",
+        "source_balance",
+        "compressor_capacity",
+        "source_capacity",
+        "power_nonnegative",
+        "source_nonnegative",
+        "heat_nonnegative"
+      ],
+      "membership": {
+        "domain_ref": "domain",
+        "evidence_refs": [
+          "membership"
+        ],
+        "status": "inside"
+      },
+      "objective": {
+        "attained_value": 7.2,
+        "attainment": "attained",
+        "lower": {
+          "evidence_refs": [
+            "solver"
+          ],
+          "state": "finite",
+          "unit": "MW",
+          "value": 7.2
+        },
+        "optimality": "verified",
+        "quantity_ref": "delivered_heat",
+        "sense": "maximize",
+        "upper": {
+          "evidence_refs": [
+            "capacity"
+          ],
+          "state": "finite",
+          "unit": "MW",
+          "value": 7.2
+        }
+      },
+      "values": [
+        {
+          "quantity_ref": "source_derating",
+          "value": 0.1
+        },
+        {
+          "quantity_ref": "demand_increase",
+          "value": 0.05
+        },
+        {
+          "quantity_ref": "required_heat",
+          "value": 6.300000000000001
+        },
+        {
+          "quantity_ref": "delivered_heat",
+          "value": 7.2
+        },
+        {
+          "quantity_ref": "electrical_power",
+          "value": 1.8
+        },
+        {
+          "quantity_ref": "source_heat",
+          "value": 5.4
+        },
+        {
+          "quantity_ref": "delivery_margin",
+          "value": 0.8999999999999995
+        },
+        {
+          "quantity_ref": "requirement_residual",
+          "value": -0.8999999999999995
+        }
+      ]
+    },
+    "request": {
+      "query": "evaluate",
+      "realization": {
+        "demand_increase": 0.05,
+        "source_derating": 0.1
+      }
+    },
+    "result_id": "sha256:12dec4c0729a7ff7a5e51da6234558ecd90d17ef729acaf36a3386e24778ebea",
+    "schema_version": "process_result/v1"
+  },
+  "frozen_heat": {
+    "claim": {
+      "cop": 4.0,
+      "design": {
+        "power_capacity_mw": 2.0,
+        "source_capacity_mw": 6.0
+      },
+      "name": "Meet heat demand throughout the declared operating envelope",
+      "recourse": "fully_observed_static",
+      "requirement": {
+        "base_heat_mw": 6.0,
+        "reserve_mw": 0.0
+      },
+      "tolerance": 1e-08,
+      "uncertainty": {
+        "parameters": [
+          {
+            "lower": 0.0,
+            "name": "demand_increase",
+            "nominal": 0.0,
+            "provenance": "Synthetic engineering envelope; not calibrated history",
+            "scale": 0.25,
+            "unit": "fraction",
+            "upper": 0.25
+          },
+          {
+            "lower": 0.0,
+            "name": "source_derating",
+            "nominal": 0.0,
+            "provenance": "Synthetic engineering envelope; not calibrated history",
+            "scale": 0.25,
+            "unit": "fraction",
+            "upper": 0.25
+          }
+        ]
+      }
+    },
+    "fingerprint": "917891b6a0a762cbf120ffd29e25dd8db395fce6a30ec5d36f063cbfe7126f81",
+    "model_id": "heat_recovery_constant_cop_v1",
+    "schema_version": 1
+  },
+  "robustness": {
+    "artifacts": {
+      "contract": {
+        "constraints": [
+          {
+            "constraint_id": "preparation_balance",
+            "expression": "E1 - retained_initial - eta_c * preparation_hours * preparation_charge",
+            "kind": "equation",
+            "relation": "eq",
+            "residual_ref": "preparation_balance_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "event_service",
+            "expression": "event_charge - event_discharge - recovered_heat + demand",
+            "kind": "requirement",
+            "relation": "eq",
+            "residual_ref": "event_service_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "event_state_balance",
+            "expression": "E2 - retention * E1 - eta_c * event_hours * event_charge + event_hours / eta_d * event_discharge",
+            "kind": "equation",
+            "relation": "eq",
+            "residual_ref": "event_state_balance_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "preparation_charge_lower",
+            "expression": "-preparation_charge",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "preparation_charge_lower_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "preparation_charge_upper",
+            "expression": "preparation_charge - charging_power_mw",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "preparation_charge_upper_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "prepared_energy_lower",
+            "expression": "-prepared_energy",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "prepared_energy_lower_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "prepared_energy_upper",
+            "expression": "prepared_energy - capacity_mwh",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "prepared_energy_upper_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "event_charge_lower",
+            "expression": "-event_charge",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "event_charge_lower_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "event_charge_upper",
+            "expression": "event_charge - charging_power_mw if recovered_heat >= demand else 0",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "event_charge_upper_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "event_discharge_lower",
+            "expression": "-event_discharge",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "event_discharge_lower_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "event_discharge_upper",
+            "expression": "event_discharge - discharging_power_mw if demand > recovered_heat else 0",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "event_discharge_upper_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "terminal_energy_lower",
+            "expression": "-terminal_energy",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "terminal_energy_lower_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "terminal_energy_upper",
+            "expression": "terminal_energy - capacity_mwh",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "terminal_energy_upper_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "terminal_min",
+            "expression": "terminal_min_mwh - E2",
+            "kind": "requirement",
+            "relation": "le",
+            "residual_ref": "terminal_min_residual",
+            "tolerance": 1e-08
+          }
+        ],
+        "design": {
+          "capacity_mwh": 1.0,
+          "charge_efficiency": 1.0,
+          "charging_power_mw": 1.0,
+          "discharge_efficiency": 1.0,
+          "discharging_power_mw": 1.0,
+          "loss_rate_per_hour": 0.0
+        },
+        "domain": {
+          "kind": "finite_set",
+          "scenarios": [
+            {
+              "name": "Demand surge",
+              "provenance": "Synthetic one-hour demand event",
+              "values": {
+                "demand": 1.0,
+                "recovered_heat": 0.0
+              }
+            },
+            {
+              "name": "Heat surplus",
+              "provenance": "Synthetic one-hour mandatory heat-recovery event",
+              "values": {
+                "demand": 0.0,
+                "recovered_heat": 1.0
+              }
+            }
+          ],
+          "space": {
+            "coordinates": [
+              {
+                "axis": null,
+                "label": null,
+                "name": "demand",
+                "nominal": null,
+                "parameter": null,
+                "provenance": "Event-period thermal power; period duration is in the model contract",
+                "scale": null,
+                "unit": "MW"
+              },
+              {
+                "axis": null,
+                "label": null,
+                "name": "recovered_heat",
+                "nominal": null,
+                "parameter": null,
+                "provenance": "Event-period thermal power; period duration is in the model contract",
+                "scale": null,
+                "unit": "MW"
+              }
+            ]
+          }
+        },
+        "model": {
+          "event_hours": 1.0,
+          "heat_dumping": false,
+          "interval_outputs": "analytical projection of each future's feasible preparation states, including reachability and terminal requirements",
+          "preparation_hours": 1.0,
+          "requirement": {
+            "initial_energy_mwh": 0.0,
+            "terminal_max_mwh": null,
+            "terminal_min_mwh": 0.0
+          },
+          "retention": "1 - loss_rate_per_hour * period_hours",
+          "simultaneous_charge_discharge": false
+        },
+        "model_id": "thermal_storage_two_period_v1",
+        "numerical_policy": {
+          "absolute_tolerance": 1e-08
+        },
+        "operating": {
+          "event_observation": "full event identity",
+          "feasibility_scope": "model_and_requirements",
+          "fixed_preparation_power_mw": null,
+          "mode": "causal",
+          "nodes": [
+            {
+              "id": "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde",
+              "observation": "unrevealed"
+            }
+          ],
+          "objective": "minimize sum of preparation_charge once per information node",
+          "preparation_node_by_event": {
+            "Demand surge": "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde",
+            "Heat surplus": "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde"
+          },
+          "recourse_policy": {
+            "mode": "causal",
+            "rules": [
+              {
+                "control": "preparation_charge",
+                "fixed_value": null,
+                "observes": [
+                  "preparation_observation"
+                ],
+                "stage": "preparation",
+                "unit": "MW"
+              },
+              {
+                "control": "event_charge",
+                "fixed_value": null,
+                "observes": [
+                  "preparation_observation",
+                  "event_identity"
+                ],
+                "stage": "event",
+                "unit": "MW"
+              },
+              {
+                "control": "event_discharge",
+                "fixed_value": null,
+                "observes": [
+                  "preparation_observation",
+                  "event_identity"
+                ],
+                "stage": "event",
+                "unit": "MW"
+              }
+            ]
+          },
+          "requirement_refs": [
+            "event_service",
+            "terminal_min"
+          ]
+        },
+        "quantities": [
+          {
+            "axes": [
+              {
+                "axis_id": "event",
+                "coordinates": [
+                  "Demand surge",
+                  "Heat surplus"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_power",
+            "quantity_id": "demand",
+            "role": "input",
+            "unit": "MW"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "event",
+                "coordinates": [
+                  "Demand surge",
+                  "Heat surplus"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_power",
+            "quantity_id": "recovered_heat",
+            "role": "input",
+            "unit": "MW"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "preparation_node",
+                "coordinates": [
+                  "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_power",
+            "quantity_id": "preparation_charge",
+            "role": "control",
+            "unit": "MW"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "preparation_node",
+                "coordinates": [
+                  "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_energy",
+            "quantity_id": "prepared_energy",
+            "role": "state",
+            "unit": "MWh"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "event",
+                "coordinates": [
+                  "Demand surge",
+                  "Heat surplus"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_power",
+            "quantity_id": "event_charge",
+            "role": "control",
+            "unit": "MW"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "event",
+                "coordinates": [
+                  "Demand surge",
+                  "Heat surplus"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_power",
+            "quantity_id": "event_discharge",
+            "role": "control",
+            "unit": "MW"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "event",
+                "coordinates": [
+                  "Demand surge",
+                  "Heat surplus"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_energy",
+            "quantity_id": "terminal_energy",
+            "role": "state",
+            "unit": "MWh"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "event",
+                "coordinates": [
+                  "Demand surge",
+                  "Heat surplus"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_energy",
+            "quantity_id": "preparation_interval_min",
+            "role": "output",
+            "unit": "MWh"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "event",
+                "coordinates": [
+                  "Demand surge",
+                  "Heat surplus"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_energy",
+            "quantity_id": "preparation_interval_max",
+            "role": "output",
+            "unit": "MWh"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "total_preparation_charge",
+            "role": "output",
+            "unit": "MW"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "preparation_node",
+                "coordinates": [
+                  "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_energy",
+            "quantity_id": "preparation_balance_residual",
+            "role": "residual",
+            "unit": "MWh"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "event",
+                "coordinates": [
+                  "Demand surge",
+                  "Heat surplus"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_power",
+            "quantity_id": "event_service_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "event",
+                "coordinates": [
+                  "Demand surge",
+                  "Heat surplus"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_energy",
+            "quantity_id": "event_state_balance_residual",
+            "role": "residual",
+            "unit": "MWh"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "preparation_node",
+                "coordinates": [
+                  "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_power",
+            "quantity_id": "preparation_charge_lower_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "preparation_node",
+                "coordinates": [
+                  "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_power",
+            "quantity_id": "preparation_charge_upper_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "preparation_node",
+                "coordinates": [
+                  "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_energy",
+            "quantity_id": "prepared_energy_lower_residual",
+            "role": "residual",
+            "unit": "MWh"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "preparation_node",
+                "coordinates": [
+                  "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_energy",
+            "quantity_id": "prepared_energy_upper_residual",
+            "role": "residual",
+            "unit": "MWh"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "event",
+                "coordinates": [
+                  "Demand surge",
+                  "Heat surplus"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_power",
+            "quantity_id": "event_charge_lower_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "event",
+                "coordinates": [
+                  "Demand surge",
+                  "Heat surplus"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_power",
+            "quantity_id": "event_charge_upper_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "event",
+                "coordinates": [
+                  "Demand surge",
+                  "Heat surplus"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_power",
+            "quantity_id": "event_discharge_lower_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "event",
+                "coordinates": [
+                  "Demand surge",
+                  "Heat surplus"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_power",
+            "quantity_id": "event_discharge_upper_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "event",
+                "coordinates": [
+                  "Demand surge",
+                  "Heat surplus"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_energy",
+            "quantity_id": "terminal_energy_lower_residual",
+            "role": "residual",
+            "unit": "MWh"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "event",
+                "coordinates": [
+                  "Demand surge",
+                  "Heat surplus"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_energy",
+            "quantity_id": "terminal_energy_upper_residual",
+            "role": "residual",
+            "unit": "MWh"
+          },
+          {
+            "axes": [
+              {
+                "axis_id": "event",
+                "coordinates": [
+                  "Demand surge",
+                  "Heat surplus"
+                ]
+              }
+            ],
+            "physical_kind": "thermal_energy",
+            "quantity_id": "terminal_min_residual",
+            "role": "residual",
+            "unit": "MWh"
+          }
+        ]
+      },
+      "evaluations": [
+        {
+          "artifacts": {
+            "contract": {
+              "constraints": [
+                {
+                  "constraint_id": "preparation_balance",
+                  "expression": "E1 - retained_initial - eta_c * preparation_hours * preparation_charge",
+                  "kind": "equation",
+                  "relation": "eq",
+                  "residual_ref": "preparation_balance_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "event_service",
+                  "expression": "event_charge - event_discharge - recovered_heat + demand",
+                  "kind": "requirement",
+                  "relation": "eq",
+                  "residual_ref": "event_service_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "event_state_balance",
+                  "expression": "E2 - retention * E1 - eta_c * event_hours * event_charge + event_hours / eta_d * event_discharge",
+                  "kind": "equation",
+                  "relation": "eq",
+                  "residual_ref": "event_state_balance_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "preparation_charge_lower",
+                  "expression": "-preparation_charge",
+                  "kind": "operating_limit",
+                  "relation": "le",
+                  "residual_ref": "preparation_charge_lower_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "preparation_charge_upper",
+                  "expression": "preparation_charge - charging_power_mw",
+                  "kind": "operating_limit",
+                  "relation": "le",
+                  "residual_ref": "preparation_charge_upper_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "prepared_energy_lower",
+                  "expression": "-prepared_energy",
+                  "kind": "operating_limit",
+                  "relation": "le",
+                  "residual_ref": "prepared_energy_lower_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "prepared_energy_upper",
+                  "expression": "prepared_energy - capacity_mwh",
+                  "kind": "operating_limit",
+                  "relation": "le",
+                  "residual_ref": "prepared_energy_upper_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "event_charge_lower",
+                  "expression": "-event_charge",
+                  "kind": "operating_limit",
+                  "relation": "le",
+                  "residual_ref": "event_charge_lower_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "event_charge_upper",
+                  "expression": "event_charge - charging_power_mw if recovered_heat >= demand else 0",
+                  "kind": "operating_limit",
+                  "relation": "le",
+                  "residual_ref": "event_charge_upper_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "event_discharge_lower",
+                  "expression": "-event_discharge",
+                  "kind": "operating_limit",
+                  "relation": "le",
+                  "residual_ref": "event_discharge_lower_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "event_discharge_upper",
+                  "expression": "event_discharge - discharging_power_mw if demand > recovered_heat else 0",
+                  "kind": "operating_limit",
+                  "relation": "le",
+                  "residual_ref": "event_discharge_upper_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "terminal_energy_lower",
+                  "expression": "-terminal_energy",
+                  "kind": "operating_limit",
+                  "relation": "le",
+                  "residual_ref": "terminal_energy_lower_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "terminal_energy_upper",
+                  "expression": "terminal_energy - capacity_mwh",
+                  "kind": "operating_limit",
+                  "relation": "le",
+                  "residual_ref": "terminal_energy_upper_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "terminal_min",
+                  "expression": "terminal_min_mwh - E2",
+                  "kind": "requirement",
+                  "relation": "le",
+                  "residual_ref": "terminal_min_residual",
+                  "tolerance": 1e-08
+                }
+              ],
+              "design": {
+                "capacity_mwh": 1.0,
+                "charge_efficiency": 1.0,
+                "charging_power_mw": 1.0,
+                "discharge_efficiency": 1.0,
+                "discharging_power_mw": 1.0,
+                "loss_rate_per_hour": 0.0
+              },
+              "domain": {
+                "kind": "finite_set",
+                "scenarios": [
+                  {
+                    "name": "Demand surge",
+                    "provenance": "Synthetic one-hour demand event",
+                    "values": {
+                      "demand": 1.0,
+                      "recovered_heat": 0.0
+                    }
+                  },
+                  {
+                    "name": "Heat surplus",
+                    "provenance": "Synthetic one-hour mandatory heat-recovery event",
+                    "values": {
+                      "demand": 0.0,
+                      "recovered_heat": 1.0
+                    }
+                  }
+                ],
+                "space": {
+                  "coordinates": [
+                    {
+                      "axis": null,
+                      "label": null,
+                      "name": "demand",
+                      "nominal": null,
+                      "parameter": null,
+                      "provenance": "Event-period thermal power; period duration is in the model contract",
+                      "scale": null,
+                      "unit": "MW"
+                    },
+                    {
+                      "axis": null,
+                      "label": null,
+                      "name": "recovered_heat",
+                      "nominal": null,
+                      "parameter": null,
+                      "provenance": "Event-period thermal power; period duration is in the model contract",
+                      "scale": null,
+                      "unit": "MW"
+                    }
+                  ]
+                }
+              },
+              "model": {
+                "event_hours": 1.0,
+                "heat_dumping": false,
+                "interval_outputs": "analytical projection of each future's feasible preparation states, including reachability and terminal requirements",
+                "preparation_hours": 1.0,
+                "requirement": {
+                  "initial_energy_mwh": 0.0,
+                  "terminal_max_mwh": null,
+                  "terminal_min_mwh": 0.0
+                },
+                "retention": "1 - loss_rate_per_hour * period_hours",
+                "simultaneous_charge_discharge": false
+              },
+              "model_id": "thermal_storage_two_period_v1",
+              "numerical_policy": {
+                "absolute_tolerance": 1e-08
+              },
+              "operating": {
+                "event_observation": "full event identity",
+                "feasibility_scope": "model_and_requirements",
+                "fixed_preparation_power_mw": null,
+                "mode": "causal",
+                "nodes": [
+                  {
+                    "id": "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde",
+                    "observation": "unrevealed"
+                  }
+                ],
+                "objective": "minimize sum of preparation_charge once per information node",
+                "preparation_node_by_event": {
+                  "Demand surge": "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde",
+                  "Heat surplus": "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde"
+                },
+                "recourse_policy": {
+                  "mode": "causal",
+                  "rules": [
+                    {
+                      "control": "preparation_charge",
+                      "fixed_value": null,
+                      "observes": [
+                        "preparation_observation"
+                      ],
+                      "stage": "preparation",
+                      "unit": "MW"
+                    },
+                    {
+                      "control": "event_charge",
+                      "fixed_value": null,
+                      "observes": [
+                        "preparation_observation",
+                        "event_identity"
+                      ],
+                      "stage": "event",
+                      "unit": "MW"
+                    },
+                    {
+                      "control": "event_discharge",
+                      "fixed_value": null,
+                      "observes": [
+                        "preparation_observation",
+                        "event_identity"
+                      ],
+                      "stage": "event",
+                      "unit": "MW"
+                    }
+                  ]
+                },
+                "requirement_refs": [
+                  "event_service",
+                  "terminal_min"
+                ]
+              },
+              "quantities": [
+                {
+                  "axes": [
+                    {
+                      "axis_id": "event",
+                      "coordinates": [
+                        "Demand surge",
+                        "Heat surplus"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "demand",
+                  "role": "input",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "event",
+                      "coordinates": [
+                        "Demand surge",
+                        "Heat surplus"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "recovered_heat",
+                  "role": "input",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "preparation_node",
+                      "coordinates": [
+                        "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "preparation_charge",
+                  "role": "control",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "preparation_node",
+                      "coordinates": [
+                        "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_energy",
+                  "quantity_id": "prepared_energy",
+                  "role": "state",
+                  "unit": "MWh"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "event",
+                      "coordinates": [
+                        "Demand surge",
+                        "Heat surplus"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "event_charge",
+                  "role": "control",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "event",
+                      "coordinates": [
+                        "Demand surge",
+                        "Heat surplus"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "event_discharge",
+                  "role": "control",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "event",
+                      "coordinates": [
+                        "Demand surge",
+                        "Heat surplus"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_energy",
+                  "quantity_id": "terminal_energy",
+                  "role": "state",
+                  "unit": "MWh"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "event",
+                      "coordinates": [
+                        "Demand surge",
+                        "Heat surplus"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_energy",
+                  "quantity_id": "preparation_interval_min",
+                  "role": "output",
+                  "unit": "MWh"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "event",
+                      "coordinates": [
+                        "Demand surge",
+                        "Heat surplus"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_energy",
+                  "quantity_id": "preparation_interval_max",
+                  "role": "output",
+                  "unit": "MWh"
+                },
+                {
+                  "axes": [],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "total_preparation_charge",
+                  "role": "output",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "preparation_node",
+                      "coordinates": [
+                        "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_energy",
+                  "quantity_id": "preparation_balance_residual",
+                  "role": "residual",
+                  "unit": "MWh"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "event",
+                      "coordinates": [
+                        "Demand surge",
+                        "Heat surplus"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "event_service_residual",
+                  "role": "residual",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "event",
+                      "coordinates": [
+                        "Demand surge",
+                        "Heat surplus"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_energy",
+                  "quantity_id": "event_state_balance_residual",
+                  "role": "residual",
+                  "unit": "MWh"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "preparation_node",
+                      "coordinates": [
+                        "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "preparation_charge_lower_residual",
+                  "role": "residual",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "preparation_node",
+                      "coordinates": [
+                        "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "preparation_charge_upper_residual",
+                  "role": "residual",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "preparation_node",
+                      "coordinates": [
+                        "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_energy",
+                  "quantity_id": "prepared_energy_lower_residual",
+                  "role": "residual",
+                  "unit": "MWh"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "preparation_node",
+                      "coordinates": [
+                        "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_energy",
+                  "quantity_id": "prepared_energy_upper_residual",
+                  "role": "residual",
+                  "unit": "MWh"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "event",
+                      "coordinates": [
+                        "Demand surge",
+                        "Heat surplus"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "event_charge_lower_residual",
+                  "role": "residual",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "event",
+                      "coordinates": [
+                        "Demand surge",
+                        "Heat surplus"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "event_charge_upper_residual",
+                  "role": "residual",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "event",
+                      "coordinates": [
+                        "Demand surge",
+                        "Heat surplus"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "event_discharge_lower_residual",
+                  "role": "residual",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "event",
+                      "coordinates": [
+                        "Demand surge",
+                        "Heat surplus"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "event_discharge_upper_residual",
+                  "role": "residual",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "event",
+                      "coordinates": [
+                        "Demand surge",
+                        "Heat surplus"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_energy",
+                  "quantity_id": "terminal_energy_lower_residual",
+                  "role": "residual",
+                  "unit": "MWh"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "event",
+                      "coordinates": [
+                        "Demand surge",
+                        "Heat surplus"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_energy",
+                  "quantity_id": "terminal_energy_upper_residual",
+                  "role": "residual",
+                  "unit": "MWh"
+                },
+                {
+                  "axes": [
+                    {
+                      "axis_id": "event",
+                      "coordinates": [
+                        "Demand surge",
+                        "Heat surplus"
+                      ]
+                    }
+                  ],
+                  "physical_kind": "thermal_energy",
+                  "quantity_id": "terminal_min_residual",
+                  "role": "residual",
+                  "unit": "MWh"
+                }
+              ]
+            },
+            "evaluations": []
+          },
+          "contract_ref": {
+            "artifact_id": "sha256:f00c1c1485c2c86f85daf1749f1948dafe85146cde060a7c33d62b7bfb7e6897",
+            "digest": "f00c1c1485c2c86f85daf1749f1948dafe85146cde060a7c33d62b7bfb7e6897",
+            "schema_version": "process_contract/v1"
+          },
+          "diagnostics": [],
+          "evidence": [
+            {
+              "assumptions": [],
+              "backend": "SciPy 1.15.3 / HiGHS (linprog)",
+              "details": {
+                "message": "LP infeasibility agrees with the analytical preparation-state certificate",
+                "solver_status": "infeasible"
+              },
+              "evidence_id": "solver",
+              "measurements": [],
+              "method": "linear_program",
+              "outcome": "verified",
+              "subject": "operating_solve",
+              "tolerances": [
+                {
+                  "name": "absolute_tolerance",
+                  "unit": "model_units",
+                  "value": 1e-08
+                }
+              ]
+            },
+            {
+              "assumptions": [],
+              "backend": null,
+              "details": {
+                "events": [
+                  "Demand surge",
+                  "Heat surplus"
+                ]
+              },
+              "evidence_id": "membership",
+              "measurements": [],
+              "method": "declared_finite_tree",
+              "outcome": "verified",
+              "subject": "domain_membership",
+              "tolerances": []
+            },
+            {
+              "assumptions": [],
+              "backend": null,
+              "details": {
+                "intervals": [
+                  {
+                    "maximum_mwh": 1.0,
+                    "minimum_mwh": 1.0,
+                    "power_violations": [],
+                    "scenario": "Demand surge"
+                  },
+                  {
+                    "maximum_mwh": 0.0,
+                    "minimum_mwh": 0.0,
+                    "power_violations": [],
+                    "scenario": "Heat surplus"
+                  }
+                ],
+                "scope": "individual future projections; their existence does not imply a shared causal policy"
+              },
+              "evidence_id": "intervals",
+              "measurements": [],
+              "method": "analytical_interval",
+              "outcome": "verified",
+              "subject": "feasible_preparation_projection",
+              "tolerances": []
+            },
+            {
+              "assumptions": [],
+              "backend": null,
+              "details": {
+                "certificate": {
+                  "explanation": "Under preparation observation 'unrevealed', Demand surge needs at least 1 MWh stored, while Heat surplus permits at most 0 MWh. Both futures are individually feasible, but no shared preparation decision satisfies both. The two-future witness is minimal because either future alone admits an operating plan.",
+                  "gap_mwh": 1.0,
+                  "kind": "conflicting_futures",
+                  "maximum_prepared_energy_mwh": 0.0,
+                  "minimum_cardinality": true,
+                  "minimum_prepared_energy_mwh": 1.0,
+                  "preparation_information": "unrevealed",
+                  "scenarios": [
+                    "Demand surge",
+                    "Heat surplus"
+                  ]
+                },
+                "scope": "no operating policy satisfies model AND requirements under the declared information permissions"
+              },
+              "evidence_id": "recourse",
+              "measurements": [],
+              "method": "analytical_preparation_conflict",
+              "outcome": "verified",
+              "subject": "recourse_infeasibility",
+              "tolerances": []
+            }
+          ],
+          "execution": "completed",
+          "kind": "evaluation",
+          "payload": {
+            "constraint_checks": [
+              {
+                "assessment": "unknown",
+                "constraint_ref": "preparation_balance",
+                "evidence_refs": [],
+                "residual": null
+              },
+              {
+                "assessment": "unknown",
+                "constraint_ref": "event_service",
+                "evidence_refs": [],
+                "residual": null
+              },
+              {
+                "assessment": "unknown",
+                "constraint_ref": "event_state_balance",
+                "evidence_refs": [],
+                "residual": null
+              },
+              {
+                "assessment": "unknown",
+                "constraint_ref": "preparation_charge_lower",
+                "evidence_refs": [],
+                "residual": null
+              },
+              {
+                "assessment": "unknown",
+                "constraint_ref": "preparation_charge_upper",
+                "evidence_refs": [],
+                "residual": null
+              },
+              {
+                "assessment": "unknown",
+                "constraint_ref": "prepared_energy_lower",
+                "evidence_refs": [],
+                "residual": null
+              },
+              {
+                "assessment": "unknown",
+                "constraint_ref": "prepared_energy_upper",
+                "evidence_refs": [],
+                "residual": null
+              },
+              {
+                "assessment": "unknown",
+                "constraint_ref": "event_charge_lower",
+                "evidence_refs": [],
+                "residual": null
+              },
+              {
+                "assessment": "unknown",
+                "constraint_ref": "event_charge_upper",
+                "evidence_refs": [],
+                "residual": null
+              },
+              {
+                "assessment": "unknown",
+                "constraint_ref": "event_discharge_lower",
+                "evidence_refs": [],
+                "residual": null
+              },
+              {
+                "assessment": "unknown",
+                "constraint_ref": "event_discharge_upper",
+                "evidence_refs": [],
+                "residual": null
+              },
+              {
+                "assessment": "unknown",
+                "constraint_ref": "terminal_energy_lower",
+                "evidence_refs": [],
+                "residual": null
+              },
+              {
+                "assessment": "unknown",
+                "constraint_ref": "terminal_energy_upper",
+                "evidence_refs": [],
+                "residual": null
+              },
+              {
+                "assessment": "unknown",
+                "constraint_ref": "terminal_min",
+                "evidence_refs": [],
+                "residual": null
+              }
+            ],
+            "feasibility": "infeasible",
+            "included_constraints": [
+              "preparation_balance",
+              "event_service",
+              "event_state_balance",
+              "preparation_charge_lower",
+              "preparation_charge_upper",
+              "prepared_energy_lower",
+              "prepared_energy_upper",
+              "event_charge_lower",
+              "event_charge_upper",
+              "event_discharge_lower",
+              "event_discharge_upper",
+              "terminal_energy_lower",
+              "terminal_energy_upper",
+              "terminal_min"
+            ],
+            "membership": {
+              "domain_ref": "domain",
+              "evidence_refs": [
+                "membership"
+              ],
+              "status": "inside"
+            },
+            "objective": null,
+            "values": [
+              {
+                "quantity_ref": "demand",
+                "value": [
+                  1.0,
+                  0.0
+                ]
+              },
+              {
+                "quantity_ref": "recovered_heat",
+                "value": [
+                  0.0,
+                  1.0
+                ]
+              },
+              {
+                "quantity_ref": "preparation_interval_min",
+                "value": [
+                  1.0,
+                  0.0
+                ]
+              },
+              {
+                "quantity_ref": "preparation_interval_max",
+                "value": [
+                  1.0,
+                  0.0
+                ]
+              }
+            ]
+          },
+          "request": {
+            "fixed_preparation_power_mw": null,
+            "mode": "causal",
+            "query": "evaluate_tree"
+          },
+          "result_id": "sha256:c557ff30e420cc37046d2cd96b4f72ef2f6f6d1c77d42b8d27f004ef412488c0",
+          "schema_version": "process_result/v1"
+        }
+      ]
+    },
+    "contract_ref": {
+      "artifact_id": "sha256:f00c1c1485c2c86f85daf1749f1948dafe85146cde060a7c33d62b7bfb7e6897",
+      "digest": "f00c1c1485c2c86f85daf1749f1948dafe85146cde060a7c33d62b7bfb7e6897",
+      "schema_version": "process_contract/v1"
+    },
+    "diagnostics": [],
+    "evidence": [
+      {
+        "assumptions": [],
+        "backend": null,
+        "details": {
+          "events": [
+            "Demand surge",
+            "Heat surplus"
+          ],
+          "shared_policy_evaluation": {
+            "artifact_id": "sha256:c557ff30e420cc37046d2cd96b4f72ef2f6f6d1c77d42b8d27f004ef412488c0",
+            "digest": "c557ff30e420cc37046d2cd96b4f72ef2f6f6d1c77d42b8d27f004ef412488c0",
+            "schema_version": "process_result/v1"
+          }
+        },
+        "evidence_id": "coverage",
+        "measurements": [],
+        "method": "complete_finite_tree",
+        "outcome": "verified",
+        "subject": "domain_coverage",
+        "tolerances": []
+      },
+      {
+        "assumptions": [],
+        "backend": null,
+        "details": {
+          "events": [
+            "Demand surge",
+            "Heat surplus"
+          ]
+        },
+        "evidence_id": "membership",
+        "measurements": [],
+        "method": "declared_finite_tree",
+        "outcome": "verified",
+        "subject": "domain_membership",
+        "tolerances": []
+      },
+      {
+        "assumptions": [],
+        "backend": null,
+        "details": {
+          "certificate": {
+            "explanation": "Under preparation observation 'unrevealed', Demand surge needs at least 1 MWh stored, while Heat surplus permits at most 0 MWh. Both futures are individually feasible, but no shared preparation decision satisfies both. The two-future witness is minimal because either future alone admits an operating plan.",
+            "gap_mwh": 1.0,
+            "kind": "conflicting_futures",
+            "maximum_prepared_energy_mwh": 0.0,
+            "minimum_cardinality": true,
+            "minimum_prepared_energy_mwh": 1.0,
+            "preparation_information": "unrevealed",
+            "scenarios": [
+              "Demand surge",
+              "Heat surplus"
+            ]
+          },
+          "scope": "no operating policy satisfies model AND requirements under the declared information permissions"
+        },
+        "evidence_id": "recourse",
+        "measurements": [],
+        "method": "analytical_preparation_conflict",
+        "outcome": "verified",
+        "subject": "recourse_infeasibility",
+        "tolerances": []
+      },
+      {
+        "assumptions": [],
+        "backend": null,
+        "details": {
+          "count": 2,
+          "minimal": true,
+          "reason": "single-future checks precede pair conflicts; intervals in one dimension have a two-member empty-intersection certificate"
+        },
+        "evidence_id": "cardinality",
+        "measurements": [],
+        "method": "one_dimensional_interval_intersection",
+        "outcome": "verified",
+        "subject": "witness_cardinality",
+        "tolerances": []
+      }
+    ],
+    "execution": "completed",
+    "kind": "robustness",
+    "payload": {
+      "coverage": {
+        "domain_ref": "domain",
+        "evaluated_support": {
+          "tree": "all declared futures compiled jointly"
+        },
+        "evidence_refs": [
+          "coverage"
+        ],
+        "method": "complete_finite",
+        "unexplored_support": {}
+      },
+      "evaluation_refs": [
+        {
+          "artifact_id": "sha256:c557ff30e420cc37046d2cd96b4f72ef2f6f6d1c77d42b8d27f004ef412488c0",
+          "digest": "c557ff30e420cc37046d2cd96b4f72ef2f6f6d1c77d42b8d27f004ef412488c0",
+          "schema_version": "process_result/v1"
+        }
+      ],
+      "search": null,
+      "verdict": "fail",
+      "witness": {
+        "affected_constraints": [
+          "preparation_balance",
+          "event_service",
+          "event_state_balance",
+          "preparation_charge_lower",
+          "preparation_charge_upper",
+          "prepared_energy_lower",
+          "prepared_energy_upper",
+          "event_charge_lower",
+          "event_charge_upper",
+          "event_discharge_lower",
+          "event_discharge_upper",
+          "terminal_energy_lower",
+          "terminal_energy_upper",
+          "terminal_min"
+        ],
+        "cardinality": {
+          "criterion": "scenario_count",
+          "lower": {
+            "evidence_refs": [
+              "cardinality"
+            ],
+            "state": "finite",
+            "unit": "count",
+            "value": 2.0
+          },
+          "upper": {
+            "evidence_refs": [
+              "cardinality"
+            ],
+            "state": "finite",
+            "unit": "count",
+            "value": 2.0
+          }
+        },
+        "details": {
+          "certificate": {
+            "explanation": "Under preparation observation 'unrevealed', Demand surge needs at least 1 MWh stored, while Heat surplus permits at most 0 MWh. Both futures are individually feasible, but no shared preparation decision satisfies both. The two-future witness is minimal because either future alone admits an operating plan.",
+            "gap_mwh": 1.0,
+            "kind": "conflicting_futures",
+            "maximum_prepared_energy_mwh": 0.0,
+            "minimum_cardinality": true,
+            "minimum_prepared_energy_mwh": 1.0,
+            "preparation_information": "unrevealed",
+            "scenarios": [
+              "Demand surge",
+              "Heat surplus"
+            ]
+          },
+          "scope": "model and requirements under declared operating contract"
+        },
+        "kind": "incompatible_futures",
+        "membership_evidence_refs": [
+          "membership"
+        ],
+        "realizations": [
+          {
+            "demand_mw": 1.0,
+            "name": "Demand surge",
+            "provenance": "Synthetic one-hour demand event",
+            "recovered_heat_mw": 0.0
+          },
+          {
+            "demand_mw": 0.0,
+            "name": "Heat surplus",
+            "provenance": "Synthetic one-hour mandatory heat-recovery event",
+            "recovered_heat_mw": 1.0
+          }
+        ],
+        "recourse_evidence_refs": [
+          "recourse"
+        ],
+        "shared_information_node": "preparation:d3d1a8e253461575dd42a23fdbb87a714edf8c29fb5efb9f7de9519d8f8f9dde"
+      }
+    },
+    "request": {
+      "fixed_preparation_power_mw": null,
+      "mode": "causal",
+      "query": "audit"
+    },
+    "result_id": "sha256:b8ae104c8b933bba9050a64c32047b0b94f2c5de6dc02c6f122fc6ac8482a66a",
+    "schema_version": "process_result/v1"
+  },
+  "sensitivity": {
+    "artifacts": {
+      "contract": {
+        "constraints": [
+          {
+            "constraint_id": "heat_balance",
+            "expression": "q - COP * p",
+            "kind": "equation",
+            "relation": "eq",
+            "residual_ref": "heat_balance_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "source_balance",
+            "expression": "s - (COP - 1) * p",
+            "kind": "equation",
+            "relation": "eq",
+            "residual_ref": "source_balance_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "compressor_capacity",
+            "expression": "p - power_capacity_mw",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "compressor_capacity_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "source_capacity",
+            "expression": "s - source_capacity_mw * (1 - source_derating)",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "source_capacity_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "power_nonnegative",
+            "expression": "-p",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "power_nonnegative_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "source_nonnegative",
+            "expression": "-s",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "source_nonnegative_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "heat_nonnegative",
+            "expression": "-q",
+            "kind": "operating_limit",
+            "relation": "le",
+            "residual_ref": "heat_nonnegative_residual",
+            "tolerance": 1e-08
+          },
+          {
+            "constraint_id": "heat_demand",
+            "expression": "required_heat - delivered_heat",
+            "kind": "requirement",
+            "relation": "le",
+            "residual_ref": "requirement_residual",
+            "tolerance": 1e-08
+          }
+        ],
+        "design": {
+          "power_capacity_mw": 2.0,
+          "source_capacity_mw": 6.0
+        },
+        "domain": {
+          "kind": "box",
+          "parameters": [
+            {
+              "lower": 0.0,
+              "name": "demand_increase",
+              "nominal": 0.0,
+              "provenance": "Synthetic engineering envelope; not calibrated history",
+              "scale": 0.25,
+              "unit": "fraction",
+              "upper": 0.25
+            },
+            {
+              "lower": 0.0,
+              "name": "source_derating",
+              "nominal": 0.0,
+              "provenance": "Synthetic engineering envelope; not calibrated history",
+              "scale": 0.25,
+              "unit": "fraction",
+              "upper": 0.25
+            }
+          ]
+        },
+        "model": {
+          "cop": 4.0,
+          "output_definitions": {
+            "delivery_margin": "delivered_heat - required_heat",
+            "required_heat": "base_heat_mw * (1 + demand_increase) + reserve_mw"
+          },
+          "requirement": {
+            "base_heat_mw": 6.0,
+            "reserve_mw": 0.0
+          }
+        },
+        "model_id": "heat_recovery_constant_cop_v1",
+        "numerical_policy": {
+          "absolute_tolerance": 1e-08
+        },
+        "operating": {
+          "feasibility_scope": "physical_constraints_only",
+          "observation": "all disturbances before controls",
+          "recourse": "fully_observed_static",
+          "recourse_policy": {
+            "mode": "static",
+            "rules": [
+              {
+                "control": "electrical_power",
+                "fixed_value": null,
+                "observes": [
+                  "source_derating",
+                  "demand_increase"
+                ],
+                "stage": "operation",
+                "unit": "MW"
+              }
+            ]
+          },
+          "requirement_refs": [
+            "heat_demand"
+          ],
+          "response": "maximize_delivered_heat"
+        },
+        "quantities": [
+          {
+            "axes": [],
+            "physical_kind": "dimensionless",
+            "quantity_id": "source_derating",
+            "role": "input",
+            "unit": "fraction"
+          },
+          {
+            "axes": [],
+            "physical_kind": "dimensionless",
+            "quantity_id": "demand_increase",
+            "role": "input",
+            "unit": "fraction"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "delivered_heat",
+            "role": "output",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "required_heat",
+            "role": "output",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "delivery_margin",
+            "role": "output",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "requirement_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "electrical_power",
+            "quantity_id": "electrical_power",
+            "role": "control",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "source_heat",
+            "role": "output",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "heat_balance_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "source_balance_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "electrical_power",
+            "quantity_id": "compressor_capacity_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "source_capacity_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "electrical_power",
+            "quantity_id": "power_nonnegative_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "source_nonnegative_residual",
+            "role": "residual",
+            "unit": "MW"
+          },
+          {
+            "axes": [],
+            "physical_kind": "thermal_power",
+            "quantity_id": "heat_nonnegative_residual",
+            "role": "residual",
+            "unit": "MW"
+          }
+        ]
+      },
+      "evaluations": [
+        {
+          "artifacts": {
+            "contract": {
+              "constraints": [
+                {
+                  "constraint_id": "heat_balance",
+                  "expression": "q - COP * p",
+                  "kind": "equation",
+                  "relation": "eq",
+                  "residual_ref": "heat_balance_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "source_balance",
+                  "expression": "s - (COP - 1) * p",
+                  "kind": "equation",
+                  "relation": "eq",
+                  "residual_ref": "source_balance_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "compressor_capacity",
+                  "expression": "p - power_capacity_mw",
+                  "kind": "operating_limit",
+                  "relation": "le",
+                  "residual_ref": "compressor_capacity_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "source_capacity",
+                  "expression": "s - source_capacity_mw * (1 - source_derating)",
+                  "kind": "operating_limit",
+                  "relation": "le",
+                  "residual_ref": "source_capacity_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "power_nonnegative",
+                  "expression": "-p",
+                  "kind": "operating_limit",
+                  "relation": "le",
+                  "residual_ref": "power_nonnegative_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "source_nonnegative",
+                  "expression": "-s",
+                  "kind": "operating_limit",
+                  "relation": "le",
+                  "residual_ref": "source_nonnegative_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "heat_nonnegative",
+                  "expression": "-q",
+                  "kind": "operating_limit",
+                  "relation": "le",
+                  "residual_ref": "heat_nonnegative_residual",
+                  "tolerance": 1e-08
+                },
+                {
+                  "constraint_id": "heat_demand",
+                  "expression": "required_heat - delivered_heat",
+                  "kind": "requirement",
+                  "relation": "le",
+                  "residual_ref": "requirement_residual",
+                  "tolerance": 1e-08
+                }
+              ],
+              "design": {
+                "power_capacity_mw": 2.0,
+                "source_capacity_mw": 6.0
+              },
+              "domain": {
+                "kind": "box",
+                "parameters": [
+                  {
+                    "lower": 0.0,
+                    "name": "demand_increase",
+                    "nominal": 0.0,
+                    "provenance": "Synthetic engineering envelope; not calibrated history",
+                    "scale": 0.25,
+                    "unit": "fraction",
+                    "upper": 0.25
+                  },
+                  {
+                    "lower": 0.0,
+                    "name": "source_derating",
+                    "nominal": 0.0,
+                    "provenance": "Synthetic engineering envelope; not calibrated history",
+                    "scale": 0.25,
+                    "unit": "fraction",
+                    "upper": 0.25
+                  }
+                ]
+              },
+              "model": {
+                "cop": 4.0,
+                "output_definitions": {
+                  "delivery_margin": "delivered_heat - required_heat",
+                  "required_heat": "base_heat_mw * (1 + demand_increase) + reserve_mw"
+                },
+                "requirement": {
+                  "base_heat_mw": 6.0,
+                  "reserve_mw": 0.0
+                }
+              },
+              "model_id": "heat_recovery_constant_cop_v1",
+              "numerical_policy": {
+                "absolute_tolerance": 1e-08
+              },
+              "operating": {
+                "feasibility_scope": "physical_constraints_only",
+                "observation": "all disturbances before controls",
+                "recourse": "fully_observed_static",
+                "recourse_policy": {
+                  "mode": "static",
+                  "rules": [
+                    {
+                      "control": "electrical_power",
+                      "fixed_value": null,
+                      "observes": [
+                        "source_derating",
+                        "demand_increase"
+                      ],
+                      "stage": "operation",
+                      "unit": "MW"
+                    }
+                  ]
+                },
+                "requirement_refs": [
+                  "heat_demand"
+                ],
+                "response": "maximize_delivered_heat"
+              },
+              "quantities": [
+                {
+                  "axes": [],
+                  "physical_kind": "dimensionless",
+                  "quantity_id": "source_derating",
+                  "role": "input",
+                  "unit": "fraction"
+                },
+                {
+                  "axes": [],
+                  "physical_kind": "dimensionless",
+                  "quantity_id": "demand_increase",
+                  "role": "input",
+                  "unit": "fraction"
+                },
+                {
+                  "axes": [],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "delivered_heat",
+                  "role": "output",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "required_heat",
+                  "role": "output",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "delivery_margin",
+                  "role": "output",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "requirement_residual",
+                  "role": "residual",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [],
+                  "physical_kind": "electrical_power",
+                  "quantity_id": "electrical_power",
+                  "role": "control",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "source_heat",
+                  "role": "output",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "heat_balance_residual",
+                  "role": "residual",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "source_balance_residual",
+                  "role": "residual",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [],
+                  "physical_kind": "electrical_power",
+                  "quantity_id": "compressor_capacity_residual",
+                  "role": "residual",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "source_capacity_residual",
+                  "role": "residual",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [],
+                  "physical_kind": "electrical_power",
+                  "quantity_id": "power_nonnegative_residual",
+                  "role": "residual",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "source_nonnegative_residual",
+                  "role": "residual",
+                  "unit": "MW"
+                },
+                {
+                  "axes": [],
+                  "physical_kind": "thermal_power",
+                  "quantity_id": "heat_nonnegative_residual",
+                  "role": "residual",
+                  "unit": "MW"
+                }
+              ]
+            },
+            "evaluations": []
+          },
+          "contract_ref": {
+            "artifact_id": "sha256:88d40f6141ceab190b0c9737f29dfee929cff1c651dbf2a2e89ef84fde87a4af",
+            "digest": "88d40f6141ceab190b0c9737f29dfee929cff1c651dbf2a2e89ef84fde87a4af",
+            "schema_version": "process_contract/v1"
+          },
+          "diagnostics": [],
+          "evidence": [
+            {
+              "assumptions": [],
+              "backend": null,
+              "details": {
+                "comparison": "inclusive exact bounds",
+                "outside_coordinates": []
+              },
+              "evidence_id": "membership",
+              "measurements": [],
+              "method": "box_bounds",
+              "outcome": "verified",
+              "subject": "domain_membership",
+              "tolerances": []
+            },
+            {
+              "assumptions": [],
+              "backend": "SciPy 1.15.3 / HiGHS (linprog)",
+              "details": {
+                "message": "LP optimum agrees with the analytical global capacity bound",
+                "solver_status": "optimal"
+              },
+              "evidence_id": "solver",
+              "measurements": [
+                {
+                  "name": "maximum_primal_residual",
+                  "unit": "model_units",
+                  "value": 0.0
+                },
+                {
+                  "name": "reference_error",
+                  "unit": "model_units",
+                  "value": 0.0
+                }
+              ],
+              "method": "linear_program",
+              "outcome": "verified",
+              "subject": "operating_solve",
+              "tolerances": [
+                {
+                  "name": "absolute_tolerance",
+                  "unit": "model_units",
+                  "value": 1e-08
+                }
+              ]
+            },
+            {
+              "assumptions": [
+                "constant COP > 1",
+                "nonnegative source and compressor capacities"
+              ],
+              "backend": null,
+              "details": {
+                "formula": "min(COP * power_capacity, COP/(COP-1) * source_capacity * (1-source_derating))"
+              },
+              "evidence_id": "capacity",
+              "measurements": [
+                {
+                  "name": "upper_capacity",
+                  "unit": "MW",
+                  "value": 7.2
+                },
+                {
+                  "name": "agreement_error",
+                  "unit": "MW",
+                  "value": 0.0
+                }
+              ],
+              "method": "analytical_capacity",
+              "outcome": "verified",
+              "subject": "global_response_bound",
+              "tolerances": [
+                {
+                  "name": "absolute_tolerance",
+                  "unit": "MW",
+                  "value": 1e-08
+                }
+              ]
+            }
+          ],
+          "execution": "completed",
+          "kind": "evaluation",
+          "payload": {
+            "constraint_checks": [
+              {
+                "assessment": "satisfied",
+                "constraint_ref": "heat_balance",
+                "evidence_refs": [
+                  "solver"
+                ],
+                "residual": {
+                  "quantity_ref": "heat_balance_residual",
+                  "value": 0.0
+                }
+              },
+              {
+                "assessment": "satisfied",
+                "constraint_ref": "source_balance",
+                "evidence_refs": [
+                  "solver"
+                ],
+                "residual": {
+                  "quantity_ref": "source_balance_residual",
+                  "value": 0.0
+                }
+              },
+              {
+                "assessment": "satisfied",
+                "constraint_ref": "compressor_capacity",
+                "evidence_refs": [
+                  "solver"
+                ],
+                "residual": {
+                  "quantity_ref": "compressor_capacity_residual",
+                  "value": -0.19999999999999996
+                }
+              },
+              {
+                "assessment": "satisfied",
+                "constraint_ref": "source_capacity",
+                "evidence_refs": [
+                  "solver"
+                ],
+                "residual": {
+                  "quantity_ref": "source_capacity_residual",
+                  "value": 0.0
+                }
+              },
+              {
+                "assessment": "satisfied",
+                "constraint_ref": "power_nonnegative",
+                "evidence_refs": [
+                  "solver"
+                ],
+                "residual": {
+                  "quantity_ref": "power_nonnegative_residual",
+                  "value": -1.8
+                }
+              },
+              {
+                "assessment": "satisfied",
+                "constraint_ref": "source_nonnegative",
+                "evidence_refs": [
+                  "solver"
+                ],
+                "residual": {
+                  "quantity_ref": "source_nonnegative_residual",
+                  "value": -5.4
+                }
+              },
+              {
+                "assessment": "satisfied",
+                "constraint_ref": "heat_nonnegative",
+                "evidence_refs": [
+                  "solver"
+                ],
+                "residual": {
+                  "quantity_ref": "heat_nonnegative_residual",
+                  "value": -7.2
+                }
+              },
+              {
+                "assessment": "satisfied",
+                "constraint_ref": "heat_demand",
+                "evidence_refs": [
+                  "solver"
+                ],
+                "residual": {
+                  "quantity_ref": "requirement_residual",
+                  "value": -0.8999999999999995
+                }
+              }
+            ],
+            "feasibility": "feasible",
+            "included_constraints": [
+              "heat_balance",
+              "source_balance",
+              "compressor_capacity",
+              "source_capacity",
+              "power_nonnegative",
+              "source_nonnegative",
+              "heat_nonnegative"
+            ],
+            "membership": {
+              "domain_ref": "domain",
+              "evidence_refs": [
+                "membership"
+              ],
+              "status": "inside"
+            },
+            "objective": {
+              "attained_value": 7.2,
+              "attainment": "attained",
+              "lower": {
+                "evidence_refs": [
+                  "solver"
+                ],
+                "state": "finite",
+                "unit": "MW",
+                "value": 7.2
+              },
+              "optimality": "verified",
+              "quantity_ref": "delivered_heat",
+              "sense": "maximize",
+              "upper": {
+                "evidence_refs": [
+                  "capacity"
+                ],
+                "state": "finite",
+                "unit": "MW",
+                "value": 7.2
+              }
+            },
+            "values": [
+              {
+                "quantity_ref": "source_derating",
+                "value": 0.1
+              },
+              {
+                "quantity_ref": "demand_increase",
+                "value": 0.05
+              },
+              {
+                "quantity_ref": "required_heat",
+                "value": 6.300000000000001
+              },
+              {
+                "quantity_ref": "delivered_heat",
+                "value": 7.2
+              },
+              {
+                "quantity_ref": "electrical_power",
+                "value": 1.8
+              },
+              {
+                "quantity_ref": "source_heat",
+                "value": 5.4
+              },
+              {
+                "quantity_ref": "delivery_margin",
+                "value": 0.8999999999999995
+              },
+              {
+                "quantity_ref": "requirement_residual",
+                "value": -0.8999999999999995
+              }
+            ]
+          },
+          "request": {
+            "query": "evaluate",
+            "realization": {
+              "demand_increase": 0.05,
+              "source_derating": 0.1
+            }
+          },
+          "result_id": "sha256:12dec4c0729a7ff7a5e51da6234558ecd90d17ef729acaf36a3386e24778ebea",
+          "schema_version": "process_result/v1"
+        }
+      ]
+    },
+    "contract_ref": {
+      "artifact_id": "sha256:88d40f6141ceab190b0c9737f29dfee929cff1c651dbf2a2e89ef84fde87a4af",
+      "digest": "88d40f6141ceab190b0c9737f29dfee929cff1c651dbf2a2e89ef84fde87a4af",
+      "schema_version": "process_contract/v1"
+    },
+    "diagnostics": [],
+    "evidence": [
+      {
+        "assumptions": [
+          "constant COP",
+          "fully observed optimized static response",
+          "one-sided derivatives use the stated perturbation side"
+        ],
+        "backend": null,
+        "details": {
+          "capacity_formula": "min(COP*power_capacity, COP/(COP-1)*source_capacity*(1-source_derating))",
+          "physical_demand_slope": 6.0,
+          "physical_source_slope": -8.0
+        },
+        "evidence_id": "derivative",
+        "measurements": [],
+        "method": "analytical_piecewise_affine",
+        "outcome": "verified",
+        "subject": "derivative",
+        "tolerances": []
+      }
+    ],
+    "execution": "completed",
+    "kind": "sensitivity",
+    "payload": {
+      "availability": "available",
+      "base_evaluation_ref": {
+        "artifact_id": "sha256:12dec4c0729a7ff7a5e51da6234558ecd90d17ef729acaf36a3386e24778ebea",
+        "digest": "12dec4c0729a7ff7a5e51da6234558ecd90d17ef729acaf36a3386e24778ebea",
+        "schema_version": "process_result/v1"
+      },
+      "derivative": {
+        "coordinate_space": "physical",
+        "direction": null,
+        "input_coordinates": [
+          "source_derating",
+          "demand_increase"
+        ],
+        "input_units": [
+          "fraction",
+          "fraction"
+        ],
+        "operator": "jacobian",
+        "origins": [
+          0.0,
+          0.0
+        ],
+        "output_coordinates": [
+          "delivered_heat",
+          "required_heat",
+          "delivery_margin",
+          "requirement_residual"
+        ],
+        "output_units": [
+          "MW",
+          "MW",
+          "MW",
+          "MW"
+        ],
+        "scales": [
+          1.0,
+          1.0
+        ],
+        "side": "two_sided",
+        "units": [
+          [
+            "MW/fraction",
+            "MW/fraction"
+          ],
+          [
+            "MW/fraction",
+            "MW/fraction"
+          ],
+          [
+            "MW/fraction",
+            "MW/fraction"
+          ],
+          [
+            "MW/fraction",
+            "MW/fraction"
+          ]
+        ],
+        "values": [
+          [
+            -8.0,
+            -0.0
+          ],
+          [
+            0.0,
+            6.0
+          ],
+          [
+            -8.0,
+            -6.0
+          ],
+          [
+            8.0,
+            6.0
+          ]
+        ]
+      },
+      "method": {
+        "name": "analytical",
+        "operator": "jacobian"
+      },
+      "response_contract": {
+        "control_treatment": "reoptimized at each disturbance",
+        "mode": "optimized",
+        "optimization": "maximize_delivered_heat",
+        "policy_ref": null
+      },
+      "validity": {
+        "active_limits": [
+          "source_capacity"
+        ],
+        "branch_tolerance_mw": 1e-08,
+        "direction_parameter_unit": null,
+        "domain": "declared box",
+        "scope": "local"
+      }
+    },
+    "request": {
+      "coordinate_space": "physical",
+      "direction": null,
+      "inputs": [
+        "source_derating",
+        "demand_increase"
+      ],
+      "method": "analytical",
+      "operator": "jacobian",
+      "outputs": [
+        "delivered_heat",
+        "required_heat",
+        "delivery_margin",
+        "requirement_residual"
+      ],
+      "query": "sensitivity",
+      "realization": {
+        "demand_increase": 0.05,
+        "source_derating": 0.1
+      },
+      "response": "optimized",
+      "side": "two_sided"
+    },
+    "result_id": "sha256:eda6384196e11ad3edcdda9560183a07fbd2445a5f13b9fb599782cf0c12a110",
+    "schema_version": "process_result/v1"
+  }
+}

@@ -1,0 +1,7 @@
+include LICENSE README.md pyproject.toml
+recursive-include tests *.py *.json
+recursive-include examples *.py
+recursive-include docs *.md *.py
+recursive-include notes *.md
+prune notes/private
+global-exclude *.py[cod]

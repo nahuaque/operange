@@ -1,0 +1,66 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: Package index to publish to
+        required: true
+        default: testpypi
+        type: choice
+        options:
+          - testpypi
+          - pypi
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.repository }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked --group dev --group docs --extra cvxpy
+
+      - name: Lint
+        run: uv run --locked ruff check .
+
+      - name: Test
+        run: uv run --locked --extra cvxpy pytest
+
+      - name: Security check
+        run: uv run --locked bandit -q -r src examples tests
+
+      - name: Build documentation
+        run: uv run --locked --group docs sphinx-build -W -b html docs docs/_build/html
+
+      - name: Build distributions
+        run: uv build
+
+      - name: Check distributions
+        run: uv run --locked twine check dist/*
+
+      - name: Publish to TestPyPI
+        if: inputs.repository == 'testpypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+      - name: Publish to PyPI
+        if: inputs.repository == 'pypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: false

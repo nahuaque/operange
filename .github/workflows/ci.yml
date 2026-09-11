@@ -1,0 +1,57 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv sync --locked --group dev
+      - run: uv run --locked pytest -q
+      - name: Build distributions
+        run: |
+          uv build
+          uv run --locked twine check dist/*
+      - name: Verify the installed wheel without repository imports
+        shell: bash
+        run: |
+          python -m venv "$RUNNER_TEMP/operange-consumer-venv"
+          uv pip install --python "$RUNNER_TEMP/operange-consumer-venv/bin/python" dist/*.whl
+          mkdir -p "$RUNNER_TEMP/operange-consumer"
+          cp examples/steam_header.py examples/startup.py examples/pinch.py tests/acceptance/wheel.py tests/fixtures/prototype_result_v1.json "$RUNNER_TEMP/operange-consumer/"
+          cd "$RUNNER_TEMP/operange-consumer"
+          "$RUNNER_TEMP/operange-consumer-venv/bin/python" -I wheel.py
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv sync --locked --group dev --group docs --extra cvxpy
+      - run: uv run --locked ruff check .
+      - run: uv run --locked bandit -q -r src examples tests
+      - run: uv run --locked --extra cvxpy pytest -q
+      - run: uv run --locked --group docs sphinx-build -W -b html docs docs/_build/html
