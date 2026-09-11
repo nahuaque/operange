@@ -50,7 +50,7 @@ plant cannot handle must remain in the stress set.
 | `ModelEnsemble` | Versioned model alternatives and applicability; no implicit weights | Later |
 | `AmbiguitySet` | Probability laws over a specified realization space | Deferred |
 | `Intersection`, `Union`, `Product` | Typed composition with explicit coordinate alignment | Membership and verified nonemptiness witnesses implemented |
-| `RecoursePolicy` | Frozen controller or admissible class of decision rules | Explicit permissions implemented; executable frozen controllers later |
+| `RecoursePolicy`, `AffineController` | Operating permissions and executable affine rules | Single-stage linear-controller freezing/replay implemented; causal stateful controllers later |
 | `Distance` | Declared severity objective, normalization, and baseline | First-class normalized L-infinity implemented |
 | `Claim`, `RepairAction` | Requirement and candidate change to the design or operating contract | Generic claim binding implemented; repair helpers remain model-specific |
 
@@ -145,6 +145,12 @@ establishes failure of that policy, but may leave another policy feasible.
 Likewise, failure of an affine policy class does not prove failure of every
 possible controller. Hardware feasibility, operational flexibility, and safe
 shutdown should have separately named claims and control permissions.
+
+The [storage replay implementation](../docs/storage-replay.md) records preparation
+signals, revealed event observations, issued commands and carried energy for
+each two-period path. Missing signal rules remain unresolved unless the frozen
+controller declares a fallback. Each independent path starts at its declared
+initial energy; replay does not infer a continuous historical state sequence.
 
 ## Trajectories and faults need timing
 

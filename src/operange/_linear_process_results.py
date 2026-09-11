@@ -28,14 +28,13 @@ def _included(claim, contract):
     )
 
 
-def _physical_response(claim, point, controls):
-    model = claim.adapter
+def _physical_response(model, requirements, point, controls):
     variables = {**point, **controls}
     outputs = {o.name: o._exact_value(variables) for o in model.outputs}
     values = {**variables, **{n: finite(float(v), n) for n, v in outputs.items()}}
     residuals = {model.equation_id(o): 0.0 for o in model.outputs}
     for limit in model.operating_limits + model.requirements:
-        if limit in model.operating_limits or limit.name in claim.requirements:
+        if limit in model.operating_limits or limit.name in requirements:
             residuals[limit.name] = round_up(
                 limit.sign * (outputs[limit.output] - Fraction(limit.limit))
             )
@@ -130,7 +129,9 @@ def evaluate_result(claim, realization, *, contract=None):
             )
             feasibility = "infeasible"
         elif solution.feasibility == "feasible":
-            physical, residuals = _physical_response(claim, point, solution.controls)
+            physical, residuals = _physical_response(
+                claim.adapter, claim.requirements, point, solution.controls
+            )
             if any(residuals[c.constraint_id] > c.tolerance for c in included):
                 raise ValueError(
                     "Returned physical controls failed an included constraint."

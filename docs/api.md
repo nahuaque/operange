@@ -19,6 +19,7 @@ Import these from `operange`:
 | Operating permissions and severity | `DecisionRule`, `RecoursePolicy`, `Distance`, `NormalizedLInf` |
 | Fixed affine model | `AffineProcessAdapter`, `AffineOutput`, `AffineTerm`, `AffineRequirement` |
 | Adjustable linear model | `LinearProcessAdapter`, `LinearControl`; reuses `AffineOutput`, `AffineTerm`, `AffineRequirement` |
+| Executable linear controllers | `AffineControlRule`, `AffineController`, `FrozenController` |
 | Engineering changes | `EngineeringChange`, `compare_changes`, `ChangeComparison`, `ChangeResult`, `ContractComparison`, `FieldChange`, `RequirementSummary` |
 | Supplied time profile | `PiecewiseLinearProfile` |
 
@@ -28,6 +29,11 @@ operating contract. Omitted requirements select all declared requirements.
 Its `contract` and `capabilities` describe that binding. Queries are
 `evaluate_result`, `sensitivity_result`, `audit_result`, `boundary_result` and
 `breaking_result`; their options depend on the adapter and query.
+
+`claim.with_controller(controller)` binds an explicit affine controller to a
+linear claim while preserving its existing permissions. `claim.freeze()` then
+captures the complete executable binding as a `FrozenController`. See the
+[frozen-controller guide](frozen-controllers.md) for portable replay and scope.
 
 `claim.compare_changes(changes)` re-audits named candidate claims and returns a
 `ChangeComparison` with the baseline audit, ordered candidate audits, structural
@@ -50,6 +56,7 @@ Units describe quantities and derivatives without converting values.
 | --- | --- | --- |
 | `AffineProcessAdapter` | Fixed affine responses; analytical first derivatives in physical or normalized coordinates | Finite and supported linear-support audits; boundary and positive-violation distance searches over boxes/polytopes with explicit `NormalizedLInf`; no adjustable recourse |
 | `LinearProcessAdapter` | Joint feasibility of bounded controls, coupled operating limits and selected requirements at a verified member; no dispatch derivatives | Complete `FiniteSet` audits under fixed or fully observed static operation; exact physical feasibility checks and bounded-control infeasibility certificates; no continuous-domain audits or distance searches |
+| Linear model with an `AffineController` | Direct affine command execution and physical checks, retaining commands and violations; no optimizer or sensitivity query | Finite audits of the same controller, with `fixed_policy_failure` witnesses; no continuous-domain audits, distance searches or causal state |
 | `reference.HeatRecoveryAdapter` | Static constant-COP heat model with declared recourse; analytical local and directional first derivatives where supported | Box audits, boundary and positive-shortfall breaking searches within its verified static model and normalized distance |
 | `reference.ThermalStorageAdapter` | Two-period finite-tree dispatch with fixed, causal or perfect-foresight permissions; no sensitivity operator | Audits of the declared finite tree, including incompatible futures; no continuous-domain radius or general multistage search |
 | `reference.StartupLoadAdapter` | Supplied piecewise-linear load profiles with fixed start times, amplitude/duration scales and timing jitter; peaks and time integrals | Complete finite uncertainty enumeration with continuous-time coverage of the declared interpolation; no adaptive scheduling, derivatives or distance searches |
@@ -93,7 +100,7 @@ bounds always apply; only `requirements` can be selected by a claim.
 `model.as_claim(domain)` defaults to independent static adjustment after observing
 every input. Explicit rules must use stage `"operation"`; a rule can instead fix
 its control. A `"fixed"` policy must fix every control. Partial observation and
-causal or perfect-foresight modes are unsupported in this adapter.
+causal or perfect-foresight modes are unsupported for adjustable dispatch.
 
 Linear evaluation includes the selected requirements in its feasibility problem.
 An infeasible response proves their joint incompatibility with the model and
@@ -101,6 +108,27 @@ operating permissions; it does not assign individual requirement violations to
 a nonexistent dispatch. A feasible result returns checked controls and residuals,
 without claiming a unique or optimal dispatch. See the
 [linear dispatch guide](linear-dispatch.md) for the example and certificate.
+
+`model.as_claim(domain, controller=controller, recourse=None, requirements=None)`
+instead binds an `AffineController`. Default permissions use the observations
+named by each rule; explicit `recourse` permissions must permit all its inputs.
+This binding supports partial observation for an explicit rule at the single
+`operation` stage. An infeasible response retains the actual commands and their
+violations and concerns only that controller. `FrozenController.from_json`
+loads a frozen binding, and `frozen.as_claim(new_domain)` explicitly rebinds the
+same model and rule for new-scenario evaluation. The `frozen_controller/v1`
+artifact and nested `affine_controller/v1` declaration each have content-derived
+identities; individual evaluations and audits retain `process_result/v1`.
+
+`ThermalStorageClaim.as_claim(controller=storage_controller)` binds a causal
+`StorageController` with signal-indexed `StoragePreparationRule` commands and
+the prescribed event heat-balance rule. Use the same `claim.freeze()` and
+`FrozenController.from_json()` methods. `frozen.as_claim(tree=new_tree)` explicitly
+rebinds held-out two-period paths while retaining the controller and physical
+settings. Storage replay evaluates the entire bound tree and includes ordered
+stage traces, carried energy and terminal checks. Missing preparation signals
+are unresolved unless a fallback command was declared. See
+[causal storage replay](storage-replay.md) for the scope and runnable example.
 
 Heat-recovery results retain a feasible objective lower bound and a conservative
 analytical upper bound. If the feasible response misses the service requirement
@@ -161,6 +189,8 @@ Import the following from `operange.reference`:
 - Storage model: `ThermalStorageClaim`, `ThermalStorageAdapter`, `ScenarioTree`,
   `StorageDesign`, `StorageRepairAction`, `StorageRequirement`, `StorageScenario`,
   `example_storage_claim`.
+- Storage controllers: `StorageController`, `StoragePreparationRule`; portable
+  replay uses the common `FrozenController` and engineering result types.
 - Storage numerical records: `StorageAudit`, `StorageDispatch`,
   `StorageRepairComparison`, `StorageWitness`.
 - Supplied startup profiles: `StartupEvent`, `StartupLoadAdapter`; these use

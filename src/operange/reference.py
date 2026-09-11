@@ -9,6 +9,7 @@ from .policy import FrozenHeatRecoveryContract
 from .primitives import HeatDemand, HeatRecoveryDesign, RepairAction
 from .results import ClaimAudit, OperationResult, RepairComparison, ThresholdResult
 from .storage import ThermalStorageClaim
+from .storage_controllers import StorageController, StoragePreparationRule
 from .storage_types import (
     ScenarioTree,
     StorageDesign,
@@ -88,6 +89,8 @@ __all__ = [
     "RepairComparison",
     "ThresholdResult",
     "ThermalStorageClaim",
+    "StorageController",
+    "StoragePreparationRule",
     "ScenarioTree",
     "StorageDesign",
     "StorageRepairAction",

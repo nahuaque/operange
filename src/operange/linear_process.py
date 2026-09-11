@@ -195,7 +195,16 @@ class LinearProcessAdapter(Record):
             ),
         )
 
-    def as_claim(self, domain, *, recourse=None, requirements=None):
+    def as_claim(self, domain, *, recourse=None, requirements=None, controller=None):
+        if controller is not None:
+            from .controllers import _ControllerAdapter
+
+            adapter = _ControllerAdapter(self, controller)
+            recourse = (
+                adapter.controller.recourse_policy if recourse is None else recourse
+            )
+            adapter.validate_binding(recourse)
+            return Claim(adapter, domain, recourse, requirements)
         if recourse is None:
             recourse = RecoursePolicy(
                 "static",

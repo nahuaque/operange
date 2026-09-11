@@ -130,8 +130,14 @@ validates stage timing and supported policy classes. A rule that labels access
 to future event identity as causal is rejected by this adapter.
 
 `RecoursePolicy` declares permissions and fixed decisions. An empty fixed policy
-represents a model with no adjustable controls. It is not yet an
-executable frozen controller, affine feedback policy or arbitrary policy program.
+represents a model with no adjustable controls. Executable rules are declared
+separately with `AffineController`, bound within those permissions, and frozen
+with their linear model and domain using `FrozenController`. This initial
+linear controller format has a single operation stage and no dynamic feedback state.
+The reference `StorageController` separately binds preparation signal rules and
+an event heat-balance rule. The same frozen envelope supports its complete
+two-period tree, physical settings and initial energy, with causal staged replay
+and explicit `as_claim(tree=...)` rebinding for held-out paths.
 
 `NormalizedLInf` measures deviations in a named coordinate space, including
 out-of-domain points, independently of membership. Its declared nominal point

@@ -106,6 +106,12 @@ for example, a passing heat-cascade comparison remains a utility-target result.
 Distance settings are recorded separately. This API executes audits, so it does
 not recompute failure distances or infer improvements in distance to failure.
 
+[Frozen affine controllers](frozen-controllers.md) use the same comparison API.
+A controller revision is an operating change. Its audit retains actual commands
+and `fixed_policy_failure` witnesses, and can be compared with a separate
+adjustable-operation benchmark without claiming the failed rule proves physical
+infeasibility under other rules.
+
 ## Observed margins and portable evidence
 
 `comparison.requirements` and `candidate.requirements` summarize selected

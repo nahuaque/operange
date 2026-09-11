@@ -153,6 +153,12 @@ For adjustable operation in a caller-declared model, use the
 with bounded boiler controls and joint equipment constraints, comparing fixed
 commands with fully observed redispatch over finite scenarios.
 
+The [frozen-controller guide](frozen-controllers.md) binds explicit affine
+operating rules to that linear model, then freezes and replays them. It separates
+a controller's own violations from the feasibility of other operating rules.
+The [causal storage replay guide](storage-replay.md) extends freezing to two-period
+storage paths with observation timing, carried state and terminal checks.
+
 `operange.reference` contains bounded heat-recovery, storage,
 startup-profile and heat-cascade models. The repository's
 `examples.heat_recovery` and
@@ -171,6 +177,8 @@ api
 linear-dispatch
 failure-distance
 engineering-changes
+frozen-controllers
+storage-replay
 startup
 pinch
 methods

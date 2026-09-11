@@ -1,7 +1,7 @@
 """Run with -I outside the checkout, in a venv containing only the process wheel.
 
 Copy steam_header.py, linear_dispatch.py, failure_distance.py, engineering_changes.py,
-startup.py, pinch.py and prototype_result_v1.json here.
+frozen_controllers.py, storage_replay.py, startup.py, pinch.py and prototype_result_v1.json here.
 There are no pytest, repository, optional solver, or test-environment imports.
 """
 
@@ -228,6 +228,129 @@ def main():
     require(
         comparison.candidates[0].audit.payload.coverage.method == "complete_finite",
         "comparison broadened audit coverage",
+    )
+
+    controllers = runpy.run_path(str(directory / "frozen_controllers.py"))
+    controller_results = controllers["run_example"]()
+    controller_comparison = process.ChangeComparison.from_json(
+        json.dumps(controller_results["comparison"])
+    )
+    frozen = process.FrozenController.from_json(
+        json.dumps(controller_results["frozen_controller"])
+    )
+    require(
+        controller_comparison.baseline.payload.verdict == "fail",
+        "equal allocation must fail",
+    )
+    require(
+        controller_comparison.baseline.payload.witness.kind == "fixed_policy_failure",
+        "controller failure scope lost",
+    )
+    require(
+        [c.transition for c in controller_comparison.candidates]
+        == ["restored", "restored"],
+        "controller comparison changed",
+    )
+    require(
+        frozen.audit_result().payload.verdict == "pass",
+        "frozen controller replay failed",
+    )
+    require(
+        frozen.controller.controller_id
+        == process.AffineController.from_json(
+            frozen.controller.to_json()
+        ).controller_id,
+        "controller identity changed",
+    )
+    require(
+        frozen.audit_result().result_id
+        == process.result_from_json(
+            json.dumps(controller_results["replayed_audit"])
+        ).result_id,
+        "saved controller did not reproduce its audit",
+    )
+    held_out = process.result_from_json(
+        json.dumps(controller_results["held_out_audit"])
+    )
+    require(held_out.payload.verdict == "pass", "held-out controller cases should pass")
+    require(
+        held_out.contract.domain != frozen.contract.domain,
+        "held-out cases inherited original domain",
+    )
+    require(
+        held_out.contract.operating == frozen.contract.operating,
+        "replay changed the controller or permissions",
+    )
+    require(
+        len(held_out.payload.coverage.evaluated_support["scenarios"]) == 2,
+        "held-out coverage broadened",
+    )
+
+    storage_replay = runpy.run_path(str(directory / "storage_replay.py"))
+    storage_results = storage_replay["run_example"]()
+    storage_frozen = process.FrozenController.from_json(
+        json.dumps(storage_results["frozen_controller"])
+    )
+    storage_audit = process.result_from_json(
+        json.dumps(storage_results["replayed_audit"])
+    )
+    require(
+        storage_frozen.audit_result().result_id == storage_audit.result_id,
+        "storage replay changed after loading",
+    )
+    require(
+        storage_audit.payload.verdict == "pass", "original storage paths should pass"
+    )
+    comparison = process.ChangeComparison.from_json(
+        json.dumps(storage_results["comparison"])
+    )
+    require(
+        [c.transition for c in comparison.candidates] == ["restored", "restored"],
+        "storage controller comparison changed",
+    )
+    held_out = process.result_from_json(json.dumps(storage_results["held_out_audit"]))
+    require(
+        held_out.payload.verdict == "fail", "held-out demand must fail the saved rule"
+    )
+    require(
+        held_out.payload.witness.kind == "fixed_policy_failure",
+        "storage failure scope changed",
+    )
+    require(
+        held_out.contract.operating["controller"]
+        == storage_frozen.contract.operating["controller"],
+        "held-out storage replay retuned the controller",
+    )
+    traces = next(
+        e.details["paths"] for e in held_out.evidence if e.evidence_id == "replay"
+    )
+    require(
+        [p["scenario"]["name"] for p in traces]
+        == ["Later demand", "Later recovery", "Demand beyond reserve"],
+        "held-out path order changed",
+    )
+    require(
+        all(p["steps"][0]["commands"]["preparation_charge"] == 1 for p in traces),
+        "preparation accessed future information",
+    )
+    require(
+        all(
+            p["steps"][1]["state_before_mwh"] == p["steps"][0]["state_after_mwh"]
+            for p in traces
+        ),
+        "storage state reset before event",
+    )
+    require(
+        traces[-1]["steps"][1]["state_after_mwh"] == -0.25,
+        "failed storage trajectory was clipped",
+    )
+    unknown = process.result_from_json(
+        json.dumps(storage_results["unknown_signal_audit"])
+    )
+    require(
+        unknown.payload.verdict == "inconclusive"
+        and unknown.payload.coverage.method == "partial",
+        "unknown storage signal received an undeclared fallback",
     )
 
     startup = runpy.run_path(str(directory / "startup.py"))

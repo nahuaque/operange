@@ -227,6 +227,18 @@ class Claim:
 
         return compare_changes(self, changes)
 
+    def with_controller(self, controller):
+        """Bind a supported controller while preserving this claim's permissions."""
+        from .controllers import bind_controller
+
+        return bind_controller(self, controller)
+
+    def freeze(self):
+        """Freeze an executable controller and its complete claim binding."""
+        from .frozen_controller import FrozenController
+
+        return FrozenController(self)
+
     def boundary_result(self, **options):
         return self._run("boundary", **options)
 

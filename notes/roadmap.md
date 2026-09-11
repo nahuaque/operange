@@ -3,8 +3,9 @@
 Part of the [process exploration](README.md). The static slice and a finite-tree
 storage model now have an [implementation](../README.md).
 General nonlinear adapters, portable causal controllers, held-out trajectory
-replay, and real simulator integration remain future work. The implemented
-frozen contract covers static replay only.
+replay, and real simulator integration remain future work. Frozen affine
+controllers now support static linear-model replay over finite scenarios;
+the legacy frozen heat contract remains a separate static-recourse format.
 
 ## Package boundary before expansion
 
@@ -127,10 +128,18 @@ The repair comparison distinguishes storage capacity, charging power, and an
 explicit earlier-information intervention. Evidence covers the declared finite
 tree; it does not establish robustness over continuous or unlisted trajectories.
 
-Next, freeze the model, tree, controller, initial-state rule, and evidence settings.
-Replay ordered held-out paths without future observations or retuning. A
-round-trip contract manifest should resolve the same model and controller,
-not merely retain their display names.
+The [frozen-controller slice](../docs/frozen-controllers.md) now captures a linear
+model, explicit affine controller, domain, permissions and evidence settings.
+Direct replay retains controller-specific failures and supports new finite
+scenario domains without retuning. It integrates with the common comparison API.
+
+The [causal storage replay slice](../docs/storage-replay.md) now freezes the
+two-period storage model, tree, explicit controller, initial-state rule and
+evidence settings. Ordered held-out paths preserve observation timing and carry
+energy from preparation into the event without retuning. The round-trip manifest
+resolves the executable model and controller. Each path starts from the declared
+initial energy; continuous multi-event history and general feedback policies
+remain future work.
 
 ## 4. Attempt one real simulator adapter
 

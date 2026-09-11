@@ -411,18 +411,21 @@ class ThermalStorageClaim:
             ),
         )
 
-    def as_claim(self, mode="causal", *, fixed_preparation_power_mw=None):
+    def as_claim(
+        self, mode="causal", *, fixed_preparation_power_mw=None, controller=None
+    ):
         """Bind this tree model to a generic claim with explicit permissions."""
         from .adapters import ThermalStorageAdapter
         from .claim import Claim
 
-        return Claim(
+        claim = Claim(
             ThermalStorageAdapter(self),
             self.tree.domain,
             self.recourse_policy(
                 mode, fixed_preparation_power_mw=fixed_preparation_power_mw
             ),
         )
+        return claim if controller is None else claim.with_controller(controller)
 
     def with_repair(self, action: StorageRepairAction) -> ThermalStorageClaim:
         if not isinstance(action, StorageRepairAction):

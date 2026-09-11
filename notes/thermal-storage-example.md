@@ -187,11 +187,10 @@ Coverage is the entire declared **finite two-period tree** and the permitted
 policy class. It does not extend to unlisted trajectories, intermediate
 observations, continuous uncertainty sets, or an indefinite sequence of events.
 The terminal condition is deliberately a finite-horizon requirement, not a
-cyclic reset. The exported plans are review evidence; they are not a portable
-frozen storage controller or a historical backtest.
-
-The next extension should freeze a causal controller and replay ordered
-held-out events while preserving observation timing. That would test whether
-the finite-tree reasoning remains useful when a controller faces later
-evidence. A general dynamic optimizer or simulator integration can follow
-when that exercise requires it.
+cyclic reset. Optimized plans remain review evidence. The separate
+[causal storage replay API](../docs/storage-replay.md) freezes explicit preparation
+signal rules and an event heat-balance rule, with full physical and initial-state
+settings. It replays ordered held-out two-period paths, retaining commands, state
+transitions and controller-specific failures. Paths each start at the declared
+initial energy; continuous historical backtesting and general dynamic control
+remain outside this slice.

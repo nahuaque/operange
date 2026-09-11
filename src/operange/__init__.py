@@ -2,6 +2,8 @@
 
 from .affine import AffineOutput, AffineProcessAdapter, AffineRequirement, AffineTerm
 from .linear_process import LinearControl, LinearProcessAdapter
+from .controllers import AffineControlRule, AffineController
+from .frozen_controller import FrozenController
 from .vector import VectorParameter
 from .profiles import PiecewiseLinearProfile
 from .geometries import BudgetSet, EllipsoidSet, SimplexSet
@@ -69,6 +71,9 @@ __all__ = [
     "AffineTerm",
     "LinearControl",
     "LinearProcessAdapter",
+    "AffineControlRule",
+    "AffineController",
+    "FrozenController",
     "VectorParameter",
     "PiecewiseLinearProfile",
     "BudgetSet",

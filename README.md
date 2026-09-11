@@ -72,7 +72,7 @@ change and JSON round trips. The complete consumer example is
 | Caller-declared affine model: constant plus weighted inputs and fixed controls | Point evaluation, analytical first sensitivities, requirement audits and boundary/positive-violation distances | Audits over supported uncertainty domains; distance searches over boxes and polytopes with explicit normalized L-infinity scales; controls remain fixed |
 | Caller-declared linear model with bounded controls | Joint dispatch feasibility, finite-scenario audits and checked infeasibility witnesses | Fixed or fully observed single-stage operation; coupled equipment limits always apply; no dispatch derivatives or distance searches |
 | Heat-recovery reference model | Heat-delivery evaluation, optimized-response sensitivities, full-box audits, feasibility boundary, positive-shortfall breaking search and engineering-change comparison | Static, constant COP, two uncertain inputs and fully observed electrical-power recourse |
-| Thermal-storage reference model | Fixed, causal and perfect-foresight audits; conflicting futures; equipment and earlier-information changes | Complete declared finite two-period tree; no general trajectory solver or sensitivity operator |
+| Thermal-storage reference model | Fixed, causal and perfect-foresight audits; conflicting futures; frozen causal replay; equipment and earlier-information changes | Complete declared finite two-period tree; no general trajectory solver or sensitivity operator |
 | Supplied startup profiles | Peak and integrated load, shared-capacity audits and comparison of fixed start schedules | Finite amplitude/duration/timing scenarios; all time segments of the declared piecewise-linear profiles; no motor dynamics or adaptive scheduler |
 | Heat-cascade reference model | Minimum heating/cooling targets, maximum heat recovery, pinch locations and utility-target audits | Finite steady-state sensible-heat scenarios at fixed ΔTmin; no installed exchanger-network feasibility or sensitivity operator |
 
@@ -94,6 +94,16 @@ to re-audit named candidate claims. It distinguishes equipment and operating
 changes from revised domains or service requirements, retaining full audits,
 witnesses and observed margins in a portable comparison. A passing candidate
 is labelled `restored` only when it preserves the original commitment.
+
+The [frozen-controller guide](docs/frozen-controllers.md) adds explicit affine
+operating rules for linear models. Freeze the complete model/controller binding,
+replay its commands without redispatch, and audit new finite scenarios under
+an explicitly changed domain. In the two-boiler example, a 50/50 allocation
+violates the shared fuel limit while a 60/40 rule and the adjustable benchmark
+both pass. Controller failures retain actual commands and physical residuals.
+The [causal storage replay guide](docs/storage-replay.md) extends freezing to
+two-period storage paths, preserving observation timing, carried energy and
+terminal requirements. Held-out paths use the saved rule without retuning.
 
 The [startup example](docs/startup.md)
 keeps a compressor start distinct from ordinary load variation. Two synthetic
@@ -203,6 +213,7 @@ From the repository root:
 uv run python -m examples.steam_header
 uv run python -m examples.heat_recovery
 uv run python -m examples.thermal_storage
+uv run python -m examples.storage_replay
 uv run python -m examples.startup
 uv run python -m examples.pinch
 ```
