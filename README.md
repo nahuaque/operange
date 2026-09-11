@@ -89,6 +89,12 @@ at normalized distance 0.75; a 0.01 MW violation requires distance 0.7525.
 Distances carry verified lower and upper bounds, and an unresolved branch cannot
 silently disappear from the search for the nearest failure.
 
+The [engineering-change guide](docs/engineering-changes.md) uses one common API
+to re-audit named candidate claims. It distinguishes equipment and operating
+changes from revised domains or service requirements, retaining full audits,
+witnesses and observed margins in a portable comparison. A passing candidate
+is labelled `restored` only when it preserves the original commitment.
+
 The [startup example](docs/startup.md)
 keeps a compressor start distinct from ordinary load variation. Two synthetic
 starts reach 700 kVA across the 65 declared scenarios; staggering the commands

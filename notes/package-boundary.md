@@ -126,6 +126,12 @@ the consumer attaches costs, ranks candidates, renders results, and freezes
 the engineering contract it chooses. Model-specific APIs are exposed through
 `operange.reference`, separately from the shared top-level DSL.
 
+The shared `EngineeringChange` / `compare_changes` API now accepts already-built
+candidate claims, re-audits them, and compares their declared commitments.
+Its `engineering_change_comparison/v1` envelope retains existing engineering
+audit bundles, structural changes and observed margins. It does not rank or
+select candidates. See the [comparison guide](../docs/engineering-changes.md).
+
 The [experimental result contract](result-contract.md) now implements three
 typed result families, with [worked cases](result-contract-cases.md) for
 feasibility, sensitivities, robustness, and engineering changes. Structured

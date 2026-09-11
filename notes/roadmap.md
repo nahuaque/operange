@@ -40,6 +40,13 @@ physical candidates and bounded dual certificates across all selected requiremen
 Continuous-domain recourse and distance searches with adjustable controls remain
 future work.
 
+The [common engineering-change comparison](../docs/engineering-changes.md) now
+re-audits caller-supplied claims across the shared and reference adapters. It
+records equipment, operating, domain and service changes, preserves unresolved
+audits and witnesses, and distinguishes restoration from a passing revised
+commitment. Portable comparisons retain observed requirement margins and full
+audit references; pricing and candidate selection remain consumer concerns.
+
 The opt-in [quadratic/residopt experiment](quadratic-residopt-experiment.md)
 now compares exact SDP compilation with an independent trust-region bound for
 one fixed quadratic over an ellipsoid. Both feed the existing result contract.

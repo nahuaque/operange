@@ -221,6 +221,12 @@ class Claim:
     def audit_result(self, **options):
         return self._run("audit", **options)
 
+    def compare_changes(self, changes):
+        """Re-audit named candidate claims against this engineering commitment."""
+        from .changes import compare_changes
+
+        return compare_changes(self, changes)
+
     def boundary_result(self, **options):
         return self._run("boundary", **options)
 

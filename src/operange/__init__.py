@@ -10,6 +10,15 @@ from .composition import Intersection, Product, Union
 from .domain_io import domain_from_json, domain_from_manifest
 from ._geometry import LinearSupport
 from .claim import AdapterCapabilities, Capability, Claim, ModelAdapter
+from .changes import (
+    ChangeComparison,
+    ChangeResult,
+    ContractComparison,
+    EngineeringChange,
+    FieldChange,
+    RequirementSummary,
+    compare_changes,
+)
 from .distance import Distance, NormalizedLInf
 from .domains import (
     Coordinate,
@@ -76,6 +85,13 @@ __all__ = [
     "AdapterCapabilities",
     "Capability",
     "Claim",
+    "EngineeringChange",
+    "ChangeResult",
+    "ChangeComparison",
+    "ContractComparison",
+    "FieldChange",
+    "RequirementSummary",
+    "compare_changes",
     "ModelAdapter",
     "Distance",
     "NormalizedLInf",

@@ -1,7 +1,7 @@
 """Run with -I outside the checkout, in a venv containing only the process wheel.
 
-Copy steam_header.py, linear_dispatch.py, failure_distance.py, startup.py, pinch.py and
-prototype_result_v1.json here.
+Copy steam_header.py, linear_dispatch.py, failure_distance.py, engineering_changes.py,
+startup.py, pinch.py and prototype_result_v1.json here.
 There are no pytest, repository, optional solver, or test-environment imports.
 """
 
@@ -203,6 +203,31 @@ def main():
     require(
         any(c.assessment == "violated" for c in replay.payload.constraint_checks),
         "distance witness does not replay",
+    )
+
+    changes_example = runpy.run_path(str(directory / "engineering_changes.py"))
+    comparison = changes_example["run_example"]()
+    require(comparison.baseline.payload.verdict == "fail", "baseline must fail")
+    require(
+        [c.transition for c in comparison.candidates]
+        == ["restored", "still_failing", "not_comparable", "not_comparable"],
+        "change comparison confuses repairs and revised commitments",
+    )
+    require(
+        comparison.candidates[0].delta.changed_sections == ("design",),
+        "larger boiler must be an equipment change",
+    )
+    require(comparison.baseline.payload.witness is not None, "lost baseline witness")
+    for compact in (False, True):
+        restored = process.ChangeComparison.from_json(
+            comparison.to_json(compact=compact)
+        )
+        require(
+            restored.to_dict() == comparison.to_dict(), "comparison round trip changed"
+        )
+    require(
+        comparison.candidates[0].audit.payload.coverage.method == "complete_finite",
+        "comparison broadened audit coverage",
     )
 
     startup = runpy.run_path(str(directory / "startup.py"))

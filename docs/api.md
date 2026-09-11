@@ -19,6 +19,7 @@ Import these from `operange`:
 | Operating permissions and severity | `DecisionRule`, `RecoursePolicy`, `Distance`, `NormalizedLInf` |
 | Fixed affine model | `AffineProcessAdapter`, `AffineOutput`, `AffineTerm`, `AffineRequirement` |
 | Adjustable linear model | `LinearProcessAdapter`, `LinearControl`; reuses `AffineOutput`, `AffineTerm`, `AffineRequirement` |
+| Engineering changes | `EngineeringChange`, `compare_changes`, `ChangeComparison`, `ChangeResult`, `ContractComparison`, `FieldChange`, `RequirementSummary` |
 | Supplied time profile | `PiecewiseLinearProfile` |
 
 `Claim(adapter, domain, recourse, requirements=None, distance=None)` binds a
@@ -27,6 +28,16 @@ operating contract. Omitted requirements select all declared requirements.
 Its `contract` and `capabilities` describe that binding. Queries are
 `evaluate_result`, `sensitivity_result`, `audit_result`, `boundary_result` and
 `breaking_result`; their options depend on the adapter and query.
+
+`claim.compare_changes(changes)` re-audits named candidate claims and returns a
+`ChangeComparison` with the baseline audit, ordered candidate audits, structural
+changes, commitment/transition labels and observed requirement margins.
+`compare_changes(baseline, changes)` is the equivalent function. Inputs use
+`EngineeringChange(name, claim, provenance)`. The comparison has its own
+`engineering_change_comparison/v1` envelope, read with
+`ChangeComparison.from_json`; each embedded audit keeps its existing result
+format. See the [engineering-change guide](engineering-changes.md) for conservative
+service-equivalence rules, reference-model examples and portable evidence scope.
 
 Domains declare their own membership and support capabilities independently
 of the adapter. Composition does not automatically add a numerical optimizer.

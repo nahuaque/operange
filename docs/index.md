@@ -80,6 +80,11 @@ limit or positive violation over a box or polytope. The
 
 ## Re-audit an engineering change
 
+For named candidate comparisons, use `EngineeringChange` and
+`claim.compare_changes(...)`. The [engineering-change guide](engineering-changes.md)
+compares equipment, domain and service changes, retaining every audit and marking
+which passing candidates restore the original commitment.
+
 ```python
 from dataclasses import replace
 
@@ -165,6 +170,7 @@ alone can certify arbitrary nonlinear whole-plant robustness.
 api
 linear-dispatch
 failure-distance
+engineering-changes
 startup
 pinch
 methods
