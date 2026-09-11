@@ -30,8 +30,8 @@ Its `contract` and `capabilities` describe that binding. Queries are
 `evaluate_result`, `sensitivity_result`, `audit_result`, `boundary_result` and
 `breaking_result`; their options depend on the adapter and query.
 
-`claim.with_controller(controller)` binds an explicit affine controller to a
-linear claim while preserving its existing permissions. `claim.freeze()` then
+`claim.with_controller(controller)` binds a supported explicit controller to a
+linear or storage claim while preserving its existing permissions. `claim.freeze()` then
 captures the complete executable binding as a `FrozenController`. See the
 [frozen-controller guide](frozen-controllers.md) for portable replay and scope.
 
@@ -59,6 +59,7 @@ Units describe quantities and derivatives without converting values.
 | Linear model with an `AffineController` | Direct affine command execution and physical checks, retaining commands and violations; no optimizer or sensitivity query | Finite audits of the same controller, with `fixed_policy_failure` witnesses; no continuous-domain audits, distance searches or causal state |
 | `reference.HeatRecoveryAdapter` | Static constant-COP heat model with declared recourse; analytical local and directional first derivatives where supported | Box audits, boundary and positive-shortfall breaking searches within its verified static model and normalized distance |
 | `reference.ThermalStorageAdapter` | Two-period finite-tree dispatch with fixed, causal or perfect-foresight permissions; no sensitivity operator | Audits of the declared finite tree, including incompatible futures; no continuous-domain radius or general multistage search |
+| Storage model with a `reference.StorageController` | Direct causal replay with preparation signals, carried energy and terminal checks; no redispatch | Complete declared two-period paths, or partial coverage for unresolved paths; failures concern the saved controller; no continuous historical backtest |
 | `reference.StartupLoadAdapter` | Supplied piecewise-linear load profiles with fixed start times, amplitude/duration scales and timing jitter; peaks and time integrals | Complete finite uncertainty enumeration with continuous-time coverage of the declared interpolation; no adaptive scheduling, derivatives or distance searches |
 | `reference.HeatCascadeAdapter` | Steady-state sensible-heat cascade at fixed ΔTmin; minimum utilities, maximum heat recovery and all pinch locations | Finite-scenario utility-target screening only; no installed-network feasibility, derivatives or distance searches |
 | Consumer `ModelAdapter` | Only the operations its implementation supports | Only the guarantees its evidence establishes |

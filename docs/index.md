@@ -1,25 +1,18 @@
-# Operange: process robustness and flexibility
+# Getting started with Operange
 
-`operange` is an independent alpha distribution for expressing
-engineering claims and returning numerical evidence to downstream code. Your
-model supplies the physical response; the DSL binds uncertainty, requirements
-and operating permissions. Your application owns economic assumptions, selection
-and reporting.
+Build a shared-utility model, find a failing load combination, inspect the
+evidence, and test an engineering change. For the concepts behind the study,
+see the [engineering workflow](overview.md); for other applications, browse
+the [worked examples](examples.md).
 
-This package studies physical process robustness and operational flexibility.
-Hidden-variable recomposition belongs to the main `updatesupport` package and
-can be used separately when auditing aggregate economic reports in a TEA.
-The [package README](https://github.com/nahuaque/operange/blob/main/README.md)
-introduces the engineering workflow. The [methods guide](methods.md) compares
-it with familiar methods and explains the relationship to downstream economics.
-
-It requires Python 3.10+ and NumPy/SciPy only. From a checkout:
+Install Operange with Python 3.10 or newer:
 
 ```bash
-python -m pip install .
+python -m pip install operange
 ```
 
-The current development version is `0.1.0`. The project is prepared for independent PyPI releases; publication is a separate step. The public entry points are documented below.
+See [installation and development](installation.md) for checkout installation,
+wheel builds and the test environment.
 
 ## Declare the complete engineering boundary
 
@@ -146,33 +139,20 @@ dependencies. It verifies balances, sensitivities, witness replay, re-audits,
 unsupported-query behavior and compatibility with pre-refactor saved results.
 CI applies this check on Python 3.10–3.13.
 
-## Reference models and downstream code
+## Continue the study
 
-For adjustable operation in a caller-declared model, use the
-[linear dispatch guide](linear-dispatch.md). It extends the shared-utility study
-with bounded boiler controls and joint equipment constraints, comparing fixed
-commands with fully observed redispatch over finite scenarios.
-
-The [frozen-controller guide](frozen-controllers.md) binds explicit affine
-operating rules to that linear model, then freezes and replays them. It separates
-a controller's own violations from the feasibility of other operating rules.
-The [causal storage replay guide](storage-replay.md) extends freezing to two-period
-storage paths with observation timing, carried state and terminal checks.
-
-`operange.reference` contains bounded heat-recovery, storage,
-startup-profile and heat-cascade models. The repository's
-`examples.heat_recovery` and
-`examples.thermal_storage` modules add priced catalogs and Markdown via
-`examples.reporting`. Those examples are not part of the installed
-distribution. A consumer can instead use its own economic and reporting layer.
-
-Broader simulator integration requires an adapter with explicit evaluation and
-proof capabilities. Neither a general model callback nor local sensitivities
-alone can certify arbitrary nonlinear whole-plant robustness.
+Add adjustable boilers with the [linear dispatch guide](linear-dispatch.md),
+or choose another application from the [worked examples](examples.md).
+The [API and capability guide](api.md) lists supported queries, model boundaries
+and result formats. The [methods guide](methods.md) explains how the engineering
+results fit into broader flexibility and economic studies.
 
 ```{toctree}
 :maxdepth: 1
 
+overview
+installation
+examples
 api
 linear-dispatch
 failure-distance
