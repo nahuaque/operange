@@ -2,10 +2,11 @@
 
 Part of the [process exploration](README.md). The static slice and a finite-tree
 storage model now have an [implementation](../README.md).
-General nonlinear adapters, portable causal controllers, held-out trajectory
-replay, and real simulator integration remain future work. Frozen affine
-controllers now support static linear-model replay over finite scenarios;
-the legacy frozen heat contract remains a separate static-recourse format.
+General nonlinear adapters and production simulator integration remain future
+work. Frozen affine controllers support static linear-model replay, and causal
+storage controllers support ordered held-out paths. The legacy frozen heat
+contract remains a separate static-recourse format. An experimental
+[DWSIM connection](../docs/dwsim.md) now exercises a real installed simulator.
 
 ## Package boundary before expansion
 
@@ -150,10 +151,14 @@ integrals over all declared time segments and compares staggered schedules.
 This is a bounded transient response model, not a general trajectory domain or
 simulator integration. General dynamics and continuous uncertainty remain below.
 
-Choose a small external model whose equations, operating permissions, and
-failure modes can be inspected. DWSIM is one possible integration to assess;
-no compatibility is assumed here. Start with a fixed controller or narrowly
-defined recourse so that the meaning of a counterexample remains reviewable.
+The [DWSIM connection experiment](../docs/dwsim.md) now runs the bundled Humid Air
+sample through DWSIM 10.2.6 on macOS ARM64. Four finite cases vary feed temperature
+and flow under its fixed cooler specification, return fresh stream results, and
+close mass and energy balances. The experiment uses the desktop's IronPython
+script manager and a checked JSON batch exchange; it is not yet a public adapter.
+The next slice needs an isolated headless worker, explicit model and settings
+provenance, and fixed-operation evaluation plus finite audits. Nonconvergence
+must remain unresolved. Production macOS automation compatibility is still open.
 
 Measure model evaluations, runtime, unresolved runs, verified violations, and
 the fraction of candidates for which recovery can actually be ruled out.
@@ -181,7 +186,7 @@ demonstrate the need. Report infrastructure remains downstream.
 | Closest failure or robustness radius? | Show both when the same geometry supports them | Domain topology, discrete modes, or solver cost makes one misleading |
 | Distance defaults? | User-declared engineering scales | A well-validated historical model supports a different severity measure |
 | Meaning of "repair"? | Audit caller-supplied changes preserving the service claim; consumers value and select them | Design-dependent uncertainty requires a broader engineering contract |
-| First simulator? | Defer until the analytical and tree examples work | An available small model offers independent recourse verification |
+| First simulator? | DWSIM, beginning with the bundled Humid Air connection experiment | Headless runtime availability or evidence limitations prevent a useful fixed-operation adapter |
 | Evidence threshold for shipping? | Every verdict explains what was actually established | User studies show a different artifact is needed to support decisions |
 
 Success means downstream code can evaluate a process response, inspect its

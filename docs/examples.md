@@ -19,6 +19,11 @@ supported questions and limits for each model. For example, a heat-cascade
 target screen does not establish installed exchanger-network feasibility, and
 two-period storage replay does not establish indefinite operation.
 
+The experimental [DWSIM connection example](dwsim.md) uses the installed
+simulator's bundled Humid Air flowsheet to exchange input batches and checked
+stream results with Python. It requires DWSIM's Script Manager and is not yet
+a public model adapter.
+
 ## Run examples from the checkout
 
 After [setting up the environment](installation.md#install-from-a-checkout), run
