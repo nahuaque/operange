@@ -37,7 +37,7 @@ Units describe quantities and derivatives without converting values.
 
 | Adapter | Evaluation and sensitivity | Robustness |
 | --- | --- | --- |
-| `AffineProcessAdapter` | Fixed affine responses; analytical first derivatives in physical or normalized coordinates | Direct physical enumeration of finite sets; linear-support audits over supported boxes, simplexes, budgets, ellipsoids and polytopes; no adjustable recourse or distance searches |
+| `AffineProcessAdapter` | Fixed affine responses; analytical first derivatives in physical or normalized coordinates | Finite and supported linear-support audits; boundary and positive-violation distance searches over boxes/polytopes with explicit `NormalizedLInf`; no adjustable recourse |
 | `LinearProcessAdapter` | Joint feasibility of bounded controls, coupled operating limits and selected requirements at a verified member; no dispatch derivatives | Complete `FiniteSet` audits under fixed or fully observed static operation; exact physical feasibility checks and bounded-control infeasibility certificates; no continuous-domain audits or distance searches |
 | `reference.HeatRecoveryAdapter` | Static constant-COP heat model with declared recourse; analytical local and directional first derivatives where supported | Box audits, boundary and positive-shortfall breaking searches within its verified static model and normalized distance |
 | `reference.ThermalStorageAdapter` | Two-period finite-tree dispatch with fixed, causal or perfect-foresight permissions; no sensitivity operator | Audits of the declared finite tree, including incompatible futures; no continuous-domain radius or general multistage search |
@@ -58,6 +58,21 @@ arithmetic on the declared floats and round toward positive infinity for checks.
 Continuous affine audits carry coefficient-rounding corrections and directed
 support bounds into physical residual units. Unsupported or numerically unresolved
 calculations retain their diagnostics.
+
+Affine distance searches require `model.as_claim(domain, distance=NormalizedLInf(space))`.
+`boundary_result(distance_tolerance=1e-8)` targets a signed requirement residual
+of zero or greater. `breaking_result(violation_margins={name: amount, ...},
+distance_tolerance=1e-8)` requires one physical-unit margin per selected requirement,
+each strictly greater than that requirement's tolerance. Searches minimize distance
+to the union of the selected targets, checking every branch. The named origins
+and scales come from the distance object and can differ from domain normalization.
+
+`payload.search` records lower/upper distance bounds, resolution and a candidate
+evaluation when available. `severity.thresholds` lists all physical targets;
+`severity.reported_threshold_requirement` identifies the representative `threshold`
+field and, when a candidate exists, its governing branch. An unreachable target
+does not imply a passing claim audit. See the [failure-distance guide](failure-distance.md)
+for proof semantics and numerical limits.
 
 `LinearControl(name, unit, lower, upper, physical_kind="declared_process_control")`
 declares finite physical bounds. `LinearProcessAdapter(name, input_space, outputs,

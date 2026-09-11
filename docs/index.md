@@ -73,8 +73,10 @@ Successful execution can establish infeasibility or a failed claim. Conversely,
 unsupported execution carries no verdict. An unresolved search or partial audit
 can still retain a verified failure witness; inspect the verdict and evidence
 separately from execution status.
-The affine adapter's `breaking_result()` is explicitly unsupported: its ability
-to audit the box does not establish a closest-failure search capability.
+This claim has no distance metric, so `breaking_result()` is unsupported.
+Attach an explicit `NormalizedLInf` distance to search for the nearest declared
+limit or positive violation over a box or polytope. The
+[failure-distance guide](failure-distance.md) extends this same utility model.
 
 ## Re-audit an engineering change
 
@@ -162,6 +164,7 @@ alone can certify arbitrary nonlinear whole-plant robustness.
 
 api
 linear-dispatch
+failure-distance
 startup
 pinch
 methods

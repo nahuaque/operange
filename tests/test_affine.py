@@ -406,7 +406,7 @@ def test_unresolved_membership_and_unsupported_operations_do_not_execute_support
     )
     assert composed.evaluate_result(box.nominal).execution == "completed"  # nosec B101
     assert composed.audit_result().execution == "unsupported"  # nosec B101
-    distance = replace(model().as_claim(box), distance=NormalizedLInf(box.space))
+    distance = replace(model().as_claim(budget), distance=NormalizedLInf(box.space))
     assert distance.boundary_result().execution == "unsupported"  # nosec B101
     assert distance.breaking_result().execution == "unsupported"  # nosec B101
 

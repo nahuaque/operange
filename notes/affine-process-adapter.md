@@ -170,8 +170,11 @@ unit-bearing measurements, the numerical guard, and the complete normalized
 support record. Supporting point evaluations and any failure witness are bundled
 in the ordinary `RobustnessResult`. No fourth process result family is added.
 
-Boundary and closest-breaking-distance searches remain explicitly unsupported,
-even if a distance object is attached to the claim.
+The [failure-distance extension](../docs/failure-distance.md) supports boundary
+and positive-violation searches over `BoxSet` and `PolytopeSet` when a
+`NormalizedLInf` distance is explicitly attached. It checks physical candidates,
+exact domain rows, and lower/infeasibility certificates independently of solver
+termination. Other uncertainty geometries remain unsupported for these searches.
 
 ## Worked comparison and portability
 

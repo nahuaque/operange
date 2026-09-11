@@ -20,8 +20,10 @@ from .contract_types import (
     unique,
 )
 from .domains import FiniteSet, ParameterSpace
+from .distance import NormalizedLInf
+from .polytope import PolytopeSet
 from ._numeric import exact_dot
-from .primitives import finite
+from .primitives import BoxSet, finite
 from .recourse import RecoursePolicy
 
 
@@ -246,8 +248,10 @@ class AffineProcessAdapter(Record):
         )
         finite_domain = type(claim.domain) is FiniteSet
         search = Capability(
-            False,
-            "This affine adapter provides full-domain audits, not boundary or closest-breaking-distance searches.",
+            type(claim.domain) in (BoxSet, PolytopeSet)
+            and type(claim.distance) is NormalizedLInf,
+            "Fixed affine threshold searches over a BoxSet or PolytopeSet require an explicit NormalizedLInf distance; "
+            "each selected requirement is a separate search branch.",
         )
         return AdapterCapabilities(
             Capability(
@@ -270,14 +274,14 @@ class AffineProcessAdapter(Record):
             search,
         )
 
-    def as_claim(self, domain, *, recourse=None, requirements=None):
+    def as_claim(self, domain, *, recourse=None, requirements=None, distance=None):
         if recourse is None:
             if self.controls:
                 raise ValueError(
                     "supply fixed recourse for the declared affine controls"
                 )
             recourse = RecoursePolicy("fixed", ())
-        return Claim(self, domain, recourse, requirements)
+        return Claim(self, domain, recourse, requirements, distance)
 
     def run(self, claim, operation, realization, options):
         from .affine_results import audit_result, evaluate_result, sensitivity_result
@@ -295,6 +299,10 @@ class AffineProcessAdapter(Record):
                 "perturbation_scope",
             }
             if operation == "sensitivity"
+            else {"distance_tolerance"}
+            if operation == "boundary"
+            else {"violation_margins", "distance_tolerance"}
+            if operation == "breaking"
             else set()
         )
         if set(options) - allowed:
@@ -312,6 +320,10 @@ class AffineProcessAdapter(Record):
             return sensitivity_result(claim, realization, **options)
         if operation == "audit":
             return audit_result(claim)
+        if operation in ("boundary", "breaking"):
+            from ._affine_distance_results import threshold_result
+
+            return threshold_result(claim, boundary=operation == "boundary", **options)
         return rejected_result(
             claim.contract,
             operation,

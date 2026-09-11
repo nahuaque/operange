@@ -69,7 +69,7 @@ change and JSON round trips. The complete consumer example is
 
 | Model | Implemented questions | Scope |
 | --- | --- | --- |
-| Caller-declared affine model: constant plus weighted inputs and fixed controls | Point evaluation, analytical first sensitivities and linear-requirement audits | Supported uncertainty domains; no adjustable affine recourse or nearest-failure search |
+| Caller-declared affine model: constant plus weighted inputs and fixed controls | Point evaluation, analytical first sensitivities, requirement audits and boundary/positive-violation distances | Audits over supported uncertainty domains; distance searches over boxes and polytopes with explicit normalized L-infinity scales; controls remain fixed |
 | Caller-declared linear model with bounded controls | Joint dispatch feasibility, finite-scenario audits and checked infeasibility witnesses | Fixed or fully observed single-stage operation; coupled equipment limits always apply; no dispatch derivatives or distance searches |
 | Heat-recovery reference model | Heat-delivery evaluation, optimized-response sensitivities, full-box audits, feasibility boundary, positive-shortfall breaking search and engineering-change comparison | Static, constant COP, two uncertain inputs and fully observed electrical-power recourse |
 | Thermal-storage reference model | Fixed, causal and perfect-foresight audits; conflicting futures; equipment and earlier-information changes | Complete declared finite two-period tree; no general trajectory solver or sensitivity operator |
@@ -82,6 +82,12 @@ the combined peak remains infeasible. Increasing the shared fuel capacity passes
 all four declared scenarios. Each pass includes checked physical controls, and
 each failure includes a constraint combination that rules out all permitted
 controls. Solver termination alone cannot establish either conclusion.
+
+The [failure-distance guide](docs/failure-distance.md) finds which fixed affine
+requirement first reaches its limit. The shared steam header reaches its boundary
+at normalized distance 0.75; a 0.01 MW violation requires distance 0.7525.
+Distances carry verified lower and upper bounds, and an unresolved branch cannot
+silently disappear from the search for the nearest failure.
 
 The [startup example](docs/startup.md)
 keeps a compressor start distinct from ordinary load variation. Two synthetic

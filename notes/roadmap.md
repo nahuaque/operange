@@ -34,7 +34,10 @@ ambient analytical sensitivities and support-bound audits. The utility example
 holds the physical model constant while changing the uncertainty assumptions.
 The [linear dispatch adapter](../docs/linear-dispatch.md) now adds bounded controls,
 coupled equipment limits and finite-scenario audits under fixed or fully observed
-static operation. Continuous-domain recourse and closest-breaking searches remain
+static operation. The [failure-distance slice](../docs/failure-distance.md) adds
+fixed affine threshold searches over boxes and polytopes, with exact checks of
+physical candidates and bounded dual certificates across all selected requirements.
+Continuous-domain recourse and distance searches with adjustable controls remain
 future work.
 
 The opt-in [quadratic/residopt experiment](quadratic-residopt-experiment.md)

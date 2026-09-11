@@ -1,6 +1,6 @@
 """Run with -I outside the checkout, in a venv containing only the process wheel.
 
-Copy steam_header.py, linear_dispatch.py, startup.py, pinch.py and
+Copy steam_header.py, linear_dispatch.py, failure_distance.py, startup.py, pinch.py and
 prototype_result_v1.json here.
 There are no pytest, repository, optional solver, or test-environment imports.
 """
@@ -155,6 +155,54 @@ def main():
             for e in replay.evidence
         ),
         "linear infeasibility certificate missing",
+    )
+
+    distance_example = runpy.run_path(str(directory / "failure_distance.py"))
+    distance_results = {
+        name: process.result_from_json(json.dumps(data))
+        for name, data in distance_example["run_example"]().items()
+    }
+    for name, distance in (
+        ("boundary", 0.75),
+        ("breaking", 0.7525),
+        ("restricted_boundary", 1.0),
+    ):
+        result = distance_results[name]
+        search = result.payload.search
+        require(search.resolution == "minimum_verified", f"{name} distance unresolved")
+        require(
+            isclose(search.lower.value, distance, abs_tol=search.tolerance),
+            f"{name} lower distance changed",
+        )
+        require(
+            isclose(search.upper.value, distance, abs_tol=search.tolerance),
+            f"{name} upper distance changed",
+        )
+        require(
+            process.result_from_json(result.to_json(compact=True)).to_dict()
+            == result.to_dict(),
+            "distance result round trip changed",
+        )
+    require(
+        distance_results["boundary"].payload.witness is None,
+        "boundary promoted to failure",
+    )
+    require(
+        distance_results["breaking"].payload.verdict == "fail",
+        "positive violation missing",
+    )
+    require(
+        distance_results["restricted_breaking"].payload.search.resolution
+        == "unreachable",
+        "restricted target should be unreachable",
+    )
+    distance_model, distance_domain = distance_example["example"]()
+    replay = distance_model.as_claim(distance_domain).evaluate_result(
+        distance_results["breaking"].payload.witness.realizations[0]
+    )
+    require(
+        any(c.assessment == "violated" for c in replay.payload.constraint_checks),
+        "distance witness does not replay",
     )
 
     startup = runpy.run_path(str(directory / "startup.py"))

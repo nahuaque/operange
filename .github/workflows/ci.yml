@@ -37,7 +37,7 @@ jobs:
           python -m venv "$RUNNER_TEMP/operange-consumer-venv"
           uv pip install --python "$RUNNER_TEMP/operange-consumer-venv/bin/python" dist/*.whl
           mkdir -p "$RUNNER_TEMP/operange-consumer"
-          cp examples/steam_header.py examples/linear_dispatch.py examples/startup.py examples/pinch.py tests/acceptance/wheel.py tests/fixtures/prototype_result_v1.json "$RUNNER_TEMP/operange-consumer/"
+          cp examples/steam_header.py examples/linear_dispatch.py examples/failure_distance.py examples/startup.py examples/pinch.py tests/acceptance/wheel.py tests/fixtures/prototype_result_v1.json "$RUNNER_TEMP/operange-consumer/"
           cd "$RUNNER_TEMP/operange-consumer"
           "$RUNNER_TEMP/operange-consumer-venv/bin/python" -I wheel.py
   quality:
