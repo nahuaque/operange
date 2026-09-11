@@ -1,27 +1,26 @@
 """Portable utility-target evidence; never an installed-network certificate."""
 
 from fractions import Fraction
+from ._finite_audit import audit_finite
 
 from ._heat_cascade import cascade, number, stream_conditions, upper
 from .claim import rejected_result
 from .contract_types import (
     ConstraintCheck,
-    Coverage,
     Diagnostic,
     Evidence,
     EvaluationPayload,
-    Measurement,
     Membership,
     QuantityValue,
-    RobustnessPayload,
     Witness,
     snapshot,
 )
-from .engineering_results import EvaluationResult, RobustnessResult
+from .engineering_results import EvaluationResult
 
 
-def evaluate(claim, realization):
-    model, contract = claim.adapter, claim.contract
+def evaluate(claim, realization, *, contract=None):
+    model = claim.adapter
+    contract = claim.contract if contract is None else contract
     request = snapshot({"query": "evaluation", "realization": realization})
     try:
         point = claim.domain.space.validate(realization)
@@ -150,99 +149,50 @@ def evaluate(claim, realization):
     )
 
 
-def audit(claim):
-    evaluations, scenarios, unresolved, evidence = {}, [], [], []
-    for scenario in claim.domain.scenarios:
-        result = evaluate(claim, scenario.values)
-        evaluations[result.result_id] = result
-        scenarios.append(
-            {"name": scenario.name, "evaluation_ref": result.ref.to_dict()}
-        )
-        if result.execution != "completed":
-            unresolved.append(scenario.name)
-    complete = not unresolved
-    witness = None
-    for result in evaluations.values():
-        affected = tuple(
-            c.constraint_ref
-            for c in result.payload.constraint_checks
-            if c.assessment == "violated"
-        )
-        if result.execution == "completed" and affected:
-            evidence.extend(
-                (
-                    Evidence(
-                        "witness_membership",
-                        "domain_membership",
-                        "finite_enumeration",
-                        "verified",
-                        details={"evaluation_ref": result.ref.to_dict()},
-                    ),
-                    Evidence(
-                        "target_failure",
-                        "recourse_infeasibility",
-                        "minimum_utility_exceeds_capacity",
-                        "verified",
-                        details={
-                            "evaluation_ref": result.ref.to_dict(),
-                            "scope": "utility target exceeds a selected limit even with unrestricted heat matching",
-                            "installed_network_feasibility": "not_assessed",
-                        },
-                    ),
-                )
-            )
-            witness = Witness(
-                "individual_infeasibility",
-                (result.request["realization"],),
-                affected,
-                ("witness_membership",),
-                ("target_failure",),
-                details={
-                    "evaluation_ref": result.ref.to_dict(),
-                    "scope": "thermodynamic_utility_targets",
-                },
-            )
-            break
-    scope = {
-        "scope": "thermodynamic_utility_targets",
-        "installed_network_feasibility": "not_assessed",
-        "continuous_uncertainty_coverage": False,
-    }
-    if complete:
-        evidence.append(
-            Evidence(
-                "coverage",
-                "domain_coverage",
-                "finite_scenarios_with_exact_heat_cascades",
-                "verified",
-                measurements=(Measurement("scenario_count", len(scenarios), "count"),),
-                details=scope,
-            )
-        )
-    coverage = Coverage(
-        "complete_finite" if complete else "partial",
-        evaluated_support={"scenarios": scenarios, **scope},
-        unexplored_support={"unresolved_scenarios": unresolved},
-        evidence_refs=("coverage",) if complete else (),
+def _failure(claim, result, affected):
+    proofs = (
+        Evidence(
+            "witness_membership",
+            "domain_membership",
+            "finite_enumeration",
+            "verified",
+            details={"evaluation_ref": result.ref.to_dict()},
+        ),
+        Evidence(
+            "target_failure",
+            "recourse_infeasibility",
+            "minimum_utility_exceeds_capacity",
+            "verified",
+            details={
+                "evaluation_ref": result.ref.to_dict(),
+                "scope": "utility target exceeds a selected limit even with unrestricted heat matching",
+                "installed_network_feasibility": "not_assessed",
+            },
+        ),
     )
-    return RobustnessResult(
-        claim.contract,
-        {"query": "audit"},
-        "completed" if complete else "unresolved",
-        RobustnessPayload(
-            "fail" if witness else "pass" if complete else "inconclusive",
-            coverage,
-            tuple(r.ref for r in evaluations.values()),
-            witness=witness,
-        ),
-        tuple(evidence),
-        tuple(
-            Diagnostic(
-                "scenario_unresolved",
-                name,
-                "A declared stream scenario could not be evaluated; complete coverage is unavailable.",
-            )
-            for name in unresolved
-        ),
-        tuple(evaluations.values()),
+    return Witness(
+        "individual_infeasibility",
+        (result.request["realization"],),
+        affected,
+        ("witness_membership",),
+        ("target_failure",),
+        details={
+            "evaluation_ref": result.ref.to_dict(),
+            "scope": "thermodynamic_utility_targets",
+        },
+    ), proofs
+
+
+def audit(claim):
+    return audit_finite(
+        claim,
+        evaluate,
+        _failure,
+        method="finite_scenarios_with_exact_heat_cascades",
+        scope={
+            "scope": "thermodynamic_utility_targets",
+            "installed_network_feasibility": "not_assessed",
+            "continuous_uncertainty_coverage": False,
+        },
+        diagnostic="A declared stream scenario could not be evaluated; complete coverage is unavailable.",
     )

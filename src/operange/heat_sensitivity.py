@@ -11,9 +11,10 @@ from .engineering_results import SensitivityResult
 from .heat_recovery import COORDINATES
 from .heat_results import OUTPUTS, contract_for, evaluate_result
 from .primitives import finite
+from fractions import Fraction
 
 
-def sensitivity_result(
+def _sensitivity_result(
     claim,
     realization,
     *,
@@ -142,7 +143,7 @@ def sensitivity_result(
     # Each column is a perturbation in physical coordinates. A directional
     # derivative uses t in R (dimensionless), with x(t) = x0 + t * direction.
     vectors = (
-        [tuple(direction[i] * factors[i] for i in range(len(inputs)))]
+        [tuple(_product(direction[i], factors[i]) for i in range(len(inputs)))]
         if operator == "directional"
         else [
             tuple(factors[i] if i == j else 0.0 for i in range(len(inputs)))
@@ -187,9 +188,9 @@ def sensitivity_result(
     columns = []
     for vector in vectors:
         deltas = dict(zip(inputs, vector))
-        source_slope = -source_coefficient * deltas.get("source_derating", 0.0)
-        demand_slope = claim.requirement.base_heat_mw * deltas.get(
-            "demand_increase", 0.0
+        source_slope = _product(-source_coefficient, deltas.get("source_derating", 0.0))
+        demand_slope = _product(
+            claim.requirement.base_heat_mw, deltas.get("demand_increase", 0.0)
         )
         affected = source_slope != 0 and any(n != "required_heat" for n in outputs)
         if affected and difference != 0 and abs(difference) <= claim.tolerance:
@@ -280,3 +281,29 @@ def sensitivity_result(
         evidence=evidence,
         validity=validity,
     )
+
+
+def sensitivity_result(claim, realization, **options):
+    """Keep finite-input arithmetic failures within the portable result contract."""
+    try:
+        return _sensitivity_result(claim, realization, **options)
+    except (ArithmeticError, ValueError) as exc:
+        return SensitivityResult(
+            contract_for(claim),
+            snapshot({"query": "sensitivity", "realization": realization, **options}),
+            "unresolved",
+            SensitivityPayload("unknown"),
+            diagnostics=(
+                Diagnostic("derivative_arithmetic_unresolved", "sensitivity", str(exc)),
+            ),
+        )
+
+
+def _product(*values):
+    exact = Fraction(1)
+    for value in values:
+        exact *= Fraction(value)
+    result = finite(float(exact), "derivative product")
+    if exact and result == 0:
+        raise ValueError("derivative product underflowed")
+    return result

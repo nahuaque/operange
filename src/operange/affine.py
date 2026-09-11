@@ -1,7 +1,7 @@
 """Caller-declared affine process responses under fixed operating decisions."""
 
 from dataclasses import dataclass
-from math import fsum
+from fractions import Fraction
 from typing import Literal
 
 from .claim import (
@@ -19,7 +19,8 @@ from .contract_types import (
     nonempty,
     unique,
 )
-from .domains import ParameterSpace
+from .domains import FiniteSet, ParameterSpace
+from ._numeric import exact_dot
 from .primitives import finite
 from .recourse import RecoursePolicy
 
@@ -52,11 +53,12 @@ class AffineOutput(Record):
         unique(tuple(t.variable for t in self.terms), "affine variables")
 
     def evaluate(self, values):
-        return finite(
-            fsum(
-                [self.offset, *(t.coefficient * values[t.variable] for t in self.terms)]
-            ),
-            self.name,
+        return finite(float(self._exact_value(values)), self.name)
+
+    def _exact_value(self, values):
+        return Fraction(self.offset) + exact_dot(
+            (t.coefficient for t in self.terms),
+            (values[t.variable] for t in self.terms),
         )
 
 
@@ -203,7 +205,7 @@ class AffineProcessAdapter(Record):
             tuple(quantities),
             tuple(constraints),
             {
-                "arithmetic": "float64",
+                "arithmetic": "exact_rational_evaluation_and_directed_support_bounds",
                 "requirement_tolerances": {
                     r.name: r.tolerance for r in self.requirements
                 },
@@ -242,6 +244,7 @@ class AffineProcessAdapter(Record):
             c.nominal is not None and c.scale is not None
             for c in claim.domain.space.coordinates
         )
+        finite_domain = type(claim.domain) is FiniteSet
         search = Capability(
             False,
             "This affine adapter provides full-domain audits, not boundary or closest-breaking-distance searches.",
@@ -256,8 +259,10 @@ class AffineProcessAdapter(Record):
                 "Analytical ambient Jacobian/directional derivatives of the fixed affine response.",
             ),
             Capability(
-                support and normalized,
-                "Requirement support bounds over the declared domain."
+                finite_domain or (support and normalized),
+                "Complete finite enumeration in physical coordinates."
+                if finite_domain
+                else "Requirement support bounds over the declared domain."
                 if support and normalized
                 else "Audit requires normalized linear support; membership alone is insufficient.",
             ),

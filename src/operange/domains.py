@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from functools import cached_property
 from typing import Literal, Protocol, runtime_checkable
 
 from .contract_types import (
@@ -288,7 +289,7 @@ class FiniteSet(Record):
             "scenarios": [s.to_dict() for s in self.scenarios],
         }
 
-    @property
+    @cached_property
     def ref(self):
         return reference(self.to_manifest(), "uncertainty_set/v1")
 

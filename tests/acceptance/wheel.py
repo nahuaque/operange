@@ -67,6 +67,12 @@ def main():
         for n, v in exported.items()
         if n != "restored_result_id"
     }
+    for result in results.values():
+        compact = result.to_json(compact=True)
+        require(
+            process.result_from_json(compact).to_dict() == result.to_dict(),
+            "compact transport changed a v1 result or its identity",
+        )
     require(
         results["evaluation"].payload.feasibility == "feasible",
         "nominal evaluation failed",

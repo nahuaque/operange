@@ -1,6 +1,6 @@
 """Existing engineering result families for fixed affine process operation."""
 
-from math import fsum
+from fractions import Fraction
 
 from ._geometry import LinearSupport, dot
 from .claim import rejected_result
@@ -21,14 +21,18 @@ from .contract_types import (
 )
 from .engineering_results import EvaluationResult, RobustnessResult, SensitivityResult
 from .primitives import finite
+from .domains import FiniteSet
+from ._finite_audit import audit_finite
+from ._numeric import normalized_score, round_down, round_up
 
 
 def _requirements(claim):
     return tuple(r for r in claim.adapter.requirements if r.name in claim.requirements)
 
 
-def evaluate_result(claim, realization):
-    model, contract = claim.adapter, claim.contract
+def evaluate_result(claim, realization, *, contract=None):
+    model = claim.adapter
+    contract = claim.contract if contract is None else contract
     request = snapshot({"query": "evaluation", "realization": realization})
     try:
         membership = claim.domain.membership(realization)
@@ -75,9 +79,13 @@ def evaluate_result(claim, realization):
     try:
         fixed = model._fixed_values(claim)
         variables = {**point, **fixed}
-        outputs = {o.name: o.evaluate(variables) for o in model.outputs}
+        exact_outputs = {o.name: o._exact_value(variables) for o in model.outputs}
+        outputs = {
+            name: finite(float(value), name) for name, value in exact_outputs.items()
+        }
         residuals = {
-            r.name: r.residual(outputs[r.output]) for r in _requirements(claim)
+            r.name: round_up(r.sign * (exact_outputs[r.output] - Fraction(r.limit)))
+            for r in _requirements(claim)
         }
     except (ValueError, OverflowError) as exc:
         return EvaluationResult(
@@ -338,7 +346,61 @@ def sensitivity_result(
     )
 
 
+def _failure(claim, evaluation, affected):
+    proofs = (
+        Evidence(
+            "witness_membership",
+            "domain_membership",
+            "evaluated_domain_member",
+            "verified",
+            details={"evaluation_ref": evaluation.ref.to_dict()},
+        ),
+        Evidence(
+            "fixed_failure",
+            "recourse_infeasibility",
+            "unique_fixed_response",
+            "verified",
+            assumptions=("no adjustable controls are permitted by this claim",),
+            details={
+                "evaluation_ref": evaluation.ref.to_dict(),
+                "affected_requirements": affected,
+                "recourse_policy": claim.recourse.to_dict(),
+            },
+        ),
+    )
+    return Witness(
+        "fixed_policy_failure",
+        (evaluation.request["realization"],),
+        affected,
+        ("witness_membership",),
+        ("fixed_failure",),
+        details={"evaluation_ref": evaluation.ref.to_dict()},
+    ), proofs
+
+
+def _checked_support(claim, coefficients):
+    support = claim.domain.maximize_linear(coefficients)
+    expected = {name: coefficients.get(name, 0) for name in claim.domain.space.names}
+    if (
+        not isinstance(support, LinearSupport)
+        or support.domain_ref != claim.domain.ref
+        or dict(support.coefficients) != expected
+    ):
+        raise ValueError("support result does not match the domain and objective")
+    if support.status not in ("optimal", "bounded"):
+        raise ValueError("domain support calculation is unresolved or unsupported")
+    return support
+
+
 def audit_result(claim):
+    if type(claim.domain) is FiniteSet:
+        return audit_finite(
+            claim,
+            evaluate_result,
+            _failure,
+            method="finite_affine_evaluation",
+            scope={"arithmetic": "exact_rationals_of_declared_floats"},
+        )
     model, contract = claim.adapter, claim.contract
     requirements = _requirements(claim)
     evaluations, evidence, bounds = {}, [], {}
@@ -362,42 +424,31 @@ def audit_result(claim):
         try:
             output = model.output(requirement.output)
             coefficients = {t.variable: t.coefficient for t in output.terms}
-            w = {
-                c.name: finite(
-                    requirement.sign
-                    * coefficients.get(c.name, 0)
-                    * c.scale
-                    / requirement.residual_scale,
-                    "normalized residual coefficient",
-                )
+            exact_weights = {
+                c.name: requirement.sign
+                * Fraction(coefficients.get(c.name, 0))
+                * Fraction(c.scale)
+                / Fraction(requirement.residual_scale)
                 for c in claim.domain.space.coordinates
+            }
+            w = {
+                n: finite(float(v), "normalized residual coefficient")
+                for n, v in exact_weights.items()
             }
             if any(coefficients.get(n, 0) != 0 and w[n] == 0 for n in w):
                 raise ValueError("normalized residual coefficient underflowed")
-            baseline = requirement.residual(output.evaluate({**nominal, **fixed}))
-            support = claim.domain.maximize_linear(w)
-            if (
-                not isinstance(support, LinearSupport)
-                or support.domain_ref != claim.domain.ref
-                or dict(support.coefficients) != w
-            ):
-                raise ValueError(
-                    "support result does not match the domain and objective"
-                )
+            baseline = requirement.sign * (
+                output._exact_value({**nominal, **fixed}) - Fraction(requirement.limit)
+            )
+            support = _checked_support(claim, w)
             details["normalized_support"] = support.to_dict()
-            if support.status not in ("optimal", "bounded"):
-                raise ValueError(
-                    "domain support calculation is unresolved or unsupported"
-                )
             candidate = evaluate(support.point)
             if (
                 candidate.execution != "completed"
                 or candidate.payload.membership.status != "inside"
             ):
                 raise ValueError("support candidate could not be verified")
-            score = dot(
-                w.values(), claim.domain.space.normalize(support.point).values()
-            )
+            score = round_down(normalized_score(claim.domain.space, w, support.point))
             if abs(score - support.lower) > support.tolerance:
                 raise ValueError("support lower bound disagrees with its candidate")
             lower = next(
@@ -406,12 +457,22 @@ def audit_result(claim):
                 if c.constraint_ref == requirement.name
             )
             # Carry the support operation's numeric tolerance into physical units.
-            guard = finite(
-                requirement.residual_scale * support.tolerance, "support guard"
-            )
-            upper = finite(
-                fsum((baseline, requirement.residual_scale * support.upper, guard)),
-                "physical residual upper bound",
+            guard = Fraction(requirement.residual_scale) * Fraction(support.tolerance)
+            correction = Fraction(0)
+            correction_proofs = {}
+            for name, exact_weight in exact_weights.items():
+                error = exact_weight - Fraction(w[name])
+                if error:
+                    bound = _checked_support(claim, {name: 1 if error > 0 else -1})
+                    correction += abs(error) * (
+                        Fraction(bound.upper) + Fraction(bound.tolerance)
+                    )
+                    correction_proofs[name] = bound.to_dict()
+            upper = round_up(
+                baseline
+                + Fraction(requirement.residual_scale)
+                * (Fraction(support.upper) + correction)
+                + guard
             )
             if lower > upper:
                 raise ValueError(
@@ -420,7 +481,10 @@ def audit_result(claim):
             bounds[requirement.name] = upper
             details.update(
                 {
-                    "nominal_residual": baseline,
+                    "nominal_residual": round_up(baseline),
+                    "nominal_residual_exact": str(baseline),
+                    "coefficient_rounding_correction": str(correction),
+                    "coefficient_rounding_bounds": correction_proofs,
                     "physical_unit": output.unit,
                     "candidate_evaluation_ref": candidate.ref.to_dict(),
                 }
@@ -436,7 +500,7 @@ def audit_result(claim):
                         Measurement("residual_upper", upper, output.unit),
                     ),
                     (
-                        Measurement("support_guard", guard, output.unit),
+                        Measurement("support_guard", round_up(guard), output.unit),
                         Measurement(
                             "requirement_tolerance", requirement.tolerance, output.unit
                         ),
@@ -468,39 +532,8 @@ def audit_result(claim):
             if c.assessment == "violated" and c.constraint_ref in claim.requirements
         )
         if affected:
-            evidence.extend(
-                (
-                    Evidence(
-                        "witness_membership",
-                        "domain_membership",
-                        "evaluated_domain_member",
-                        "verified",
-                        details={"evaluation_ref": evaluation.ref.to_dict()},
-                    ),
-                    Evidence(
-                        "fixed_failure",
-                        "recourse_infeasibility",
-                        "unique_fixed_response",
-                        "verified",
-                        assumptions=(
-                            "no adjustable controls are permitted by this claim",
-                        ),
-                        details={
-                            "evaluation_ref": evaluation.ref.to_dict(),
-                            "affected_requirements": affected,
-                            "recourse_policy": claim.recourse.to_dict(),
-                        },
-                    ),
-                )
-            )
-            witness = Witness(
-                "fixed_policy_failure",
-                (evaluation.request["realization"],),
-                affected,
-                ("witness_membership",),
-                ("fixed_failure",),
-                details={"evaluation_ref": evaluation.ref.to_dict()},
-            )
+            witness, proofs = _failure(claim, evaluation, affected)
+            evidence.extend(proofs)
             break
     all_bounds = len(bounds) == len(requirements)
     passing_response = any(

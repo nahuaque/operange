@@ -38,6 +38,8 @@ class OperationResult(Artifact):
     slack_mw: float | None
     binding_limits: tuple[str, ...]
     evidence: SolveEvidence
+    capacity_lower_mw: float | None = None
+    capacity_upper_mw: float | None = None
 
 
 @dataclass(frozen=True)

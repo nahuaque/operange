@@ -2,8 +2,8 @@
 
 The alpha package has two supported import surfaces: `operange`
 for shared engineering concepts and `operange.reference` for the
-bounded reference models. The API is still being developed on the experimental
-branch, with its consumer examples maintained alongside it.
+bounded reference models. The API is still being developed, with consumer
+examples maintained alongside it.
 
 ## Shared declarations
 
@@ -36,7 +36,7 @@ Units describe quantities and derivatives without converting values.
 
 | Adapter | Evaluation and sensitivity | Robustness |
 | --- | --- | --- |
-| `AffineProcessAdapter` | Fixed affine responses; analytical first derivatives in physical or normalized coordinates | Linear-support audits over supported boxes, finite sets, simplexes, budgets, ellipsoids and polytopes; no adjustable recourse or distance searches |
+| `AffineProcessAdapter` | Fixed affine responses; analytical first derivatives in physical or normalized coordinates | Direct physical enumeration of finite sets; linear-support audits over supported boxes, simplexes, budgets, ellipsoids and polytopes; no adjustable recourse or distance searches |
 | `reference.HeatRecoveryAdapter` | Static constant-COP heat model with declared recourse; analytical local and directional first derivatives where supported | Box audits, boundary and positive-shortfall breaking searches within its verified static model and normalized distance |
 | `reference.ThermalStorageAdapter` | Two-period finite-tree dispatch with fixed, causal or perfect-foresight permissions; no sensitivity operator | Audits of the declared finite tree, including incompatible futures; no continuous-domain radius or general multistage search |
 | `reference.StartupLoadAdapter` | Supplied piecewise-linear load profiles with fixed start times, amplitude/duration scales and timing jitter; peaks and time integrals | Complete finite uncertainty enumeration with continuous-time coverage of the declared interpolation; no adaptive scheduling, derivatives or distance searches |
@@ -48,6 +48,21 @@ the requested operator. A domain's membership support is not a universal audit
 guarantee. Affine derivatives are ambient coordinate derivatives, not an
 implicit choice of tangent coordinates on a constrained composition surface.
 Heat derivatives retain their operating-mode and locality qualifications.
+
+Finite affine audits do not require nominal values or normalization scales.
+They evaluate every declared physical realization and report `complete_finite`
+coverage, retaining duplicate scenario labels. Affine residuals use exact rational
+arithmetic on the declared floats and round toward positive infinity for checks.
+Continuous affine audits carry coefficient-rounding corrections and directed
+support bounds into physical residual units. Unsupported or numerically unresolved
+calculations retain their diagnostics.
+
+Heat-recovery results retain a feasible objective lower bound and a conservative
+analytical upper bound. If the feasible response misses the service requirement
+but the upper bound permits recovery, the audit is inconclusive. Heat derivative
+overflow or underflow returns an unresolved result without a fabricated derivative.
+The reference `OperationResult` also exposes `capacity_lower_mw` and
+`capacity_upper_mw`; its attained response remains in `maximum_heat_mw`.
 
 The `ScenarioTree` reference type is specifically a two-period storage tree.
 General trajectories, degradation, faults, implicit sets, model ensembles,
@@ -70,6 +85,20 @@ Each result exposes `to_dict()` and `to_json()` with schema
 and the claim verdict. Missing or unsupported derivatives are not zero values;
 solver failure alone is not a certified breaking witness. Inspect coverage,
 bounds and witness evidence before interpreting a verdict as global.
+
+`to_dict(compact=True)` and `to_json(compact=True)` opt into
+`process_result_bundle/v1`, containing `result`, `contracts` and `evaluations`.
+The artifact tables are keyed by existing content identities; each result's
+`artifacts` names its contract and supporting evaluations. Expanding the tables
+reconstructs the original v1 result and its identity. `result_from_json` and the
+typed `from_json` methods accept both formats. Older readers need the default
+v1 export. Neither the underlying result IDs nor the default schema changes.
+
+The compact reader rejects altered content, missing or unused artifacts, duplicate
+references and nested evaluation cycles. The result validators also require a
+quantity repeated in a constraint residual or attained objective to match its
+stored value. Loading validates these records and identities without executing
+a model or re-proving the recorded evidence.
 
 Results serialize model and operating declarations, not Python adapter code.
 Content identities support evidence joins and integrity checks. They do not

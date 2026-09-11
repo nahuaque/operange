@@ -15,6 +15,7 @@ from .contract_types import (
 )
 from .domains import DomainCapabilities, MembershipCheck
 from .primitives import finite
+from ._numeric import normalized_score, round_down, round_up
 
 
 def weights(space, coefficients):
@@ -161,9 +162,8 @@ class Geometry:
             check = self.membership(point)
         if check.status != "inside":
             return self._unresolved(w, "could not verify a feasible support witness")
-        z = self.space.normalize(point)
-        lower = dot(w.values(), (z[n] for n in w))
-        upper = finite(upper, "support upper bound")
+        lower = round_down(normalized_score(self.space, w, point))
+        upper = round_up(upper)
         if lower > upper + self.tolerance:
             return self._unresolved(
                 w, "analytical/dual bound disagrees with feasible point"

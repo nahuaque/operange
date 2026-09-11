@@ -107,7 +107,7 @@ def test_box_and_finite_support_names_scaling_and_missing_normalization():
     )
     assert not unscaled.capabilities.linear_optimization  # nosec B101
     assert unscaled.maximize_linear({"a": 1}).status == "unsupported"  # nosec B101
-    assert model().as_claim(unscaled).audit_result().execution == "unsupported"  # nosec B101
+    assert model().as_claim(unscaled).audit_result().payload.verdict == "pass"  # nosec B101
     assert (
         model()
         .as_claim(unscaled)
@@ -154,7 +154,17 @@ def test_same_model_audits_alternative_geometries(kind, expected, maximum):
     claim = model().as_claim(domains[kind])
     audit = claim.audit_result()
     assert audit.payload.verdict == expected  # nosec B101
-    assert bounds(audit)["capacity"]["residual_upper"] == pytest.approx(maximum - 19)  # nosec B101
+    if kind == "finite":
+        residual = max(
+            e.payload.constraint_checks[-1].residual.value
+            for e in audit.supporting_evaluations
+        )
+        assert residual == pytest.approx(maximum - 19)  # nosec B101
+        assert audit.payload.coverage.method == "complete_finite"  # nosec B101
+    else:
+        assert bounds(audit)["capacity"]["residual_upper"] == pytest.approx(
+            maximum - 19
+        )  # nosec B101
     assert audit.payload.search is None  # nosec B101
     assert (
         audit.contract.domain == domains[kind].to_manifest()
@@ -445,7 +455,7 @@ def test_affine_unit_identity_and_numeric_validation():
     )  # nosec B101
 
 
-def test_arithmetic_overflow_and_normalized_underflow_remain_unresolved():
+def test_overflow_is_unresolved_and_exact_products_avoid_intermediate_underflow():
     huge = model(terms=(AffineTerm("a", 1e308, "MW/MW"),))
     claim = huge.as_claim(domain())
     assert claim.evaluate_result(domain().nominal).execution == "unresolved"  # nosec B101
@@ -471,8 +481,11 @@ def test_arithmetic_overflow_and_normalized_underflow_remain_unresolved():
         ),
     )
     result = adapter.as_claim(tiny).audit_result()
-    assert result.payload.verdict == "inconclusive"  # nosec B101
-    assert any("underflow" in e.details.get("message", "") for e in result.evidence)  # nosec B101
+    assert result.payload.verdict == "fail"  # nosec B101
+    replay = adapter.as_claim(tiny).evaluate_result(
+        result.payload.witness.realizations[0]
+    )
+    assert replay.payload.constraint_checks[-1].assessment == "violated"  # nosec B101
 
 
 def test_serialized_results_load_without_model_execution(monkeypatch):

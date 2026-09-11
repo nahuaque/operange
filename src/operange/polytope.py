@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
+from fractions import Fraction
 from typing import Literal
 
 from . import linear
@@ -15,6 +16,7 @@ from ._geometry import (
 )
 from .contract_types import Evidence, Measurement, Record, freeze, nonempty, unique
 from .primitives import BoxSet, finite
+from ._numeric import exact_dot, exact_normalized_bounds, round_up
 
 
 @dataclass(frozen=True)
@@ -108,7 +110,7 @@ class PolytopeSet(Record, Geometry):
             details={"constraints": [c.name for c in self.constraints]},
         )
 
-    def _rows(self):
+    def _rows(self, bounds=None):
         rows, rhs = [], []
         for constraint in self.constraints:
             row = [constraint.coefficients.get(n, 0.0) for n in self.space.names]
@@ -117,7 +119,9 @@ class PolytopeSet(Record, Geometry):
             if constraint.relation == "eq":
                 rows.append([-v for v in row])
                 rhs.append(-constraint.rhs)
-        for i, (low, high) in enumerate(normalized_bounds(self.envelope)):
+        for i, (low, high) in enumerate(
+            normalized_bounds(self.envelope) if bounds is None else bounds
+        ):
             row = [float(j == i) for j in range(len(self.space.names))]
             rows.extend((row, [-v for v in row]))
             rhs.extend((high, -low))
@@ -134,10 +138,12 @@ class PolytopeSet(Record, Geometry):
         names, c = self.space.names, list(w.values())
         rows, rhs = self._rows()
         bounds = normalized_bounds(self.envelope)
+        exact_bounds = exact_normalized_bounds(self.envelope)
         point = self.feasible_point
         # Even a failed solver leaves the declared envelope as a valid bound.
-        upper = finite(
-            sum(max(v * lo, v * hi) for v, (lo, hi) in zip(c, bounds)), "box support"
+        upper = sum(
+            max(Fraction(v) * lo, Fraction(v) * hi)
+            for v, (lo, hi) in zip(c, exact_bounds)
         )
         primal, primal_evidence = linear.solve_lp(
             [-v for v in c], bounds, self.tolerance, inequalities=rows, upper=rhs
@@ -157,23 +163,27 @@ class PolytopeSet(Record, Geometry):
         details = {"fallback": "support of the finite envelope"}
         if dual is not None:
             multipliers = [max(0.0, v) for v in dual]
+            exact_rows, exact_rhs = self._rows(exact_bounds)
             residual = [
-                ci - dot((row[i] for row in rows), multipliers)
+                Fraction(ci) - exact_dot((row[i] for row in exact_rows), multipliers)
                 for i, ci in enumerate(c)
             ]
-            correction = finite(
-                sum(max(r * lo, r * hi) for r, (lo, hi) in zip(residual, bounds)),
-                "dual residual correction",
+            correction = sum(
+                max(r * lo, r * hi) for r, (lo, hi) in zip(residual, exact_bounds)
             )
-            dual_upper = finite(dot(rhs, multipliers) + correction, "dual upper bound")
+            dual_upper = exact_dot(exact_rhs, multipliers) + correction
             upper = min(upper, dual_upper)
             details = {
                 "multipliers": multipliers,
-                "dual_residual": residual,
-                "residual_support_correction": correction,
+                "dual_residual": list(map(round_up, residual)),
+                "dual_residual_exact": list(map(str, residual)),
+                "residual_support_correction": round_up(correction),
+                "residual_support_correction_exact": str(correction),
+                "arithmetic": "exact_rationals_of_declared_floats",
                 "formula": "rhs.T @ lambda + support_of_envelope(c - rows.T @ lambda)",
                 "rows": rows,
                 "rhs": rhs,
+                "rhs_exact": [str(Fraction(v)) for v in exact_rhs],
             }
         evidence = tuple(
             Evidence(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, fields, is_dataclass
+from functools import cached_property
 import json
 from collections.abc import Mapping
 from typing import Any, ClassVar, Literal
@@ -48,7 +49,7 @@ class _Result(Record):
     def contract_ref(self):
         return self.contract.ref
 
-    def _body(self):
+    def _metadata(self):
         return {
             "schema_version": self.schema_version,
             "kind": self.kind,
@@ -58,13 +59,18 @@ class _Result(Record):
             "payload": plain(self.payload),
             "evidence": plain(self.evidence),
             "diagnostics": plain(self.diagnostics),
+        }
+
+    def _body(self):
+        return {
+            **self._metadata(),
             "artifacts": {
                 "contract": self.contract.to_dict(),
                 "evaluations": [item.to_dict() for item in self.supporting_evaluations],
             },
         }
 
-    @property
+    @cached_property
     def ref(self):
         return reference(self._body(), self.schema_version)
 
@@ -72,12 +78,17 @@ class _Result(Record):
     def result_id(self):
         return self.ref.artifact_id
 
-    def to_dict(self):
+    def to_dict(self, *, compact=False):
+        if compact:
+            return _compact_bundle(self)
         return {**self._body(), "result_id": self.result_id}
 
-    def to_json(self, *, indent=2):
+    def to_json(self, *, indent=2, compact=False):
         return json.dumps(
-            self.to_dict(), indent=indent, sort_keys=True, allow_nan=False
+            self.to_dict(compact=compact),
+            indent=indent,
+            sort_keys=True,
+            allow_nan=False,
         )
 
     @classmethod
@@ -137,6 +148,7 @@ class EvaluationResult(_Result):
         checks = {c.constraint_ref: c for c in self.payload.constraint_checks}
         for value in self.payload.values:
             self.contract.check_value(value)
+        values = {value.quantity_ref: value.value for value in self.payload.values}
         for check in checks.values():
             if check.constraint_ref not in specs:
                 raise ValueError("unknown checked constraint")
@@ -145,6 +157,14 @@ class EvaluationResult(_Result):
                 self.contract.check_value(check.residual)
                 if check.residual.quantity_ref != spec.residual_ref:
                     raise ValueError("constraint check uses the wrong residual")
+                if (
+                    spec.residual_ref in values
+                    and values[spec.residual_ref] != check.residual.value
+                ):
+                    raise ValueError(
+                        "constraint residual contradicts stored quantity value"
+                    )
+                values[spec.residual_ref] = check.residual.value
 
                 def flattened(value):
                     if isinstance(value, tuple):
@@ -195,6 +215,12 @@ class EvaluationResult(_Result):
             raise ValueError("membership conclusion needs evidence")
         obj = self.payload.objective
         if obj:
+            if (
+                obj.attained_value is not None
+                and obj.quantity_ref in values
+                and values[obj.quantity_ref] != obj.attained_value
+            ):
+                raise ValueError("attained objective contradicts stored quantity value")
             if self.payload.feasibility != "feasible":
                 raise ValueError("objective requires a verified feasible response")
             spec = self.contract.quantity(obj.quantity_ref)
@@ -309,6 +335,93 @@ class RobustnessResult(_Result):
                 raise ValueError("resolved search requires evidence")
 
 
+def _compact_bundle(result):
+    """Deduplicate declarations without changing any process_result/v1 identity."""
+    contracts = {}
+
+    def entry(item):
+        identity = item.contract_ref.artifact_id
+        if identity not in contracts:
+            contracts[identity] = item.contract.to_dict()
+        return {
+            **item._metadata(),
+            "result_id": item.result_id,
+            "artifacts": {
+                "contract": identity,
+                "evaluations": [e.result_id for e in item.supporting_evaluations],
+            },
+        }
+
+    root = entry(result)
+    evaluations = {e.result_id: entry(e) for e in result.supporting_evaluations}
+    return {
+        "schema_version": "process_result_bundle/v1",
+        "result": root,
+        "contracts": contracts,
+        "evaluations": evaluations,
+    }
+
+
+def _expand_bundle(data):
+    if set(data) != {"schema_version", "result", "contracts", "evaluations"}:
+        raise ValueError("invalid compact bundle fields")
+    if not isinstance(data["contracts"], dict) or not isinstance(
+        data["evaluations"], dict
+    ):
+        raise ValueError("invalid compact artifact tables")
+    contracts, used_evaluations = {}, set()
+
+    def expand(item, *, root=False):
+        if not isinstance(item, dict):
+            raise ValueError("invalid compact result")
+        refs = item.get("artifacts")
+        if not isinstance(refs, dict) or set(refs) != {"contract", "evaluations"}:
+            raise ValueError("invalid compact artifact references")
+        key, evaluations = refs["contract"], refs["evaluations"]
+        if not isinstance(key, str) or key not in data["contracts"]:
+            raise ValueError("unresolved contract reference")
+        if (
+            not isinstance(evaluations, list)
+            or any(not isinstance(e, str) for e in evaluations)
+            or (not root and evaluations)
+        ):
+            raise ValueError("invalid compact evaluation references")
+        unique(tuple(evaluations), "evaluation references")
+        if key not in contracts:
+            raw = data["contracts"][key]
+            if not isinstance(raw, dict):
+                raise ValueError("invalid compact contract")
+            try:
+                contracts[key] = ProcessContract(**raw)
+            except TypeError as exc:
+                raise ValueError("invalid compact contract fields") from exc
+            if contracts[key].ref.artifact_id != key:
+                raise ValueError("contract artifact digest mismatch")
+        expanded = []
+        for identity in evaluations:
+            evaluation = data["evaluations"].get(identity)
+            if (
+                not isinstance(evaluation, dict)
+                or evaluation.get("result_id") != identity
+            ):
+                raise ValueError("unresolved evaluation reference")
+            if evaluation.get("kind") != "evaluation":
+                raise ValueError("supporting artifact must be an evaluation")
+            used_evaluations.add(identity)
+            expanded.append(expand(evaluation))
+        return {
+            **item,
+            "artifacts": {"contract": contracts[key], "evaluations": expanded},
+        }
+
+    expanded = expand(data["result"], root=True)
+    if set(contracts) != set(data["contracts"]) or used_evaluations != set(
+        data["evaluations"]
+    ):
+        raise ValueError("unreferenced compact artifacts")
+    return expanded
+
+
 def _decode(data):
     expected = {
         "schema_version",
@@ -372,4 +485,10 @@ def result_from_json(
     def constant(value):
         raise ValueError(f"nonfinite JSON number: {value}")
 
-    return _decode(json.loads(text, object_pairs_hook=pairs, parse_constant=constant))
+    data = json.loads(text, object_pairs_hook=pairs, parse_constant=constant)
+    if (
+        isinstance(data, dict)
+        and data.get("schema_version") == "process_result_bundle/v1"
+    ):
+        data = _expand_bundle(data)
+    return _decode(data)

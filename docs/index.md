@@ -10,7 +10,8 @@ This package studies physical process robustness and operational flexibility.
 Hidden-variable recomposition belongs to the main `updatesupport` package and
 can be used separately when auditing aggregate economic reports in a TEA.
 The [package README](https://github.com/nahuaque/operange/blob/main/README.md)
-introduces the engineering workflow and compares it with familiar methods.
+introduces the engineering workflow. The [methods guide](methods.md) compares
+it with familiar methods and explains the relationship to downstream economics.
 
 It requires Python 3.10+ and NumPy/SciPy only. From a checkout:
 
@@ -69,7 +70,9 @@ checks = replayed.payload.constraint_checks
 
 Always inspect `execution`, feasibility or verdict, and evidence coverage.
 Successful execution can establish infeasibility or a failed claim. Conversely,
-unsupported or unresolved execution establishes neither success nor failure.
+unsupported execution carries no verdict. An unresolved search or partial audit
+can still retain a verified failure witness; inspect the verdict and evidence
+separately from execution status.
 The affine adapter's `breaking_result()` is explicitly unsupported: its ability
 to audit the box does not establish a closest-failure search capability.
 
@@ -111,6 +114,19 @@ it validates the artifact; it does not instantiate a simulator or prove the
 physical model correct. Preserve the model implementation and its provenance
 alongside results when independent replay is required.
 
+For larger finite studies, use the compact transport to store the shared contract
+once:
+
+```python
+compact = audit.to_json(compact=True)
+restored = result_from_json(compact)
+assert restored.result_id == audit.result_id
+```
+
+This uses `process_result_bundle/v1` around the same `process_result/v1` results.
+The default export and existing saved bundles remain supported. Compact bundles
+require the updated reader; see the [API guide](api.md) for validation details.
+
 Run the complete example from the repository root:
 
 ```bash
@@ -142,4 +158,5 @@ alone can certify arbitrary nonlinear whole-plant robustness.
 api
 startup
 pinch
+methods
 ```

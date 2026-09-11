@@ -1,23 +1,21 @@
 """Exact finite-scenario/time-segment evidence for supplied startup profiles."""
 
 from fractions import Fraction
+from ._finite_audit import audit_finite
 from math import inf, nextafter
 
 from .claim import rejected_result
 from .contract_types import (
     ConstraintCheck,
-    Coverage,
     Diagnostic,
     Evidence,
     EvaluationPayload,
-    Measurement,
     Membership,
     QuantityValue,
-    RobustnessPayload,
     Witness,
     snapshot,
 )
-from .engineering_results import EvaluationResult, RobustnessResult
+from .engineering_results import EvaluationResult
 from .primitives import finite
 
 
@@ -118,8 +116,9 @@ def _response(model, transforms):
     return peak[3], peak[0], integral, details
 
 
-def _evaluate(claim, realization):
-    model, contract = claim.adapter, claim.contract
+def _evaluate(claim, realization, *, contract=None):
+    model = claim.adapter
+    contract = claim.contract if contract is None else contract
     request = snapshot({"query": "evaluation", "realization": realization})
     try:
         point = claim.domain.space.validate(realization)
@@ -253,108 +252,56 @@ def _evaluate(claim, realization):
     )
 
 
+def _failure(claim, result, affected):
+    profile = next(e for e in result.evidence if e.evidence_id == "profile")
+    proofs = (
+        Evidence(
+            "witness_membership",
+            "domain_membership",
+            "finite_enumeration",
+            "verified",
+            details={"evaluation_ref": result.ref.to_dict()},
+        ),
+        Evidence(
+            "fixed_schedule_failure",
+            "recourse_infeasibility",
+            "declared_fixed_schedule_violation",
+            "verified",
+            details={
+                "evaluation_ref": result.ref.to_dict(),
+                "scope": "fixed schedule only; alternative schedules not ruled out",
+            },
+        ),
+    )
+    return Witness(
+        "fixed_policy_failure",
+        (result.request["realization"],),
+        affected,
+        ("witness_membership",),
+        ("fixed_schedule_failure",),
+        details={
+            "evaluation_ref": result.ref.to_dict(),
+            "peak_time_seconds": next(
+                v.value for v in result.payload.values if v.quantity_ref == "peak_time"
+            ),
+            "profile_evidence": profile.details,
+        },
+    ), proofs
+
+
 def _audit(claim):
-    evaluations, scenarios, unresolved, evidence = {}, [], [], []
-    for scenario in claim.domain.scenarios:
-        result = _evaluate(claim, scenario.values)
-        evaluations[result.result_id] = result
-        scenarios.append(
-            {"name": scenario.name, "evaluation_ref": result.ref.to_dict()}
-        )
-        if result.execution != "completed":
-            unresolved.append(scenario.name)
-    complete = not unresolved
-    witness = None
-    for result in evaluations.values():
-        affected = tuple(
-            c.constraint_ref
-            for c in result.payload.constraint_checks
-            if c.assessment == "violated"
-        )
-        if result.execution == "completed" and affected:
-            profile = next(e for e in result.evidence if e.evidence_id == "profile")
-            evidence.extend(
-                (
-                    Evidence(
-                        "witness_membership",
-                        "domain_membership",
-                        "finite_enumeration",
-                        "verified",
-                        details={"evaluation_ref": result.ref.to_dict()},
-                    ),
-                    Evidence(
-                        "fixed_schedule_failure",
-                        "recourse_infeasibility",
-                        "declared_fixed_schedule_violation",
-                        "verified",
-                        details={
-                            "evaluation_ref": result.ref.to_dict(),
-                            "scope": "fixed schedule only; alternative schedules not ruled out",
-                        },
-                    ),
-                )
-            )
-            witness = Witness(
-                "fixed_policy_failure",
-                (result.request["realization"],),
-                affected,
-                ("witness_membership",),
-                ("fixed_schedule_failure",),
-                details={
-                    "evaluation_ref": result.ref.to_dict(),
-                    "peak_time_seconds": next(
-                        v.value
-                        for v in result.payload.values
-                        if v.quantity_ref == "peak_time"
-                    ),
-                    "profile_evidence": profile.details,
-                },
-            )
-            break
-    if complete:
-        evidence.append(
-            Evidence(
-                "coverage",
-                "domain_coverage",
-                "finite_scenarios_and_all_profile_segments",
-                "verified",
-                measurements=(Measurement("scenario_count", len(scenarios), "count"),),
-                details={
-                    "horizon_seconds": claim.adapter.horizon_seconds,
-                    "continuous_time_for_declared_interpolation": True,
-                    "continuous_uncertainty_coverage": False,
-                },
-            )
-        )
-    coverage = Coverage(
-        "complete_finite" if complete else "partial",
-        evaluated_support={
-            "scenarios": scenarios,
+    return audit_finite(
+        claim,
+        _evaluate,
+        _failure,
+        method="finite_scenarios_and_all_profile_segments",
+        scope={
             "time_coverage": "all_segments_of_declared_piecewise_linear_profiles",
             "horizon_seconds": claim.adapter.horizon_seconds,
         },
-        unexplored_support={"unresolved_scenarios": unresolved},
-        evidence_refs=("coverage",) if complete else (),
-    )
-    verdict = "fail" if witness else "pass" if complete else "inconclusive"
-    return RobustnessResult(
-        claim.contract,
-        {"query": "audit"},
-        "completed" if complete else "unresolved",
-        RobustnessPayload(
-            verdict,
-            coverage,
-            tuple(r.ref for r in evaluations.values()),
-            witness=witness,
-        ),
-        tuple(evidence),
-        tuple(
-            Diagnostic(
-                "scenario_unresolved",
-                name,
-                "A declared scenario could not be evaluated; complete coverage is unavailable.",
-            )
-            for name in unresolved
-        ),
-        tuple(evaluations.values()),
+        coverage_details={
+            "horizon_seconds": claim.adapter.horizon_seconds,
+            "continuous_time_for_declared_interpolation": True,
+            "continuous_uncertainty_coverage": False,
+        },
     )

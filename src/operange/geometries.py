@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from fractions import Fraction
 from math import fsum, hypot
 from typing import Literal
 
@@ -12,13 +13,13 @@ from ._geometry import (
     check_tolerance,
     dot,
     membership_record,
-    normalized_bounds,
     require_normalization,
     weights,
 )
 from .contract_types import Record, freeze, nonempty
 from .domains import ParameterSpace
 from .primitives import BoxSet, finite
+from ._numeric import exact_dot, exact_normalized_bounds, normalized_score, sqrt_upper
 
 
 @dataclass(frozen=True)
@@ -61,12 +62,12 @@ class SimplexSet(Record, Geometry):
         w = weights(self.space, coefficients)
         try:
             scores = {
-                c.name: finite(w[c.name] / c.scale, "simplex coefficient")
+                c.name: Fraction(w[c.name]) / Fraction(c.scale)
                 for c in self.space.coordinates
             }
             best = max(self.space.names, key=lambda n: scores[n])
             point = {n: float(n == best) for n in self.space.names}
-            upper = dot(w.values(), self.space.normalize(point).values())
+            upper = normalized_score(self.space, w, point)
             return self._support(
                 w,
                 point,
@@ -132,19 +133,20 @@ class BudgetSet(Record, Geometry):
     def maximize_linear(self, coefficients):
         w = weights(self.space, coefficients)
         try:
-            bounds = dict(zip(self.space.names, normalized_bounds(self.envelope)))
+            bounds = dict(zip(self.space.names, exact_normalized_bounds(self.envelope)))
             z = dict.fromkeys(self.space.names, 0.0)
-            remaining = self.budget
+            remaining = Fraction(self.budget)
             for name in sorted(self.space.names, key=lambda n: (-abs(w[n]), n)):
                 if w[name] == 0:
                     continue
                 low, high = bounds[name]
-                amount = min(remaining, 1.0, high if w[name] > 0 else -low)
+                amount = min(remaining, Fraction(1), high if w[name] > 0 else -low)
                 z[name] = amount if w[name] > 0 else -amount
-                remaining = max(0.0, remaining - amount)
-            upper = dot(w.values(), z.values())
+                remaining = max(Fraction(0), remaining - amount)
+            upper = exact_dot(w.values(), z.values())
             point = self._interior_candidate(
-                self.space.denormalize(z), self.feasible_point
+                self.space.denormalize({n: float(v) for n, v in z.items()}),
+                self.feasible_point,
             )
             return self._support(
                 w,
@@ -240,7 +242,15 @@ class EllipsoidSet(Record, Geometry):
             norm = finite(hypot(*transformed), "ellipsoid support norm")
             if norm == 0 and any(w.values()):
                 raise ValueError("ellipsoid support norm underflowed")
-            upper = finite(self.radius * norm, "ellipsoid support")
+            squared = sum(
+                (
+                    Fraction(w[a]) * Fraction(self.shape[a][b]) * Fraction(w[b])
+                    for a in w
+                    for b in w
+                ),
+                Fraction(0),
+            )
+            upper = sqrt_upper(Fraction(self.radius) ** 2 * squared)
             direction = [v / norm if norm else 0.0 for v in transformed]
             z = {
                 n: self.radius * dot(row, direction)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, fields, is_dataclass
-from functools import lru_cache
+from functools import cached_property, lru_cache
 import hashlib
 import json
 from types import MappingProxyType, UnionType
@@ -257,7 +257,7 @@ class ProcessContract(Record):
             if self.quantity(constraint.residual_ref).role != "residual":
                 raise ValueError("constraint must refer to a residual quantity")
 
-    @property
+    @cached_property
     def ref(self):
         return reference(self, "process_contract/v1")
 

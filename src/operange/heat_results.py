@@ -157,12 +157,24 @@ def evaluation_from_operation(claim, operation):
     values = [QuantityValue(name, operation.realization[name]) for name in COORDINATES]
     values.append(QuantityValue("required_heat", operation.required_heat_mw))
     checks, objective = [], None
-    resolved = operation.status != "inconclusive"
+    # A verified physical response can exist even when its service verdict is
+    # unresolved because the optimum interval straddles the requirement.
+    resolved = operation.maximum_heat_mw is not None
     if resolved:
         q, p, s = (
             operation.maximum_heat_mw,
             operation.power_mw,
             operation.source_heat_mw,
+        )
+        lower = (
+            operation.capacity_lower_mw
+            if operation.capacity_lower_mw is not None
+            else q
+        )
+        upper = (
+            operation.capacity_upper_mw
+            if operation.capacity_upper_mw is not None
+            else q
         )
         values.extend(
             QuantityValue(name, value)
@@ -207,7 +219,7 @@ def evaluation_from_operation(claim, operation):
                 "analytical_capacity",
                 "verified",
                 (
-                    Measurement("upper_capacity", q, "MW"),
+                    Measurement("upper_capacity", upper, "MW"),
                     Measurement(
                         "agreement_error", operation.evidence.reference_error, "MW"
                     ),
@@ -223,10 +235,10 @@ def evaluation_from_operation(claim, operation):
             "delivered_heat",
             "maximize",
             q,
-            Bound("finite", "MW", q, ("solver",)),
-            Bound("finite", "MW", q, ("capacity",)),
+            Bound("finite", "MW", lower, ("solver",)),
+            Bound("finite", "MW", upper, ("capacity",)),
             "attained",
-            "verified",
+            "verified" if upper - lower <= claim.tolerance else "unknown",
         )
     else:
         checks = [
@@ -294,7 +306,16 @@ def _failure_evidence(operation):
             "recourse_infeasibility",
             "analytical_capacity",
             "verified",
-            (Measurement("optimized_delivery_margin", operation.slack_mw, "MW"),),
+            (
+                Measurement("optimized_delivery_margin", operation.slack_mw, "MW"),
+                Measurement(
+                    "capacity_upper",
+                    operation.capacity_upper_mw
+                    if operation.capacity_upper_mw is not None
+                    else operation.maximum_heat_mw,
+                    "MW",
+                ),
+            ),
             (Measurement("absolute_tolerance", operation.evidence.tolerance, "MW"),),
             details={
                 "scope": "no admissible control meets heat_demand at this realization",

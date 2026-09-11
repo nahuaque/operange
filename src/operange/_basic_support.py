@@ -1,6 +1,7 @@
 """Linear support for the existing box and finite domain declarations."""
 
-from ._geometry import Geometry, dot, weights
+from ._geometry import Geometry, weights
+from ._numeric import normalized_score, round_up
 
 
 class _SupportContext(Geometry):
@@ -33,7 +34,7 @@ def box_support(domain, coefficients):
             else p.nominal
             for p in domain.scalar_parameters
         }
-        upper = dot(w.values(), domain.space.normalize(point).values())
+        upper = normalized_score(domain.space, w, point)
         return context._support(w, point, upper, "box_separable_extremum")
     except (ValueError, OverflowError) as exc:
         return context._unresolved(w, str(exc))
@@ -50,7 +51,7 @@ def finite_support(domain, coefficients):
         )
     try:
         scores = [
-            dot(w.values(), domain.space.normalize(s.values).values())
+            normalized_score(domain.space, w, s.values)
             for s in domain.scenarios
         ]
         index = max(range(len(scores)), key=scores.__getitem__)
@@ -61,7 +62,7 @@ def finite_support(domain, coefficients):
             "finite_linear_enumeration",
             details={
                 "scenario_scores": dict(
-                    zip((s.name for s in domain.scenarios), scores)
+                    zip((s.name for s in domain.scenarios), map(round_up, scores))
                 ),
                 "maximizing_scenarios": [
                     s.name

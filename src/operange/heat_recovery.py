@@ -125,6 +125,15 @@ class HeatRecoveryClaim:
                 "inconclusive", values, required, None, None, None, None, (), evidence
             )
         p, source, q = x
+        lower, upper = _reference.capacity_bounds(
+            self.cop,
+            self.design.source_capacity_mw,
+            self.design.power_capacity_mw,
+            f,
+        )
+        # The checked solver response can still be slightly suboptimal. Its
+        # objective is not an upper bound proving that all recourse fails.
+        lower, upper = min(q, lower), max(q, upper)
         slack = q - required
         binding = []
         if abs(p - self.design.power_capacity_mw) <= self.tolerance:
@@ -136,7 +145,11 @@ class HeatRecoveryClaim:
             message="LP optimum agrees with the analytical global capacity bound",
         )
         return OperationResult(
-            "pass" if slack >= -self.tolerance else "fail",
+            "pass"
+            if slack >= -self.tolerance
+            else "fail"
+            if required - upper > self.tolerance
+            else "inconclusive",
             values,
             required,
             q,
@@ -145,6 +158,8 @@ class HeatRecoveryClaim:
             slack,
             tuple(binding),
             evidence,
+            lower,
+            upper,
         )
 
     def audit(self) -> ClaimAudit:

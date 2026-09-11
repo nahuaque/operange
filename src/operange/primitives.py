@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import cached_property
 from math import isfinite
 from numbers import Real
 from typing import TYPE_CHECKING, Mapping
@@ -162,7 +163,7 @@ class BoxSet:
             ],
         }
 
-    @property
+    @cached_property
     def ref(self):
         from .contract_types import reference
 

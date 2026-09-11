@@ -14,6 +14,17 @@ def capacity(cop: float, source: float, power: float, derating: float) -> float:
     return min(cop * power, cop / (cop - 1) * source * (1 - derating))
 
 
+def capacity_bounds(cop, source, power, derating):
+    """Bound the exact optimum of the declared LP coefficients outward."""
+    from ._numeric import round_down, round_up
+
+    value = min(
+        Fraction(cop) * Fraction(power),
+        Fraction(cop) / Fraction(cop - 1) * Fraction(source) * (1 - Fraction(derating)),
+    )
+    return round_down(value), round_up(value)
+
+
 def affine_threshold_radius(
     nominal_slack: float,
     margin: float,
