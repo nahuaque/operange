@@ -476,7 +476,10 @@ def _decode(data):
 def result_from_json(
     text: str,
 ) -> EvaluationResult | SensitivityResult | RobustnessResult:
-    """Validate a portable bundle. Evidence is recorded, not re-proved on load."""
+    """Validate a portable bundle. Evidence is recorded, not re-proved on load.
+
+    Use ``verify_result`` for independent checks of supported certificates.
+    """
 
     def pairs(items):
         unique(tuple(k for k, _ in items), "JSON keys")

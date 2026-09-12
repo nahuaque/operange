@@ -6,6 +6,11 @@ from .objectives import LinearObjective, ControlTarget, ControlTrackingObjective
 from .controllers import AffineControlRule, AffineController
 from .frozen_controller import FrozenController
 from .controller_synthesis import ControllerSynthesis, synthesize_controller
+from .certificate_verification import (
+    CertificateVerification,
+    VerificationCheck,
+    verify_result,
+)
 from .vector import VectorParameter
 from .profiles import PiecewiseLinearProfile
 from .geometries import BudgetSet, EllipsoidSet, SimplexSet
@@ -82,6 +87,9 @@ __all__ = [
     "FrozenController",
     "ControllerSynthesis",
     "synthesize_controller",
+    "CertificateVerification",
+    "VerificationCheck",
+    "verify_result",
     "VectorParameter",
     "PiecewiseLinearProfile",
     "BudgetSet",

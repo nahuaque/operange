@@ -1,6 +1,7 @@
 # Developing Operange
 
-Use Python 3.10+; the local development default is Python 3.13.
+Supported and tested Python versions are 3.10, 3.11, 3.12 and 3.13; the local
+development default in `.python-version` is Python 3.13.
 
 ```bash
 uv sync --locked --group dev --group docs
@@ -19,9 +20,19 @@ residopt research remains parked; its notes describe an optional sibling-source
 experiment and do not make residopt a dependency of Operange. Missing optional
 backends produce explicit skips or unsupported results.
 
-CI also installs the wheel into a clean environment and runs copied consumers
-outside this checkout, verifying independence from `updatesupport`, old package
-imports and repository examples. It runs on Python 3.10–3.13.
+CI runs the base and optional CVXPY test suites on every supported Python
+version. Each matrix job sets `UV_PYTHON` explicitly so `.python-version` cannot
+override its selected interpreter. CI also installs the wheel into a clean
+environment and runs copied consumers outside this checkout, verifying
+independence from `updatesupport`, old package imports and repository examples.
+
+To test another supported interpreter locally without replacing `.venv`, use
+an isolated environment (substitute 3.10, 3.11, 3.12 or 3.13):
+
+```bash
+uv run --locked --isolated --python 3.10 pytest -q
+uv run --locked --isolated --python 3.10 --extra cvxpy pytest -q
+```
 
 Keep private design material in `notes/private/`, which is ignored by Git and
 excluded from distributions. Public design notes belong in `notes/`; supported

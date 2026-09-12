@@ -122,3 +122,7 @@ failed-controller counterexamples.
 
 Use `frozen.as_claim(new_domain).audit_result()` to assess new operating support.
 The original synthesis and frozen artifact retain their original scope.
+
+`verify_result(search.audit.to_json(compact=True))` independently checks the
+exported physical audit without calling a solver or model query. See
+[certificate verification](certificate-verification.md) for its supported scope.

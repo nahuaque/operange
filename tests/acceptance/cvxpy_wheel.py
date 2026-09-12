@@ -157,6 +157,12 @@ def main():
         )
     )
     require(tracked_controller.verified, "worst-case tracking synthesis failed")
+    for result in (synthesized.audit, tracked_controller.audit):
+        report = process.verify_result(result.to_json(compact=True))
+        require(
+            report.verified,
+            f"independent controller verification failed: {report.to_json()}",
+        )
     hull = process.ConvexHullSet(
         model.input_space, tuple(s for s in cases.scenarios if s.name != "combined")
     )
@@ -221,6 +227,11 @@ def main():
         e.to_dict()["details"]
         for e in shared_result.evidence
         if e.evidence_id == "relief"
+    )
+    verification = process.verify_result(shared_result.to_json(compact=True))
+    require(
+        verification.verified,
+        f"independent quadratic shared relief verification failed: {verification.to_json()}",
     )
     require(
         shared["resolution"] == "minimum_verified",

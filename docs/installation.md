@@ -1,7 +1,7 @@
 # Installation and development
 
-Operange requires Python 3.10 or newer. NumPy and SciPy are its runtime
-dependencies; installing the package installs them automatically.
+Operange supports and tests Python 3.10, 3.11, 3.12 and 3.13. NumPy and SciPy
+are its runtime dependencies; installing the package installs them automatically.
 
 ## Install a release
 
@@ -53,6 +53,7 @@ CI also builds the distribution and runs copied consumer examples outside the
 checkout, using an isolated Python environment with only the installed wheel
 and its declared dependencies. Those checks cover numerical results, evidence,
 witness replay and compatibility with saved artifacts on Python 3.10–3.13.
+Both the base test suite and the full optional CVXPY suite run on each version.
 
 The optional `cvxpy` extra enables [prepared dispatch and convex intersection
 support](convex-backends.md), as well as experimental backend comparisons.

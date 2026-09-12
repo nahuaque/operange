@@ -21,6 +21,7 @@ Import these from `operange`:
 | Adjustable linear model | `LinearProcessAdapter`, `LinearControl`; reuses `AffineOutput`, `AffineTerm`, `AffineRequirement` |
 | Dispatch objectives | `LinearObjective`, `ControlTrackingObjective`, `ControlTarget` |
 | Controller synthesis | `ControllerSynthesis`, `synthesize_controller` |
+| Independent certificate checks | `verify_result`, `CertificateVerification`, `VerificationCheck` |
 | Executable linear controllers | `AffineControlRule`, `AffineController`, `FrozenController` |
 | Engineering changes | `EngineeringChange`, `compare_changes`, `ChangeComparison`, `ChangeResult`, `ContractComparison`, `FieldChange`, `RequirementSummary` |
 | Supplied time profile | `PiecewiseLinearProfile` |
@@ -59,6 +60,14 @@ Units describe quantities and derivatives without converting values.
 Adjustable dispatch can optimize a declared affine output or track physical
 command targets with a convex quadratic objective. Feasibility and optimality
 have separate evidence; see [operating objectives](dispatch-objectives.md).
+
+`verify_result(exported_json, expected_contract_id=...)` independently checks
+supported linear dispatch, objective, relief and controller-audit certificates
+without invoking a solver or model query. It accepts standard and compact
+result exports; `python -m operange.verify result.json` provides a command-line
+interface. Unlike `result_from_json`, it reconstructs physical rows and rechecks
+the mathematics. See [certificate verification](certificate-verification.md)
+for supported proofs, limits and explicit unsupported results.
 
 ## What the built-in adapters establish
 

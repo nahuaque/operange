@@ -156,6 +156,15 @@ def main():
         name: process.result_from_json(json.dumps(data))
         for name, data in dispatch["run_example"]().items()
     }
+    for name, result in dispatch_results.items():
+        report = process.verify_result(
+            result.to_json(compact=True),
+            expected_contract_id=result.contract_ref.artifact_id,
+        )
+        require(
+            report.verified,
+            f"independent dispatch verification failed: {name}: {report.to_json()}",
+        )
     dispatch_model, dispatch_cases = dispatch["example"]()
     synthesis = dispatch_model.as_claim(dispatch_cases).synthesize_controller(
         objective=process.LinearObjective("fuel")
@@ -303,6 +312,11 @@ def main():
                 ],
                 "objective": "linear",
             }
+        )
+        verification = process.verify_result(shared_result.to_json(compact=True))
+        require(
+            verification.verified,
+            f"shared relief certificates failed independent verification: {verification.to_json()}",
         )
         shared = next(
             e.to_dict()["details"]
