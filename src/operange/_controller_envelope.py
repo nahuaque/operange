@@ -14,6 +14,7 @@ from .contract_types import (
     RobustnessPayload,
 )
 from .engineering_results import RobustnessResult
+from .convex_hull import ConvexHullSet
 from .primitives import BoxSet, finite
 
 
@@ -84,18 +85,30 @@ class ControllerEnvelope:
         space = self.claim.domain.space
         if not any(coefficients.values()):
             return offset
-        if type(self.claim.domain) is BoxSet:
-            point = {
-                p.name: p.upper if coefficients.get(p.name, 0) > 0 else p.lower
-                for p in self.claim.domain.scalar_parameters
-            }
+        if type(self.claim.domain) in (BoxSet, ConvexHullSet):
+            if type(self.claim.domain) is BoxSet:
+                point = {
+                    p.name: p.upper if coefficients.get(p.name, 0) > 0 else p.lower
+                    for p in self.claim.domain.scalar_parameters
+                }
+                method = "exact_box_affine_extremum"
+            else:
+                point = dict(
+                    max(
+                        self.claim.domain.vertices,
+                        key=lambda s: sum(
+                            a * Fraction(s.values[n]) for n, a in coefficients.items()
+                        ),
+                    ).values
+                )
+                method = "exact_hull_affine_extremum"
             upper = offset + sum(
                 (a * Fraction(point[n]) for n, a in coefficients.items()), Fraction(0)
             )
             self.points.append(point)
             self.proofs.append(
                 {
-                    "method": "exact_box_affine_extremum",
+                    "method": method,
                     "offset_exact": str(offset),
                     "coefficients_exact": {n: str(a) for n, a in coefficients.items()},
                     "point": point,

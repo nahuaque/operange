@@ -239,6 +239,12 @@ class Claim:
 
         return FrozenController(self)
 
+    def synthesize_controller(self, **options):
+        """Choose an affine controller within these permissions and audit its commands."""
+        from .controller_synthesis import synthesize_controller
+
+        return synthesize_controller(self, **options)
+
     def boundary_result(self, **options):
         return self._run("boundary", **options)
 

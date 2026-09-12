@@ -5,6 +5,7 @@ from .linear_process import LinearControl, LinearProcessAdapter
 from .objectives import LinearObjective, ControlTarget, ControlTrackingObjective
 from .controllers import AffineControlRule, AffineController
 from .frozen_controller import FrozenController
+from .controller_synthesis import ControllerSynthesis, synthesize_controller
 from .vector import VectorParameter
 from .profiles import PiecewiseLinearProfile
 from .geometries import BudgetSet, EllipsoidSet, SimplexSet
@@ -79,6 +80,8 @@ __all__ = [
     "AffineControlRule",
     "AffineController",
     "FrozenController",
+    "ControllerSynthesis",
+    "synthesize_controller",
     "VectorParameter",
     "PiecewiseLinearProfile",
     "BudgetSet",

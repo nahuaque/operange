@@ -110,6 +110,53 @@ def main():
 
     consumer = runpy.run_path(str(Path(__file__).parent / "linear_dispatch.py"))
     model, cases = consumer["example"]()
+    controller_model = replace(
+        model,
+        operating_limits=tuple(
+            replace(r, limit=32) if r.name == "shared_fuel" else r
+            for r in model.operating_limits
+        ),
+    )
+    controller_box = process.BoxSet(
+        (
+            process.Parameter("dryer", "MW", 10, 8, 12, 2, "Consumer"),
+            process.Parameter("evaporator", "MW", 6, 4, 8, 2, "Consumer"),
+        )
+    )
+    synthesized = controller_model.as_claim(controller_box).synthesize_controller(
+        objective=process.LinearObjective("fuel")
+    )
+    require(
+        synthesized.verified, "controller synthesis failed its rounded-command audit"
+    )
+    objective = next(
+        e.details for e in synthesized.evidence if e.evidence_id == "objective"
+    )
+    require(
+        abs(objective["guaranteed_value"] - 31) < 1e-7,
+        "incorrect synthesized fuel enclosure",
+    )
+    saved = process.FrozenController.from_json(synthesized.freeze().to_json())
+    require(
+        saved.audit_result() == synthesized.audit,
+        "synthesized controller changed on replay",
+    )
+    require(
+        process.result_from_json(json.dumps(synthesized.to_dict(compact=True)["audit"]))
+        == synthesized.audit,
+        "synthesis audit export changed",
+    )
+    tracked_controller = controller_model.as_claim(
+        controller_box
+    ).synthesize_controller(
+        objective=process.ControlTrackingObjective(
+            (
+                process.ControlTarget("boiler_a", 10, 1, "MW"),
+                process.ControlTarget("boiler_b", 6, 1, "MW"),
+            )
+        )
+    )
+    require(tracked_controller.verified, "worst-case tracking synthesis failed")
     hull = process.ConvexHullSet(
         model.input_space, tuple(s for s in cases.scenarios if s.name != "combined")
     )

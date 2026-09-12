@@ -8,8 +8,10 @@ equipment and service violations without redispatching or clipping the commands.
 The linear implementation binds caller-supplied affine rules to
 `LinearProcessAdapter`. It supports point evaluation at verified domain members
 and complete finite-scenario audits, plus continuous-envelope audits for domains
-with supported normalized linear bounds. It does not fit controllers, maintain
-dynamic state, or synthesize causal policies.
+with supported normalized linear bounds and explicit convex hulls. The
+[controller synthesis API](controller-synthesis.md) can choose affine coefficients
+and independently audit their rounded commands before export. These affine rules
+do not maintain dynamic state or implement causal policies.
 The [causal storage replay guide](storage-replay.md) adds a separate bounded
 two-stage controller with explicit observation signals and carried energy state.
 
@@ -154,15 +156,16 @@ energy, ordered paths and explicit tree rebinding.
 ## Audit a continuous envelope
 
 `claim.audit_result()` also supports a `BoxSet`, `PolytopeSet`, `EllipsoidSet`,
-and other domains exposing checked normalized linear support. All coordinates
-need explicit nominals and scales. Membership-only domain compositions remain
+and other domains exposing checked normalized linear support. An explicit
+`ConvexHullSet` uses exact extrema over its generators. Other continuous domains
+need explicit coordinate nominals and scales. Membership-only domain compositions remain
 unsupported. The audit covers the same saved rule throughout the domain and
 checks selected service requirements, every operating limit and every control
 bound. A passing audit reports `coverage.method="analytical_domain"`.
 
 The implementation substitutes the affine rules using exact rational
 coefficients and encloses the error from rounding each command to a float.
-Boxes use exact extrema; other supported domains retain their support bounds,
+Boxes and explicit convex hulls use exact extrema; other supported domains retain their support bounds,
 coefficient-rounding corrections and numerical guards. Control bounds use the
 monotonicity of command rounding, so an exact attainable upper command can
 meet a zero-tolerance equipment bound. Constant and identity commands introduce

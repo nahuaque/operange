@@ -157,6 +157,17 @@ def main():
         for name, data in dispatch["run_example"]().items()
     }
     dispatch_model, dispatch_cases = dispatch["example"]()
+    synthesis = dispatch_model.as_claim(dispatch_cases).synthesize_controller(
+        objective=process.LinearObjective("fuel")
+    )
+    require(
+        synthesis.execution == "unsupported",
+        "synthesis must report missing optional CVXPY",
+    )
+    require(
+        not synthesis.verified and synthesis.controller is None,
+        "missing backend cannot verify a controller",
+    )
     joint = dispatch_model.as_claim(dispatch_cases).evaluate_result(
         {"dryer": 12, "evaporator": 8},
         relief={

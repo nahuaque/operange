@@ -20,6 +20,7 @@ Import these from `operange`:
 | Fixed affine model | `AffineProcessAdapter`, `AffineOutput`, `AffineTerm`, `AffineRequirement` |
 | Adjustable linear model | `LinearProcessAdapter`, `LinearControl`; reuses `AffineOutput`, `AffineTerm`, `AffineRequirement` |
 | Dispatch objectives | `LinearObjective`, `ControlTrackingObjective`, `ControlTarget` |
+| Controller synthesis | `ControllerSynthesis`, `synthesize_controller` |
 | Executable linear controllers | `AffineControlRule`, `AffineController`, `FrozenController` |
 | Engineering changes | `EngineeringChange`, `compare_changes`, `ChangeComparison`, `ChangeResult`, `ContractComparison`, `FieldChange`, `RequirementSummary` |
 | Supplied time profile | `PiecewiseLinearProfile` |
@@ -138,6 +139,15 @@ equipment-objective bounds plus a full-domain re-audit of any candidate.
 Quadratic relief requires `backend="cvxpy"`; `relief.max_scenarios` defaults to
 256. Service requirements, hard control bounds and recourse permissions remain
 fixed. See [shared equipment relief](shared-relief.md) for declarations and replay.
+
+`claim.synthesize_controller(objective=LinearObjective("fuel"))` chooses permitted
+affine coefficients over boxes, finite sets and explicit convex hulls using the
+optional CVXPY backend. The model's objective is used when omitted. A separate
+`ControllerSynthesis` report retains the candidate, its independent rounded-command
+audit and whole-domain performance enclosure. `search.freeze()` exports an
+accepted candidate through `FrozenController`. Numerical failure establishes no
+adjustable infeasibility, and controller optimality is not certified. See
+[controller synthesis](controller-synthesis.md) for permissions, tracking and scope.
 
 `model.as_claim(domain, controller=controller, recourse=None, requirements=None)`
 instead binds an `AffineController`. Default permissions use the observations

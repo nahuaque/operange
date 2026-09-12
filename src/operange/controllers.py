@@ -12,6 +12,7 @@ from ._numeric import exact_dot
 from .claim import AdapterCapabilities, Capability, bind_contract, rejected_result
 from .contract_types import Record, nonempty, reference, snapshot, unique
 from .domains import FiniteSet
+from .convex_hull import ConvexHullSet
 from .linear_process import LinearProcessAdapter
 from .primitives import finite
 from .recourse import DecisionRule, RecoursePolicy
@@ -269,7 +270,7 @@ class _ControllerAdapter(Record):
                 "Controller-response sensitivities are not provided in this slice.",
             ),
             Capability(
-                type(claim.domain) is FiniteSet or support,
+                type(claim.domain) in (FiniteSet, ConvexHullSet) or support,
                 "Finite replay or continuous affine enclosures with command rounding, equipment bounds and selected requirements.",
             ),
             search,
