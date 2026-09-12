@@ -100,9 +100,10 @@ held_out_audit = loaded.as_claim(held_out_domain).audit_result()
 
 The `frozen_controller/v1` artifact contains the complete physical model,
 controller definition, domain, operating permissions, selected requirements,
-units, numerical settings and any attached `NormalizedLInf` distance declaration.
-Boxes and polytopes support controller threshold searches with an explicit
-`NormalizedLInf` distance. The nested `affine_controller/v1` declaration also has its own
+units, numerical settings and any attached `NormalizedLInf` or `NormalizedL2`
+distance declaration. Boxes and polytopes support L∞ controller threshold searches
+by default; the optional CVXPY backend extends their metrics and domains.
+The nested `affine_controller/v1` declaration also has its own
 identity and standalone `to_json` / `from_json` methods.
 
 Loading checks identities and reconstructs the supported declarative binding,
@@ -218,5 +219,6 @@ distances or unreachability. Every upper distance requires exact membership,
 the actual rounded commands and the physical target. `minimum_verified` means
 the checked distance bounds close within `distance_tolerance`; otherwise the
 result retains `bounded` or `unresolved`. A boundary is not itself a failure,
-and a threshold search does not replace the whole-domain audit. Ellipsoid
-audits are supported, but ellipsoid distance searches are not.
+and a threshold search does not replace the whole-domain audit. The optional
+[convex distance backend](distance-and-relief.md) extends these queries to
+ellipsoids, convex intersections and normalized Euclidean distances.

@@ -148,6 +148,9 @@ controllers are outside this adapter's current scope.
 
 ## Diagnose a conflict and quantify one-limit relief
 
+For combinations of operating-limit changes with an explicit dimensionless
+linear or quadratic objective, see [joint equipment relief](distance-and-relief.md#declare-a-joint-relief-objective).
+
 Point evaluations can request additional evidence without changing the original
 physical verdict:
 

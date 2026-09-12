@@ -118,6 +118,16 @@ def main():
     )
     witness = results["audit"].payload.witness
     model, loads = consumer["example"]()
+    metric = process.NormalizedL2(loads.space)
+    require(
+        metric.measure({"dryer": 12, "evaporator": 8}) > 1.4,
+        "Euclidean metric missing from wheel",
+    )
+    require(
+        model.as_claim(loads, distance=metric).boundary_result().execution
+        == "unsupported",
+        "Euclidean search must require its explicit optional backend",
+    )
     require(
         witness is not None
         and loads.membership(witness.realizations[0]).status == "inside",
@@ -146,6 +156,28 @@ def main():
         name: process.result_from_json(json.dumps(data))
         for name, data in dispatch["run_example"]().items()
     }
+    dispatch_model, dispatch_cases = dispatch["example"]()
+    joint = dispatch_model.as_claim(dispatch_cases).evaluate_result(
+        {"dryer": 12, "evaporator": 8},
+        relief={
+            "changes": [
+                {"constraint": "shared_fuel", "maximum": 2, "scale": 1, "unit": "MW"},
+                {
+                    "constraint": "no_excess_steam",
+                    "maximum": 1,
+                    "scale": 1,
+                    "unit": "MW",
+                },
+            ],
+            "objective": "linear",
+        },
+    )
+    joint_relief = next(e.details for e in joint.evidence if e.evidence_id == "relief")
+    require(
+        joint_relief["resolution"] == "minimum_verified"
+        and abs(joint_relief["upper"] - 1) < 1e-6,
+        "native linear joint relief failed",
+    )
     for name, verdict in (
         ("fixed", "fail"),
         ("adjustable", "fail"),

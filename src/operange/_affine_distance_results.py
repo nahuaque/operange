@@ -34,6 +34,7 @@ def threshold_result(
     failure_constraints=None,
     unit=None,
     residual_id=None,
+    backend="scipy",
 ):
     operation = "boundary" if boundary else "breaking"
     contract = claim.contract
@@ -49,8 +50,43 @@ def threshold_result(
         request = snapshot(
             {**request, "constraints": tuple(r.name for r in requirements)}
         )
+    if backend != "scipy":
+        request = snapshot({**request, "backend": backend})
+    from ._cvxpy_backend import BackendUnavailable, validate_backend
+    from .distance import NormalizedLInf
+    from .polytope import PolytopeSet
+    from .primitives import BoxSet
+
+    try:
+        validate_backend(backend)
+        if backend == "scipy" and (
+            type(claim.domain) not in (BoxSet, PolytopeSet)
+            or type(claim.distance) is not NormalizedLInf
+        ):
+            raise BackendUnavailable(
+                "Convex-domain and Euclidean distance searches require backend='cvxpy'."
+            )
+    except (ValueError, BackendUnavailable) as exc:
+        return rejected_result(
+            contract,
+            operation,
+            request,
+            str(exc),
+            code="distance_backend_unavailable"
+            if isinstance(exc, BackendUnavailable)
+            else "invalid_distance_backend",
+            execution="unsupported"
+            if isinstance(exc, BackendUnavailable)
+            else "invalid",
+        )
     requirements = _requirements(claim) if requirements is None else requirements
-    compile_branch = compile_problem if compile_branch is None else compile_branch
+    if compile_branch is None:
+        if backend == "cvxpy":
+            from ._convex_distance import ConvexThresholdProblem
+
+            compile_branch = ConvexThresholdProblem
+        else:
+            compile_branch = compile_problem
     evaluate_response = (
         evaluate_result if evaluate_response is None else evaluate_response
     )
@@ -103,7 +139,11 @@ def threshold_result(
     for index, requirement in enumerate(requirements):
         try:
             problem = compile_branch(claim, requirement, thresholds[requirement.name])
-            branch = solve_branch(problem, evaluate)
+            branch = (
+                problem.solve(evaluate)
+                if backend == "cvxpy"
+                else solve_branch(problem, evaluate)
+            )
             # A mathematically finite radius can exceed the JSON float range.
             # Keep that branch unresolved instead of crashing or exporting inf.
             round_down(branch.lower)
@@ -114,11 +154,18 @@ def threshold_result(
                 "lower_certificate": branch.lower_proof,
                 "unreachable": branch.unreachable,
                 "infeasibility_certificate": branch.infeasibility_proof,
-                "candidate_distance_exact": str(branch.distance)
+                "candidate_distance_upper_exact"
+                if backend == "cvxpy"
+                else "candidate_distance_exact": str(branch.distance)
                 if branch.distance is not None
                 else None,
                 "solver_attempts": branch.attempts,
                 "diagnostics": branch.diagnostics,
+                **(
+                    problem.distance_details(branch.point)[1]
+                    if backend == "cvxpy" and branch.point is not None
+                    else {}
+                ),
             }
         except (ValueError, OverflowError) as exc:
             branches.append(None)
@@ -133,7 +180,9 @@ def threshold_result(
             Evidence(
                 f"branch:{index}",
                 "search_branch_bounds",
-                "exact_bounded_affine_branch",
+                "checked_convex_distance_branch"
+                if backend == "cvxpy"
+                else "exact_bounded_affine_branch",
                 "verified",
                 details=details,
             )
@@ -199,9 +248,18 @@ def threshold_result(
                     "evaluation_ref": candidate.evaluation.ref.to_dict(),
                     "requirement": candidate.problem.requirement.name,
                     "threshold": candidate.problem.threshold,
-                    "distance_exact": str(candidate.distance),
+                    "distance_upper_exact"
+                    if backend == "cvxpy"
+                    else "distance_exact": str(candidate.distance),
+                    **(
+                        candidate.problem.distance_details(candidate.point)[1]
+                        if backend == "cvxpy"
+                        else {}
+                    ),
                     "distance_upper": upper,
-                    "membership": "exact domain rows and public membership both checked",
+                    "membership": "original convex restrictions and public membership both checked"
+                    if backend == "cvxpy"
+                    else "exact domain rows and public membership both checked",
                 },
             )
         )

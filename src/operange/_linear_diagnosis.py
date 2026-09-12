@@ -19,6 +19,11 @@ def validate_options(model, diagnose, relief):
         return
     from collections.abc import Mapping
 
+    if isinstance(relief, Mapping) and "changes" in relief:
+        from ._joint_relief import declarations
+
+        declarations(model, relief)
+        return
     if (
         not isinstance(relief, Mapping)
         or set(relief) - {"constraint", "maximum", "tolerance"}
@@ -87,6 +92,10 @@ def conflict_evidence(system, solution, tolerance, *, backend="scipy"):
 
 
 def relief_evidence(claim, point, system, options, *, backend="scipy"):
+    if "changes" in options:
+        from ._joint_relief import relief_evidence as joint_relief
+
+        return joint_relief(claim, point, system, options, backend=backend)
     from ._linear_process_results import _physical_response
 
     model = claim.adapter

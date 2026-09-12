@@ -123,4 +123,6 @@ Loading a declaration does not import CVXPY; executing a nested intersection
 support query requires the extra. Native unions can contain convex intersections,
 but unions are still unsupported inside the convex intersection compiler.
 These support operations do not add continuous audits for freely adjustable
-recourse or failure-distance searches over composed domains.
+recourse. [Convex distance searches](distance-and-relief.md) separately support
+intersections and products of supported convex factors with an explicit backend;
+distance searches over unions remain unsupported.

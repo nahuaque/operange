@@ -8,7 +8,7 @@ from typing import ClassVar
 from .claim import Claim
 from .contract_types import ProcessContract, plain, reference
 from .controllers import AffineController, _ControllerAdapter, _fields, _read_json
-from .distance import NormalizedLInf
+from .distance import NormalizedL2, NormalizedLInf
 from .domain_io import domain_from_manifest
 from .domains import ParameterSpace
 from .linear_process import LinearProcessAdapter
@@ -62,12 +62,12 @@ class FrozenController:
             or domain.ref != self.claim.domain.ref
         ):
             raise ValueError("frozen replay requires a supported declarative domain")
-        if (
-            self.claim.distance is not None
-            and type(self.claim.distance) is not NormalizedLInf
+        if self.claim.distance is not None and type(self.claim.distance) not in (
+            NormalizedLInf,
+            NormalizedL2,
         ):
             raise ValueError(
-                "frozen replay can preserve NormalizedLInf distance declarations only"
+                "frozen replay requires NormalizedLInf or NormalizedL2 distance declarations"
             )
         self.claim.contract
 
@@ -119,7 +119,7 @@ class FrozenController:
             "distance": None
             if self.claim.distance is None
             else {
-                "kind": "normalized_linf",
+                "kind": self.claim.distance.to_manifest()["metric"],
                 "space": self.claim.distance.space.to_dict(),
             },
         }
@@ -176,10 +176,17 @@ class FrozenController:
             if data["distance"] is not None:
                 distance = data["distance"]
                 _fields(distance, ("kind", "space"))
-                if distance["kind"] != "normalized_linf":
+                metrics = {
+                    "normalized_linf": NormalizedLInf,
+                    "normalized_l2": NormalizedL2,
+                }
+                if distance["kind"] not in metrics:
                     raise ValueError("unsupported frozen distance declaration")
                 claim = replace(
-                    claim, distance=NormalizedLInf(ParameterSpace(**distance["space"]))
+                    claim,
+                    distance=metrics[distance["kind"]](
+                        ParameterSpace(**distance["space"])
+                    ),
                 )
             if claim.contract.ref != contract.ref:
                 raise ValueError(

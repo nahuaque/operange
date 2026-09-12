@@ -8,10 +8,12 @@ equality. The LPs only propose controls and multipliers.
 """
 
 from dataclasses import asdict, dataclass
+from math import inf, nextafter
 from fractions import Fraction
 
 from . import linear
-from ._numeric import exact_dot
+from ._numeric import exact_dot, round_down, round_up
+from ._cvxpy_backend import numeric_vector
 from .primitives import finite
 
 
@@ -27,7 +29,7 @@ class LinearSystem:
     def spans(self):
         return tuple(Fraction(c.upper) - Fraction(c.lower) for c in self.controls)
 
-    def candidate(self, coordinates):
+    def physical_values(self, coordinates):
         if len(coordinates) != len(self.controls):
             raise ValueError("solver returned the wrong number of control coordinates")
         values = dict(self.fixed)
@@ -35,6 +37,15 @@ class LinearSystem:
             z = Fraction(min(1.0, max(0.0, finite(coordinate, "control coordinate"))))
             value = finite(float(Fraction(control.lower) + span * z), control.name)
             values[control.name] = min(control.upper, max(control.lower, value))
+        return values
+
+    def checked_values(self, values):
+        if set(values) != set(self.fixed) | {c.name for c in self.controls}:
+            return None
+        if any(values[n] != v for n, v in self.fixed.items()) or any(
+            not c.lower <= values[c.name] <= c.upper for c in self.controls
+        ):
+            return None
         # Recheck the physical floats that will actually be returned, including
         # the rounding introduced by denormalizing the proposed coordinates.
         z = [
@@ -44,6 +55,9 @@ class LinearSystem:
         if any(exact_dot(row, z) > b for row, b in zip(self.rows, self.upper)):
             return None
         return values
+
+    def candidate(self, coordinates):
+        return self.checked_values(self.physical_values(coordinates))
 
     def objective_bound(self, objective, multipliers):
         """Checked weak duality on the normalized control box."""
@@ -96,6 +110,51 @@ class LinearSystem:
             "fixed_controls": self.fixed,
             "scope": "joint infeasibility; no claim of a minimal conflict or individually impossible requirements",
         }
+
+
+def checked_candidates(system, primal):
+    primal = numeric_vector(primal, len(system.controls), "dispatch candidate")
+    if primal is None:
+        return []
+    proposals = [primal]
+    # A neighboring representable command can recover a rounded LP boundary.
+    for i, value in enumerate(primal):
+        for direction in (-inf, inf):
+            proposals.append(
+                primal[:i] + [nextafter(value, direction)] + primal[i + 1 :]
+            )
+    controls = []
+    for proposal in proposals:
+        try:
+            candidate = system.candidate(proposal)
+            if candidate is not None:
+                controls.append(candidate)
+        except (ValueError, OverflowError):
+            continue
+    if not controls:
+        # Repair one violated row in physical coordinates. A neighboring float
+        # can recover an equality lost in the numerical solve or denormalization.
+        # These remain proposals: all rows and fixed commands are rechecked.
+        values = system.physical_values(primal)
+        z = [
+            (Fraction(values[c.name]) - Fraction(c.lower)) / span
+            for c, span in zip(system.controls, system.spans)
+        ]
+        for row, rhs in zip(system.rows, system.upper):
+            residual = exact_dot(row, z) - rhs
+            if residual <= 0:
+                continue
+            for c, span, a in zip(system.controls, system.spans, row):
+                if not a:
+                    continue
+                corrected = Fraction(values[c.name]) - residual * span / a
+                if abs(corrected - Fraction(values[c.name])) > Fraction(1e-8) * span:
+                    continue  # Repair local numerical error, not an arbitrary dispatch.
+                for rounded in (round_down(corrected), round_up(corrected)):
+                    candidate = system.checked_values({**values, c.name: rounded})
+                    if candidate is not None:
+                        controls.append(candidate)
+    return controls
 
 
 def compile_system(claim, point):
@@ -200,6 +259,8 @@ def solve_system(system, tolerance, *, backend="scipy"):
                 if candidate.point is not None
                 else None
             )
+            if values is None and candidate.point is not None:
+                values = next(iter(checked_candidates(system, candidate.point)), None)
             if values is not None:
                 return RecourseSolution(
                     "feasible",
@@ -239,6 +300,8 @@ def solve_system(system, tolerance, *, backend="scipy"):
                 upper=upper,
             )
             values = system.candidate(primal[:-1]) if primal is not None else None
+            if values is None and primal is not None:
+                values = next(iter(checked_candidates(system, primal[:-1])), None)
         if values is not None:
             return RecourseSolution(
                 "feasible",

@@ -9,6 +9,7 @@ All examples use synthetic engineering data and state the scope of their claims.
 | Two adjustable boilers | Redispatch handles individual load peaks; a combined peak requires more shared fuel capacity. | [Linear dispatch](linear-dispatch.md) |
 | Combined uncertainty domains | Audit alternative operating modes with auxiliary demand, and convex intersections of physical bounds, scheduling restrictions and feed specifications. | [Uncertainty compositions](uncertainty-compositions.md) |
 | Distance to a limit | Find the nearest affine requirement boundary or a specified positive violation, with checked distance bounds. | [Failure distance](failure-distance.md) |
+| Convex distance and joint relief | Compare scaled Euclidean and L∞ distances, and re-audit combinations of boiler and fuel capacity changes. | [Distance and relief](distance-and-relief.md) |
 | Comparing engineering changes | Distinguish restored service from changes to the uncertainty envelope or service requirement. | [Engineering changes](engineering-changes.md) |
 | Frozen boiler allocation | A 50/50 allocation violates the fuel limit; a 60/40 rule and the adjustable benchmark pass. Save and replay the rule. | [Frozen controllers](frozen-controllers.md) |
 | Causal storage replay | Preserve preparation signals, carried energy and terminal checks when a saved rule faces held-out paths. | [Storage replay](storage-replay.md) |
@@ -49,6 +50,7 @@ envelopes](convex-backends.md) have a separate worked example:
 uv run --extra cvxpy python -m examples.convex_backends
 uv run --extra cvxpy python -m examples.dispatch_objectives
 uv run --extra cvxpy python -m examples.uncertainty_compositions --convex
+uv run --extra cvxpy python -m examples.distance_and_relief
 ```
 
 The [dispatch-objective example](dispatch-objectives.md) compares minimum fuel

@@ -184,22 +184,27 @@ def factor_constraints(cp, factor, y):
     return constraints
 
 
+def domain_constraints(cp, space, z, factors):
+    """Shared convex-domain compiler for support and distance programs."""
+    links, constraints = [], []
+    for factor in factors:
+        alpha, beta = transform(space, factor)
+        y = cp.Variable(len(factor.space.names))
+        indices = [space.names.index(n) for n in factor.space.names]
+        link = y == cp.multiply(list(map(float, alpha)), z[indices]) + list(
+            map(float, beta)
+        )
+        links.append(link)
+        constraints += [link, *factor_constraints(cp, factor, y)]
+    return links, constraints
+
+
 class PreparedIntersection:
     def __init__(self, domain, factors):
         cp = self.cp = load_cvxpy()
         self.z = cp.Variable(len(domain.space.names), name="joint_coordinates")
         self.objective = cp.Parameter(len(domain.space.names), name="support_direction")
-        self.links = []
-        constraints = []
-        for factor in factors:
-            alpha, beta = transform(domain.space, factor)
-            y = cp.Variable(len(factor.space.names))
-            indices = [domain.space.names.index(n) for n in factor.space.names]
-            link = y == cp.multiply(list(map(float, alpha)), self.z[indices]) + list(
-                map(float, beta)
-            )
-            self.links.append(link)
-            constraints += [link, *factor_constraints(cp, factor, y)]
+        self.links, constraints = domain_constraints(cp, domain.space, self.z, factors)
         self.problem = cp.Problem(cp.Maximize(self.objective @ self.z), constraints)
         if not self.problem.is_dcp(dpp=True):
             raise ValueError("intersection support program must be DPP-compliant")

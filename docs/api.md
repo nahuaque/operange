@@ -16,7 +16,7 @@ Import these from `operange`:
 | Domain protocol and evidence | `UncertaintySet`, `DomainCapabilities`, `MembershipCheck`, `LinearSupport` |
 | Concrete domains | `BoxSet`, `FiniteSet`, `Scenario`, `SimplexSet`, `BudgetSet`, `EllipsoidSet`, `PolytopeSet`, `LinearConstraint` |
 | Domain composition and loading | `Intersection`, `Union`, `Product`, `domain_from_manifest`, `domain_from_json` |
-| Operating permissions and severity | `DecisionRule`, `RecoursePolicy`, `Distance`, `NormalizedLInf` |
+| Operating permissions and severity | `DecisionRule`, `RecoursePolicy`, `Distance`, `NormalizedLInf`, `NormalizedL2` |
 | Fixed affine model | `AffineProcessAdapter`, `AffineOutput`, `AffineTerm`, `AffineRequirement` |
 | Adjustable linear model | `LinearProcessAdapter`, `LinearControl`; reuses `AffineOutput`, `AffineTerm`, `AffineRequirement` |
 | Dispatch objectives | `LinearObjective`, `ControlTrackingObjective`, `ControlTarget` |
@@ -63,9 +63,9 @@ have separate evidence; see [operating objectives](dispatch-objectives.md).
 
 | Adapter | Evaluation and sensitivity | Robustness |
 | --- | --- | --- |
-| `AffineProcessAdapter` | Fixed affine responses; analytical first derivatives in physical or normalized coordinates | Finite and supported linear-support audits; boundary and positive-violation distance searches over boxes/polytopes with explicit `NormalizedLInf`; no adjustable recourse |
-| `LinearProcessAdapter` | Joint bounded-control feasibility; opt-in irreducible row conflicts within fixed control bounds and one-operating-limit relief via `evaluate_result(diagnose=True, relief=...)`; no dispatch derivatives | Complete `FiniteSet` audits under fixed or fully observed static operation; exact physical feasibility checks and bounded-control infeasibility certificates; no continuous-domain adjustable audits or distance searches |
-| Linear model with an `AffineController` | Direct affine command execution and physical checks, retaining commands and violations; no optimizer or sensitivity query | Finite and supported continuous-envelope audits with command-rounding bounds and `fixed_policy_failure` witnesses; threshold distance bounds over boxes/polytopes with explicit `NormalizedLInf`; no causal state |
+| `AffineProcessAdapter` | Fixed affine responses; analytical first derivatives in physical or normalized coordinates | Finite and supported linear-support audits; L∞ box/polytope distances by default, and optional convex-domain L∞/Euclidean distances; no adjustable recourse |
+| `LinearProcessAdapter` | Joint bounded-control feasibility; opt-in irreducible row conflicts and single or jointly weighted operating-limit relief via `evaluate_result(diagnose=True, relief=...)`; no dispatch derivatives | Complete `FiniteSet` audits under fixed or fully observed static operation; exact physical feasibility checks and bounded-control infeasibility certificates; no continuous-domain adjustable audits or distance searches |
+| Linear model with an `AffineController` | Direct affine command execution and physical checks, retaining commands and violations; no optimizer or sensitivity query | Finite and supported continuous-envelope audits with command-rounding bounds and `fixed_policy_failure` witnesses; default L∞ box/polytope distances and optional convex-domain L∞/Euclidean distances; no causal state |
 | `reference.HeatRecoveryAdapter` | Static constant-COP heat model with declared recourse; analytical local and directional first derivatives where supported | Box audits, boundary and positive-shortfall breaking searches within its verified static model and normalized distance |
 | `reference.ThermalStorageAdapter` | Two-period finite-tree dispatch with fixed, causal or perfect-foresight permissions; no sensitivity operator | Audits of the declared finite tree, including incompatible futures; no continuous-domain radius or general multistage search |
 | Storage model with a `reference.StorageController` | Direct causal replay with preparation signals, carried energy and terminal checks; no redispatch | Complete declared two-period paths, or partial coverage for unresolved paths; failures concern the saved controller; no continuous historical backtest |
@@ -87,7 +87,11 @@ Continuous affine audits carry coefficient-rounding corrections and directed
 support bounds into physical residual units. Unsupported or numerically unresolved
 calculations retain their diagnostics.
 
-Affine distance searches require `model.as_claim(domain, distance=NormalizedLInf(space))`.
+Affine distance searches require an explicit `NormalizedLInf(space)` or
+`NormalizedL2(space)` metric. Euclidean distances and extended convex domains
+require `backend="cvxpy"`; the default retains L∞ searches over boxes and polytopes.
+See [convex distances and joint relief](distance-and-relief.md) for supported
+domains and dimensionless combinations of physical limit changes.
 `boundary_result(distance_tolerance=1e-8)` targets a signed requirement residual
 of zero or greater. `breaking_result(violation_margins={name: amount, ...},
 distance_tolerance=1e-8)` requires one physical-unit margin per selected requirement,

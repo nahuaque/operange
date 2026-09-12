@@ -20,10 +20,8 @@ from .contract_types import (
     unique,
 )
 from .domains import FiniteSet, ParameterSpace
-from .distance import NormalizedLInf
-from .polytope import PolytopeSet
 from ._numeric import exact_dot
-from .primitives import BoxSet, finite
+from .primitives import finite
 from .recourse import RecoursePolicy
 
 
@@ -247,10 +245,11 @@ class AffineProcessAdapter(Record):
             for c in claim.domain.space.coordinates
         )
         finite_domain = type(claim.domain) is FiniteSet
+        from ._convex_distance import supported as distance_supported
+
         search = Capability(
-            type(claim.domain) in (BoxSet, PolytopeSet)
-            and type(claim.distance) is NormalizedLInf,
-            "Fixed affine threshold searches over a BoxSet or PolytopeSet require an explicit NormalizedLInf distance; "
+            distance_supported(claim.domain, claim.distance),
+            "Fixed affine thresholds require NormalizedLInf or NormalizedL2 over supported convex domains; extended searches use backend='cvxpy'; "
             "each selected requirement is a separate search branch.",
         )
         return AdapterCapabilities(
@@ -299,9 +298,9 @@ class AffineProcessAdapter(Record):
                 "perturbation_scope",
             }
             if operation == "sensitivity"
-            else {"distance_tolerance"}
+            else {"distance_tolerance", "backend"}
             if operation == "boundary"
-            else {"violation_margins", "distance_tolerance"}
+            else {"violation_margins", "distance_tolerance", "backend"}
             if operation == "breaking"
             else set()
         )

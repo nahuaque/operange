@@ -20,7 +20,7 @@ results; financial valuation, ranking and presentation belong downstream.
 | `PolytopeSet`, `SimplexSet`, `BudgetSet`, `EllipsoidSet` | Continuous geometries with membership and linear support bounds |
 | `Intersection`, `Union`, `Product` | Typed composition with named alignment, a nonemptiness witness and three-valued membership |
 | `LinearSupport` | Dimensionless domain extrema with a feasible point, lower/upper bounds and evidence |
-| `Distance`, `NormalizedLInf` | First-class distance interface and the existing scaled maximum-deviation metric |
+| `Distance`, `NormalizedLInf`, `NormalizedL2` | First-class distance interface with explicitly scaled maximum-deviation and Euclidean metrics |
 | `DecisionRule`, `RecoursePolicy` | Control identities, units, stages, permitted observations and optional fixed decisions |
 | `Claim` | Binds a model adapter, domain, recourse, named engineering requirements and optional search distance |
 | `ModelAdapter`, `AdapterCapabilities` | Declare supported queries and their scope, then return the shared result types |
@@ -172,8 +172,10 @@ The [geometry slice](uncertainty-geometries.md) implements vector parameters,
 `PolytopeSet`, `SimplexSet`, `BudgetSet`, `EllipsoidSet`, and typed composition.
 The [fixed affine adapter](affine-process-adapter.md) now exercises their support
 bounds in complete engineering claims and portable results. The heat and storage
-reference adapters retain their current proof scopes. Adjustable affine recourse
-and distance searches remain unsupported.
+reference adapters retain their current proof scopes. Linear dispatch supports
+finite adjustable recourse, and fixed affine models/controllers support
+[checked distance searches](../docs/distance-and-relief.md) over built-in convex
+domains. Continuous freely adjustable distance searches remain unsupported.
 
 General trajectories, multistage scenario trees, degradation, faults, implicit
 membership and model ensembles follow concrete engineering cases. Probability-law

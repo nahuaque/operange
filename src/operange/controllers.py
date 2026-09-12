@@ -12,10 +12,8 @@ from ._numeric import exact_dot
 from .claim import AdapterCapabilities, Capability, bind_contract, rejected_result
 from .contract_types import Record, nonempty, reference, snapshot, unique
 from .domains import FiniteSet
-from .distance import NormalizedLInf
-from .polytope import PolytopeSet
 from .linear_process import LinearProcessAdapter
-from .primitives import BoxSet, finite
+from .primitives import finite
 from .recourse import DecisionRule, RecoursePolicy
 
 
@@ -255,10 +253,11 @@ class _ControllerAdapter(Record):
                 for c in claim.domain.space.coordinates
             )
         )
+        from ._convex_distance import supported as distance_supported
+
         search = Capability(
-            type(claim.domain) in (BoxSet, PolytopeSet)
-            and type(claim.distance) is NormalizedLInf,
-            "Rounded-controller threshold bounds over boxes and polytopes require NormalizedLInf; candidates execute the saved rule.",
+            support and distance_supported(claim.domain, claim.distance),
+            "Rounded-controller thresholds support normalized L-infinity and Euclidean metrics over supported convex domains; extended searches use backend='cvxpy'; candidates execute the saved rule.",
         )
         return AdapterCapabilities(
             Capability(
@@ -281,9 +280,9 @@ class _ControllerAdapter(Record):
         from ._controller_results import audit_result, evaluate_result
 
         allowed = (
-            {"constraints", "distance_tolerance"}
+            {"constraints", "distance_tolerance", "backend"}
             if operation == "boundary"
-            else {"constraints", "violation_margins", "distance_tolerance"}
+            else {"constraints", "violation_margins", "distance_tolerance", "backend"}
             if operation == "breaking"
             else set()
         )

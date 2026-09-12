@@ -175,7 +175,9 @@ The [failure-distance extension](../docs/failure-distance.md) supports boundary
 and positive-violation searches over `BoxSet` and `PolytopeSet` when a
 `NormalizedLInf` distance is explicitly attached. It checks physical candidates,
 exact domain rows, and lower/infeasibility certificates independently of solver
-termination. Other uncertainty geometries remain unsupported for these searches.
+termination. The optional [convex backend](../docs/distance-and-relief.md) extends
+these searches to built-in convex domains and their intersections/products,
+including explicitly scaled Euclidean distances.
 
 ## Worked comparison and portability
 

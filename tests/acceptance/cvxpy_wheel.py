@@ -51,6 +51,38 @@ def main():
         "joint support failed",
     )
     require(1.36 < support.upper < 1.37, "unexpected intersection upper bound")
+    distance_model = process.AffineProcessAdapter(
+        "Consumer distance",
+        domain.space,
+        (
+            process.AffineOutput(
+                "total",
+                "MW",
+                "thermal_power",
+                0,
+                (
+                    process.AffineTerm("a", 1, "MW/MW"),
+                    process.AffineTerm("b", 1, "MW/MW"),
+                ),
+                "Sum",
+            ),
+        ),
+        (process.AffineRequirement("total_cap", "total", 1.35),),
+    )
+    distance_claim = distance_model.as_claim(
+        domain, distance=process.NormalizedL2(domain.space)
+    )
+    distance_result = distance_claim.boundary_result(backend="cvxpy")
+    search = distance_result.payload.search
+    require(
+        search.resolution == "minimum_verified" and 0.986 < search.upper.value < 0.987,
+        "Euclidean intersection distance failed",
+    )
+    require(
+        process.result_from_json(distance_result.to_json(compact=True))
+        == distance_result,
+        "convex distance result changed on round trip",
+    )
     auxiliary = process.BoxSet((process.Parameter("c", "MW", 0, -1, 1, 1, "Consumer"),))
     combined = process.Product((process.Union((loaded, loaded)), auxiliary))
     nested = combined.maximize_linear({"a": 1, "b": 1, "c": -2})
@@ -77,6 +109,47 @@ def main():
 
     consumer = runpy.run_path(str(Path(__file__).parent / "linear_dispatch.py"))
     model, cases = consumer["example"]()
+    relief_model = replace(
+        model,
+        controls=(replace(model.controls[0], upper=14), model.controls[1]),
+        outputs=model.outputs
+        + (
+            process.AffineOutput(
+                "a_output",
+                "MW",
+                "thermal_power",
+                0,
+                (process.AffineTerm("boiler_a", 1, "MW/MW"),),
+                "Boiler A output",
+            ),
+        ),
+        operating_limits=tuple(replace(r, tolerance=0) for r in model.operating_limits)
+        + (process.AffineRequirement("a_capacity", "a_output", 12, tolerance=0),),
+        requirements=tuple(replace(r, tolerance=0) for r in model.requirements),
+    )
+    joint_result = relief_model.as_claim(cases).evaluate_result(
+        {"dryer": 12, "evaporator": 8},
+        backend="cvxpy",
+        relief={
+            "changes": [
+                {"constraint": "a_capacity", "maximum": 2, "scale": 1, "unit": "MW"},
+                {"constraint": "shared_fuel", "maximum": 2, "scale": 1, "unit": "MW"},
+            ],
+            "objective": "quadratic",
+        },
+    )
+    joint_relief = next(
+        e.details for e in joint_result.evidence if e.evidence_id == "relief"
+    )
+    require(
+        joint_relief["resolution"] == "minimum_verified"
+        and joint_relief["lower"] <= 0.64 <= joint_relief["upper"],
+        "quadratic joint relief failed",
+    )
+    require(
+        process.result_from_json(joint_result.to_json(compact=True)) == joint_result,
+        "joint relief result changed on round trip",
+    )
     tracking = replace(
         model,
         objective=process.ControlTrackingObjective(

@@ -10,7 +10,9 @@ from .claim import rejected_result
 from .contract_types import Evidence
 
 
-def threshold_result(claim, *, boundary=False, constraints=None, **options):
+def threshold_result(
+    claim, *, boundary=False, constraints=None, backend="scipy", **options
+):
     operation = "boundary" if boundary else "breaking"
     request = {"query": operation, "constraints": constraints, **options}
     known = {
@@ -33,6 +35,21 @@ def threshold_result(claim, *, boundary=False, constraints=None, **options):
             execution="invalid",
         )
     try:
+        from ._cvxpy_backend import BackendUnavailable, validate_backend
+
+        validate_backend(backend)
+    except (BackendUnavailable, ValueError) as exc:
+        return rejected_result(
+            claim.contract,
+            operation,
+            {**request, "backend": backend},
+            str(exc),
+            code="distance_backend_unavailable",
+            execution="unsupported"
+            if isinstance(exc, BackendUnavailable)
+            else "invalid",
+        )
+    try:
         envelope = ControllerEnvelope(claim)
         rows = tuple(
             r
@@ -48,16 +65,23 @@ def threshold_result(claim, *, boundary=False, constraints=None, **options):
             code="controller_enclosure_unresolved",
             execution="unresolved",
         )
+    if backend == "cvxpy":
+        from ._convex_distance import ConvexThresholdProblem
+
+        compiler = ConvexThresholdProblem
+    else:
+        compiler = compile_problem
     result = search_threshold(
         claim,
         boundary=boundary,
         requirements=rows,
-        compile_branch=lambda c, r, t: compile_problem(c, r, t, residual_form=r),
+        compile_branch=lambda c, r, t: compiler(c, r, t, residual_form=r),
         evaluate_response=evaluate_result,
         failure=_failure,
         failure_constraints=_failed_constraints,
         unit=lambda r: r.unit,
         residual_id=claim.adapter.model.residual_id,
+        backend=backend,
         **options,
     )
     return replace(

@@ -9,6 +9,9 @@ python -m pip install 'operange[cvxpy]'
 uv run --extra cvxpy python -m examples.convex_backends
 ```
 
+The same extra supports [convex distance searches and joint limit relief](distance-and-relief.md),
+reusing the domain compiler and prepared bounded objective programs.
+
 ## Reuse dispatch and relief programs
 
 Select the backend on a linear dispatch query:

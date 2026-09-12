@@ -75,6 +75,19 @@ def evaluate_result(
             code="invalid_diagnosis_options",
             execution="invalid",
         )
+    if (
+        relief is not None
+        and relief.get("objective") == "quadratic"
+        and backend != "cvxpy"
+    ):
+        return rejected_result(
+            contract,
+            "evaluation",
+            request,
+            "Quadratic joint relief requires backend='cvxpy'.",
+            code="relief_backend_unavailable",
+            execution="unsupported",
+        )
     try:
         check = claim.domain.membership(realization)
         point = claim.domain.space.validate(realization)

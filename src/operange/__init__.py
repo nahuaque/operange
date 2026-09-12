@@ -22,7 +22,7 @@ from .changes import (
     RequirementSummary,
     compare_changes,
 )
-from .distance import Distance, NormalizedLInf
+from .distance import Distance, NormalizedL2, NormalizedLInf
 from .domains import (
     Coordinate,
     DomainCapabilities,
@@ -104,6 +104,7 @@ __all__ = [
     "ModelAdapter",
     "Distance",
     "NormalizedLInf",
+    "NormalizedL2",
     "Coordinate",
     "DomainCapabilities",
     "FiniteSet",

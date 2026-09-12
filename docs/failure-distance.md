@@ -2,8 +2,10 @@
 
 For a fixed affine model, Operange can find the nearest admissible condition
 that reaches a declared requirement limit or exceeds it by a specified amount.
-The supported domains are `BoxSet` and `PolytopeSet`; distance is an explicitly
-declared `NormalizedLInf` metric. Controls stay fixed throughout the search.
+The default backend supports `BoxSet` and `PolytopeSet` with an explicitly
+declared `NormalizedLInf` metric. The optional CVXPY backend also supports convex
+intersections and `NormalizedL2`; see [convex distances and joint relief](distance-and-relief.md).
+Controls stay fixed throughout the search.
 
 ## Define a distance and two distinct targets
 
@@ -160,9 +162,10 @@ branch remains in that calculation, preventing a false global minimum.
 
 Poor conditioning, unrepresentable distances or a target face without an
 accepted floating-point candidate can leave a search unresolved or bounded.
-The result preserves any verified evidence. This implementation adds no distance
-search for adjustable controls, nonlinear models, finite domains, budgets,
-ellipsoids, simplexes or composite sets, even when those domains support audits.
+The result preserves any verified evidence. The optional
+[convex distance backend](distance-and-relief.md) extends the supported geometries
+and metrics. Searches for adjustable controls, nonlinear models, finite domains
+and unions remain unsupported.
 
 Results use the existing `process_result/v1` format, including compact transport:
 

@@ -7,7 +7,6 @@ global lower bound. Numerical solvers only propose commands and multipliers.
 
 from dataclasses import asdict, dataclass
 from fractions import Fraction as F
-from math import inf, nextafter
 
 from . import linear
 from ._cvxpy_backend import numeric_vector, solve_bounded
@@ -97,25 +96,9 @@ def compile_objective(model, point, system):
 
 
 def _candidates(system, primal):
-    primal = numeric_vector(primal, len(system.controls), "dispatch candidate")
-    if primal is None:
-        return []
-    proposals = [primal]
-    # A neighboring representable command can recover a rounded LP boundary.
-    for i, value in enumerate(primal):
-        for direction in (-inf, inf):
-            proposals.append(
-                primal[:i] + [nextafter(value, direction)] + primal[i + 1 :]
-            )
-    controls = []
-    for proposal in proposals:
-        try:
-            candidate = system.candidate(proposal)
-            if candidate is not None:
-                controls.append(candidate)
-        except (ValueError, OverflowError):
-            continue
-    return controls
+    from ._linear_recourse import checked_candidates
+
+    return checked_candidates(system, primal)
 
 
 def _interpolate(system, primal, seed):
@@ -175,7 +158,7 @@ def _numerical(system, polynomial, tolerance, backend):
     return primal, None if dual is None else dual[:m], attempts
 
 
-def solve_dispatch(system, polynomial, tolerance, *, backend):
+def solve_dispatch(system, polynomial, tolerance, *, backend, candidate_transform=None):
     lower, proof = polynomial.bound(system, [0.0] * len(system.rows))
     attempts, candidates, primal = [], [], None
     if system.controls and (any(polynomial.linear) or any(polynomial.diagonal)):
@@ -184,6 +167,8 @@ def solve_dispatch(system, polynomial, tolerance, *, backend):
                 system, polynomial, tolerance, backend
             )
             attempts.extend(reports)
+            if primal is not None and candidate_transform is not None:
+                primal = candidate_transform(primal)
             candidates = _candidates(system, primal)
             if multipliers is not None:
                 proposed, certificate = polynomial.bound(system, multipliers)
