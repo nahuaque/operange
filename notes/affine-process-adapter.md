@@ -123,7 +123,8 @@ The adapter supports audits wherever a domain advertises normalized
 | `BudgetSet` | Analytical budget allocation |
 | `EllipsoidSet` | Analytical ellipsoidal support |
 | `PolytopeSet` | Checked primal/dual bounds; finite-envelope bounds survive solver failure |
-| `Intersection`, `Union`, `Product` | Membership/evaluation only; audit unsupported |
+| `Product`, `Union` | Direct support identities when every factor provides normalized support |
+| `Intersection` | Checked convex support with `backend="cvxpy"`; membership/evaluation only without it |
 
 Box and finite support use the existing dimensionless `LinearSupport` record.
 Finite domains without normalization retain membership and enumeration, physical

@@ -1,7 +1,8 @@
 """Run outside the checkout with -I after installing the wheel's cvxpy extra.
 
-Copy linear_dispatch.py alongside this consumer. It needs no pytest or examples
-package and checks that the new private backend modules ship in the wheel.
+Copy linear_dispatch.py and uncertainty_compositions.py alongside this consumer.
+It needs no pytest or examples package and checks that the private backend
+modules ship in the wheel.
 """
 
 from importlib import util
@@ -50,6 +51,29 @@ def main():
         "joint support failed",
     )
     require(1.36 < support.upper < 1.37, "unexpected intersection upper bound")
+    auxiliary = process.BoxSet((process.Parameter("c", "MW", 0, -1, 1, 1, "Consumer"),))
+    combined = process.Product((process.Union((loaded, loaded)), auxiliary))
+    nested = combined.maximize_linear({"a": 1, "b": 1, "c": -2})
+    require(
+        nested.lower is not None
+        and nested.upper is not None
+        and 3.36 < nested.lower <= nested.upper < 3.37,
+        "nested intersection support failed",
+    )
+    require(
+        combined.membership(nested.point).status == "inside", "nested witness invalid"
+    )
+
+    compositions = runpy.run_path(
+        str(Path(__file__).parent / "uncertainty_compositions.py")
+    )
+    for name, (model, joint) in compositions["convex_examples"]().items():
+        result = model.as_claim(joint).audit_result()
+        require(result.payload.verdict == "pass", f"convex workflow failed: {name}")
+        require(
+            process.result_from_json(result.to_json(compact=True)) == result,
+            f"convex workflow did not round trip: {name}",
+        )
 
     consumer = runpy.run_path(str(Path(__file__).parent / "linear_dispatch.py"))
     model, cases = consumer["example"]()

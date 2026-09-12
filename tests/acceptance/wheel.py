@@ -1,7 +1,8 @@
 """Run with -I outside the checkout, in a venv containing only the process wheel.
 
 Copy steam_header.py, linear_dispatch.py, failure_distance.py, engineering_changes.py,
-frozen_controllers.py, storage_replay.py, startup.py, pinch.py and prototype_result_v1.json here.
+frozen_controllers.py, storage_replay.py, startup.py, pinch.py,
+uncertainty_compositions.py and prototype_result_v1.json here.
 There are no pytest, repository, optional solver, or test-environment imports.
 """
 
@@ -61,6 +62,30 @@ def main():
     )
 
     directory = Path(__file__).resolve().parent
+    compositions = runpy.run_path(str(directory / "uncertainty_compositions.py"))
+    model, combined, unrestricted = compositions["operating_modes_example"]()
+    require(
+        combined.capabilities.linear_optimization, "native composed support missing"
+    )
+    restored = process.domain_from_manifest(combined.to_manifest())
+    require(restored.ref == combined.ref, "composition declaration changed")
+    passing = model.as_claim(restored).audit_result()
+    require(passing.payload.verdict == "pass", "operating modes should pass")
+    failure = model.as_claim(unrestricted).audit_result()
+    require(failure.payload.verdict == "fail", "unrestricted loads should fail")
+    replay = model.as_claim(unrestricted).evaluate_result(
+        failure.payload.witness.realizations[0]
+    )
+    require(
+        any(c.assessment == "violated" for c in replay.payload.constraint_checks),
+        "composed witness must replay its requirement violation",
+    )
+    for result in (passing, failure):
+        require(
+            process.result_from_json(result.to_json(compact=True)) == result,
+            "composed audit did not round trip",
+        )
+
     consumer = runpy.run_path(str(directory / "steam_header.py"))
     exported = consumer["run_example"]()
     results = {

@@ -47,7 +47,9 @@ format. See the [engineering-change guide](engineering-changes.md) for conservat
 service-equivalence rules, reference-model examples and portable evidence scope.
 
 Domains declare their own membership and support capabilities independently
-of the adapter. Composition does not automatically add a numerical optimizer.
+of the adapter. `Product` sums factor support bounds and `Union` takes their
+maximum when every factor supplies normalized linear support; see
+[combined uncertainty domains](uncertainty-compositions.md).
 `Intersection(..., backend="cvxpy")` opts into checked support for supported
 convex factors; see [optional convex backends](convex-backends.md).
 Normalization scales are explicit; vector coordinates preserve their labels.

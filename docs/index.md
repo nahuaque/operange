@@ -157,6 +157,7 @@ api
 linear-dispatch
 dispatch-objectives
 convex-backends
+uncertainty-compositions
 failure-distance
 engineering-changes
 frozen-controllers

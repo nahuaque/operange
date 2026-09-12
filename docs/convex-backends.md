@@ -63,7 +63,11 @@ units. The supported factors are `BoxSet`, `PolytopeSet`, `BudgetSet`,
 disjoint products. Every coordinate needs a nominal and scale. Different factor
 normalizations require an explicit joint `space`; units and vector axes must
 align. Unions, finite scenario sets and custom factor types are unsupported by
-this backend. An intersection without a backend retains membership-only behavior.
+this intersection backend. Native `Product` and `Union` support can use these
+sets, including convex intersections as factors; see
+[combined uncertainty domains](uncertainty-compositions.md) for direct support
+identities and worked scheduling and feed-specification cases.
+An intersection without a backend retains membership-only behavior.
 
 In the worked example, the dryer envelope ends at 11 MW, while an ellipsoid
 limits the joint normalized deviations. The maximum total demand is about

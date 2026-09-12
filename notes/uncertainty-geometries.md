@@ -62,7 +62,8 @@ remain supported.
 | `SimplexSet` | Nonnegative physical fractions summing to one | Membership, analytical linear support |
 | `BudgetSet` | Box intersected with `abs(z_i) <= 1` and `sum(abs(z_i)) <= budget` | Membership, analytical linear support |
 | `EllipsoidSet` | `z.T @ inverse(shape) @ z <= radius**2` | Membership, analytical linear support |
-| `Intersection`, `Union`, `Product` | Typed composition described below | Membership |
+| `Product`, `Union` | Typed composition described below | Membership; linear support when every factor supplies normalized support |
+| `Intersection` | Shared convex restrictions | Membership; optional checked support with `backend="cvxpy"` |
 
 No sampler, projection operation, general nonlinear optimizer, or automatic
 calibration is advertised by this slice. `capabilities.linear_optimization`
@@ -143,8 +144,9 @@ assert ellipsoid_support.status == "optimal"
 
 The ellipsoid in that example includes negative normalized excursions and
 extends beyond the box. Intersect it with `loads` when those physical bounds
-are also required; the resulting intersection currently supports membership
-only.
+are also required. `Intersection((loads, correlated), backend="cvxpy")` enables
+checked support with the optional extra; omitting the backend retains
+membership-only behavior.
 
 `PolytopeSet` accepts `relation="le"` or `"eq"` per constraint. Its envelope is
 mandatory and finite. A verified `feasible_point` in physical coordinates is
@@ -208,7 +210,12 @@ Intersection/product membership is outside if any factor is outside and inside
 only if all are inside. Union membership is inside if any factor is inside and
 outside only if all are outside. Other combinations remain unknown. Evidence
 retains the constituent membership checks. Composition does not imply
-probabilistic independence or an optimization algorithm.
+probabilistic independence. Products sum support bounds over disjoint factors;
+unions take the maximum across all branches and keep an actual branch witness.
+These operations require every factor to provide normalized linear support.
+Convex intersections can opt into the checked CVXPY backend. See the
+[composition guide](../docs/uncertainty-compositions.md) for coordinate transforms,
+evidence, nested support and worked engineering examples.
 
 ```python
 import json

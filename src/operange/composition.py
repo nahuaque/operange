@@ -84,6 +84,10 @@ class _Composition(Geometry):
 
     @property
     def capabilities(self):
+        if self.kind in ("product", "union"):
+            from ._composition_support import supported
+
+            return DomainCapabilities(linear_optimization=supported(self))
         return DomainCapabilities()
 
     def to_manifest(self):
@@ -136,6 +140,10 @@ class _Composition(Geometry):
         )
 
     def maximize_linear(self, coefficients):
+        if self.kind in ("product", "union"):
+            from ._composition_support import maximize
+
+            return maximize(self, weights(self.space, coefficients))
         return self._unresolved(
             weights(self.space, coefficients),
             "This composition currently provides membership only; no general support-function solver is advertised.",
@@ -184,7 +192,11 @@ class Intersection(_Composition):
 
 @dataclass(frozen=True)
 class Union(_Composition):
-    """Admit any factor over the same physical coordinates; no convexification."""
+    """Admit any factor over the same coordinates; support takes the factor maximum.
+
+    All factors must provide normalized linear support. Witnesses retain actual
+    factor membership; the union is never replaced by its convex hull.
+    """
 
     factors: tuple[UncertaintySet, ...]
     space: ParameterSpace | None = None
@@ -196,7 +208,11 @@ class Union(_Composition):
 
 @dataclass(frozen=True)
 class Product(_Composition):
-    """Combine disjoint coordinate spaces; no probability independence claim."""
+    """Combine disjoint coordinates; support sums normalized factor bounds.
+
+    All factors must provide linear support. This is a Cartesian product of
+    admissible values, without a probability independence claim.
+    """
 
     factors: tuple[UncertaintySet, ...]
     space: ParameterSpace | None = None
