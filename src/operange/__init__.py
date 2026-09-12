@@ -63,6 +63,7 @@ from .engineering_results import (
     result_from_json,
 )
 from .primitives import BoxSet, Parameter
+from .convex_hull import ConvexHullSet
 from .claim import bind_contract, rejected_result
 
 __all__ = [
@@ -108,6 +109,7 @@ __all__ = [
     "Coordinate",
     "DomainCapabilities",
     "FiniteSet",
+    "ConvexHullSet",
     "MembershipCheck",
     "ParameterSpace",
     "Scenario",

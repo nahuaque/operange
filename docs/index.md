@@ -155,6 +155,7 @@ installation
 examples
 api
 linear-dispatch
+continuous-dispatch
 dispatch-objectives
 convex-backends
 uncertainty-compositions

@@ -7,6 +7,7 @@ All examples use synthetic engineering data and state the scope of their claims.
 | --- | --- | --- |
 | Shared steam header and boiler | Combined loads can exceed shared capacity even when either individual peak fits; inspect a witness, sensitivities and an equipment revision. | [Getting started](index.md) |
 | Two adjustable boilers | Redispatch handles individual load peaks; a combined peak requires more shared fuel capacity. | [Linear dispatch](linear-dispatch.md) |
+| Continuous adjustable dispatch | Check every load in a box or declared hull, replay an infeasible corner, and re-audit larger fuel capacity. | [Continuous dispatch](continuous-dispatch.md) |
 | Combined uncertainty domains | Audit alternative operating modes with auxiliary demand, and convex intersections of physical bounds, scheduling restrictions and feed specifications. | [Uncertainty compositions](uncertainty-compositions.md) |
 | Distance to a limit | Find the nearest affine requirement boundary or a specified positive violation, with checked distance bounds. | [Failure distance](failure-distance.md) |
 | Convex distance and joint relief | Compare scaled Euclidean and L∞ distances, and re-audit combinations of boiler and fuel capacity changes. | [Distance and relief](distance-and-relief.md) |
@@ -34,6 +35,7 @@ any of these commands from the repository root:
 ```bash
 uv run python -m examples.steam_header
 uv run python -m examples.linear_dispatch
+uv run python -m examples.continuous_dispatch
 uv run python -m examples.failure_distance
 uv run python -m examples.engineering_changes
 uv run python -m examples.frozen_controllers

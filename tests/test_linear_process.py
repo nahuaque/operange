@@ -310,13 +310,13 @@ def test_missing_control_permission_is_unsupported():
     assert result.execution == "unsupported"  # nosec B101
 
 
-def test_continuous_domain_point_evaluation_does_not_grant_a_recourse_audit_or_derivative():
+def test_box_dispatch_audit_does_not_grant_derivatives_or_distance_queries():
     model = small_model()
     domain = BoxSet((Parameter("load", "MW", 0.5, 0, 1, 0.5, "Test box"),))
     claim = model.as_claim(domain)
     assert claim.evaluate_result({"load": 0.5}).payload.feasibility == "feasible"  # nosec B101
+    assert claim.audit_result().payload.verdict == "pass"  # nosec B101
     for result in (
-        claim.audit_result(),
         claim.sensitivity_result({"load": 0.5}),
         claim.boundary_result(),
         claim.breaking_result(),

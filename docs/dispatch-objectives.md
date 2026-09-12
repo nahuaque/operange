@@ -100,7 +100,8 @@ If the objective value cannot be exported finitely, the physical result can
 remain feasible with an objective diagnostic and no fabricated objective value.
 
 An infeasible evaluation carries its checked contradiction and no objective or
-invented control values. Finite audits retain scenario objective results, but
+invented control values. Finite audits retain scenario objective results, and
+continuous box/hull audits retain generator objective results, but
 their pass/fail verdict continues to concern physical feasibility. They neither
 aggregate objectives across scenarios nor require optimality for a physical pass.
 
@@ -132,8 +133,10 @@ Loading checks records and identities without rerunning the mathematical proof.
 ## Scope and replay
 
 Objectives apply to fixed or fully observed single-stage dispatch over the
-adapter's existing point and finite-audit scope. Fixed controls contribute their
-actual objective values and cannot be changed by the optimizer. Conflict
+adapter's point evaluations, finite audits and continuous box/hull generator
+evaluations. [Continuous audits](continuous-dispatch.md) prove feasibility
+throughout the domain; they do not assert domain-wide optimality. Fixed controls
+contribute their actual objective values and cannot be changed by the optimizer. Conflict
 diagnosis and one-limit relief continue to answer their physical questions;
 relief minimizes the named equipment change rather than the operating objective.
 

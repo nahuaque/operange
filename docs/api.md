@@ -14,7 +14,7 @@ Import these from `operange`:
 | Claim and adapter contract | `Claim`, `ModelAdapter`, `AdapterCapabilities`, `Capability`, `bind_contract`, `rejected_result` |
 | Named inputs and coordinates | `Parameter`, `VectorParameter`, `Coordinate`, `ParameterSpace`, `Axis` |
 | Domain protocol and evidence | `UncertaintySet`, `DomainCapabilities`, `MembershipCheck`, `LinearSupport` |
-| Concrete domains | `BoxSet`, `FiniteSet`, `Scenario`, `SimplexSet`, `BudgetSet`, `EllipsoidSet`, `PolytopeSet`, `LinearConstraint` |
+| Concrete domains | `BoxSet`, `FiniteSet`, `ConvexHullSet`, `Scenario`, `SimplexSet`, `BudgetSet`, `EllipsoidSet`, `PolytopeSet`, `LinearConstraint` |
 | Domain composition and loading | `Intersection`, `Union`, `Product`, `domain_from_manifest`, `domain_from_json` |
 | Operating permissions and severity | `DecisionRule`, `RecoursePolicy`, `Distance`, `NormalizedLInf`, `NormalizedL2` |
 | Fixed affine model | `AffineProcessAdapter`, `AffineOutput`, `AffineTerm`, `AffineRequirement` |
@@ -64,7 +64,7 @@ have separate evidence; see [operating objectives](dispatch-objectives.md).
 | Adapter | Evaluation and sensitivity | Robustness |
 | --- | --- | --- |
 | `AffineProcessAdapter` | Fixed affine responses; analytical first derivatives in physical or normalized coordinates | Finite and supported linear-support audits; L∞ box/polytope distances by default, and optional convex-domain L∞/Euclidean distances; no adjustable recourse |
-| `LinearProcessAdapter` | Joint bounded-control feasibility; opt-in irreducible row conflicts and single or jointly weighted operating-limit relief via `evaluate_result(diagnose=True, relief=...)`; no dispatch derivatives | Complete `FiniteSet` audits under fixed or fully observed static operation; exact physical feasibility checks and bounded-control infeasibility certificates; no continuous-domain adjustable audits or distance searches |
+| `LinearProcessAdapter` | Joint bounded-control feasibility; opt-in irreducible row conflicts and single or jointly weighted operating-limit relief via `evaluate_result(diagnose=True, relief=...)`; no dispatch derivatives | Complete `FiniteSet` audits, plus continuous `BoxSet`/`ConvexHullSet` audits by checked generators under fixed or fully observed static operation; exact physical feasibility and infeasibility certificates; no adjustable distance searches |
 | Linear model with an `AffineController` | Direct affine command execution and physical checks, retaining commands and violations; no optimizer or sensitivity query | Finite and supported continuous-envelope audits with command-rounding bounds and `fixed_policy_failure` witnesses; default L∞ box/polytope distances and optional convex-domain L∞/Euclidean distances; no causal state |
 | `reference.HeatRecoveryAdapter` | Static constant-COP heat model with declared recourse; analytical local and directional first derivatives where supported | Box audits, boundary and positive-shortfall breaking searches within its verified static model and normalized distance |
 | `reference.ThermalStorageAdapter` | Two-period finite-tree dispatch with fixed, causal or perfect-foresight permissions; no sensitivity operator | Audits of the declared finite tree, including incompatible futures; no continuous-domain radius or general multistage search |
@@ -122,6 +122,14 @@ operating permissions; it does not assign individual requirement violations to
 a nonexistent dispatch. A feasible result returns checked controls and residuals,
 without claiming a unique or optimal dispatch. See the
 [linear dispatch guide](linear-dispatch.md) for the example and certificate.
+
+`claim.audit_result(max_vertices=256, backend="scipy")` covers continuous boxes
+and explicit convex hulls by checking every generator, with `analytical_domain`
+coverage. It establishes real-valued dispatch existence through convex
+combinations of feasible generator commands, not an executable controller or a
+domain-wide dispatch optimum. Enumeration above the limit is rejected before
+solving. General polytopes, other composed geometries and partial-observation
+adjustable policies remain unsupported. See [continuous dispatch](continuous-dispatch.md).
 
 `model.as_claim(domain, controller=controller, recourse=None, requirements=None)`
 instead binds an `AffineController`. Default permissions use the observations

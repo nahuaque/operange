@@ -1,4 +1,4 @@
-"""Portable results for bounded linear dispatch and finite recourse audits."""
+"""Portable results for bounded linear dispatch and checked recourse audits."""
 
 from fractions import Fraction
 from dataclasses import replace
@@ -304,7 +304,13 @@ def _failure(claim, result, affected):
     ), tuple(e for e in result.evidence if e.evidence_id in ("membership", "recourse"))
 
 
-def audit_result(claim, *, backend="scipy"):
+def audit_result(claim, *, backend="scipy", max_vertices=256):
+    from .domains import FiniteSet
+
+    if type(claim.domain) is not FiniteSet:
+        from ._linear_vertex_audit import audit_vertices
+
+        return audit_vertices(claim, backend=backend, max_vertices=max_vertices)
     result = audit_finite(
         claim,
         partial(evaluate_result, backend=backend),

@@ -16,6 +16,8 @@ def audit_finite(
     failure,
     *,
     method,
+    generators=None,
+    coverage_method="complete_finite",
     scope=None,
     coverage_details=None,
     failure_constraints=None,
@@ -25,11 +27,13 @@ def audit_finite(
 
     Every scenario identity is retained even when several share a realization.
     A verified failure survives unresolved evaluations of other scenarios.
+    A caller providing generators and analytical coverage must supply its own
+    domain coverage theorem. Evaluations still bind to the original claim.
     """
     evaluations, scenarios, unresolved, evidence = {}, [], [], []
     scope = {} if scope is None else scope
     contract = claim.contract
-    for scenario in claim.domain.scenarios:
+    for scenario in claim.domain.scenarios if generators is None else generators:
         result = evaluate(claim, scenario.values, contract=contract)
         evaluations[result.result_id] = result
         scenarios.append(
@@ -75,7 +79,7 @@ def audit_finite(
         RobustnessPayload(
             "fail" if witness else "pass" if complete else "inconclusive",
             Coverage(
-                "complete_finite" if complete else "partial",
+                coverage_method if complete else "partial",
                 evaluated_support={"scenarios": scenarios, **scope},
                 unexplored_support={"unresolved_scenarios": unresolved},
                 evidence_refs=("coverage",) if complete else (),

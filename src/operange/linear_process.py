@@ -13,6 +13,8 @@ from .claim import (
 )
 from .contract_types import ConstraintSpec, QuantitySpec, Record, nonempty
 from .domains import FiniteSet, ParameterSpace
+from .convex_hull import ConvexHullSet
+from .primitives import BoxSet
 from .objectives import ControlTrackingObjective, LinearObjective
 from .recourse import DecisionRule, RecoursePolicy
 
@@ -220,9 +222,12 @@ class LinearProcessAdapter(Record):
                 False, "Derivatives of a selected linear dispatch are not provided."
             ),
             Capability(
-                type(claim.domain) is FiniteSet,
-                "Complete finite enumeration with independently adjustable, fully observed controls; "
-                "continuous-domain recourse audits are not provided.",
+                type(claim.domain) is FiniteSet
+                or type(self) is LinearProcessAdapter
+                and type(claim.domain) in (BoxSet, ConvexHullSet),
+                "Complete finite enumeration, or continuous BoxSet/ConvexHullSet coverage "
+                "by checked generators for the built-in fixed-coefficient linear model; "
+                "fixed or fully observed adjustment only, subject to max_vertices.",
             ),
             Capability(
                 False, "Boundary searches with adjustable controls are not provided."
@@ -267,6 +272,8 @@ class LinearProcessAdapter(Record):
         allowed = (
             {"diagnose", "relief", "backend"}
             if operation == "evaluation"
+            else {"backend", "max_vertices"}
+            if operation == "audit" and type(claim.domain) in (BoxSet, ConvexHullSet)
             else {"backend"}
             if operation == "audit"
             else set()

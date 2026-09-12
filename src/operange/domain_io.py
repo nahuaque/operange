@@ -5,6 +5,7 @@ import json
 
 from .composition import Intersection, Product, Union
 from .domains import FiniteSet, ParameterSpace
+from .convex_hull import ConvexHullSet
 from .geometries import BudgetSet, EllipsoidSet, SimplexSet
 from .polytope import PolytopeSet
 from .primitives import BoxSet, Parameter
@@ -34,6 +35,8 @@ def domain_from_manifest(manifest):
             data["space"] = ParameterSpace(**data["space"])
         if kind == "finite_set":
             return FiniteSet(**data)
+        if kind == "convex_hull":
+            return ConvexHullSet(**data)
         if kind in ("simplex", "ellipsoid"):
             return (SimplexSet if kind == "simplex" else EllipsoidSet)(**data)
         if kind in ("budget", "polytope"):

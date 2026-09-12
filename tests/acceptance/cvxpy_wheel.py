@@ -109,6 +109,21 @@ def main():
 
     consumer = runpy.run_path(str(Path(__file__).parent / "linear_dispatch.py"))
     model, cases = consumer["example"]()
+    hull = process.ConvexHullSet(
+        model.input_space, tuple(s for s in cases.scenarios if s.name != "combined")
+    )
+    hull_audit = model.as_claim(hull).audit_result(backend="cvxpy")
+    require(
+        hull_audit.payload.verdict == "pass", "prepared continuous hull audit failed"
+    )
+    require(
+        hull_audit.payload.coverage.method == "analytical_domain",
+        "continuous coverage missing",
+    )
+    require(
+        process.result_from_json(hull_audit.to_json(compact=True)) == hull_audit,
+        "prepared hull evidence did not round trip",
+    )
     relief_model = replace(
         model,
         controls=(replace(model.controls[0], upper=14), model.controls[1]),

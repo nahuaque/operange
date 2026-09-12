@@ -39,8 +39,10 @@ coupled equipment limits and finite-scenario audits under fixed or fully observe
 static operation. The [failure-distance slice](../docs/failure-distance.md) adds
 fixed affine threshold searches over boxes and polytopes, with exact checks of
 physical candidates and bounded dual certificates across all selected requirements.
-Continuous-domain recourse and distance searches with adjustable controls remain
-future work.
+[Continuous recourse](../docs/continuous-dispatch.md) now covers boxes and
+explicit convex hulls by exhaustive checked generators, with a caller-visible
+enumeration budget. Other continuous geometries and distance searches with
+adjustable controls remain future work.
 
 Saved affine controllers now support continuous-domain audits through checked
 linear bounds, including command rounding and every equipment bound. Boxes and

@@ -240,6 +240,45 @@ def main():
         "linear infeasibility certificate missing",
     )
 
+    hull = process.ConvexHullSet(
+        dispatch_model.input_space,
+        tuple(s for s in dispatch_domain.scenarios if s.name != "combined"),
+    )
+    restored_hull = process.domain_from_manifest(hull.to_manifest())
+    require(restored_hull.ref == hull.ref, "hull declaration did not round trip")
+    hull_audit = dispatch_model.as_claim(restored_hull).audit_result()
+    require(hull_audit.payload.verdict == "pass", "continuous hull should pass")
+    require(
+        hull_audit.payload.coverage.method == "analytical_domain",
+        "hull coverage must include every convex combination",
+    )
+    require(
+        dispatch_model.as_claim(restored_hull)
+        .evaluate_result({"dryer": 11, "evaporator": 7})
+        .payload.feasibility
+        == "feasible",
+        "hull interior membership or dispatch failed",
+    )
+    require(
+        process.result_from_json(hull_audit.to_json(compact=True)) == hull_audit,
+        "continuous hull result did not round trip",
+    )
+    dispatch_box = process.BoxSet(
+        (
+            process.Parameter("dryer", "MW", 10, 10, 12, 2, "Consumer"),
+            process.Parameter("evaporator", "MW", 6, 6, 8, 2, "Consumer"),
+        )
+    )
+    require(
+        dispatch_model.as_claim(dispatch_box).audit_result().payload.verdict == "fail",
+        "continuous box should retain simultaneous peak failure",
+    )
+    require(
+        dispatch_model.as_claim(dispatch_box).audit_result(max_vertices=3).execution
+        == "unsupported",
+        "vertex limit must reject incomplete enumeration",
+    )
+
     distance_example = runpy.run_path(str(directory / "failure_distance.py"))
     distance_results = {
         name: process.result_from_json(json.dumps(data))

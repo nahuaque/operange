@@ -2,8 +2,10 @@
 
 `LinearProcessAdapter` checks whether bounded controls can jointly satisfy
 equipment limits and selected engineering requirements at each declared
-realization. Its first audit scope is an explicit `FiniteSet`, with controls
-fixed or chosen after all inputs are observed. The physical model remains
+realization. Audits cover an explicit `FiniteSet`, or a continuous `BoxSet` or
+`ConvexHullSet`, with controls fixed or chosen after all inputs are observed.
+See [continuous dispatch](continuous-dispatch.md) for the generator proof and
+enumeration limits. The physical model remains
 linear: coefficients, offsets, control bounds and efficiencies are constant.
 
 ## Declare two boilers sharing a fuel supply
@@ -129,8 +131,8 @@ not relax the physical bounds or declared constraint tolerances.
 
 ## Coverage, replay and limits
 
-A passing audit covers only the listed finite realizations. Nominal values or
-input normalization scales are unnecessary. Scenarios with identical physical
+A passing `FiniteSet` audit covers only the listed finite realizations. Nominal
+values or input normalization scales are unnecessary. Scenarios with identical physical
 realizations retain their separate names in the coverage record.
 If some scenarios remain unresolved, coverage is partial. A verified failure
 in another scenario remains a valid witness and the verdict can still be `fail`.
@@ -142,9 +144,10 @@ the model or reverify the mathematical certificate. Model declarations can be
 explicitly reconstructed using `LinearProcessAdapter(**model.to_dict())`.
 
 Point evaluation is also available for other aligned domains when membership
-is established. Continuous-domain recourse audits, dispatch derivatives,
-closest-failure searches, nonlinear or integer controls, and executable causal
-controllers are outside this adapter's current scope.
+is established. Continuous recourse audits cover boxes and declared convex hulls
+through checked generators; see [coverage and limits](continuous-dispatch.md).
+Dispatch derivatives, closest-failure searches, nonlinear or integer controls,
+and executable causal controllers are outside this adapter's current scope.
 
 ## Diagnose a conflict and quantify one-limit relief
 
@@ -200,7 +203,7 @@ complete workflow. Both diagnostic records use the existing standard and compact
 `EvaluationResult` exports; loading validates records and identities, without
 re-proving the mathematical evidence.
 
-Use `backend="cvxpy"` on evaluations or finite audits to opt into prepared
+Use `backend="cvxpy"` on evaluations or audits to opt into prepared
 programs with reusable parameters and joint primal/dual candidate extraction.
 The [optional backend guide](convex-backends.md) explains installation, evidence,
 and performance tradeoffs. The default backend remains SciPy.
