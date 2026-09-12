@@ -12,7 +12,9 @@ uv build
 uv run --locked twine check dist/*
 ```
 
-`uv sync --locked --extra cvxpy` enables the optional SDP comparisons. The
+`uv sync --locked --extra cvxpy` enables the prepared dispatch and convex
+intersection tests, as well as the optional SDP comparisons. Run them with
+`uv run --locked --extra cvxpy pytest -q`. The
 residopt research remains parked; its notes describe an optional sibling-source
 experiment and do not make residopt a dependency of Operange. Missing optional
 backends produce explicit skips or unsupported results.

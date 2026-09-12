@@ -36,7 +36,7 @@ def validate_options(model, diagnose, relief):
         raise ValueError("maximum relief must be positive and tolerance nonnegative")
 
 
-def conflict_evidence(system, solution, tolerance):
+def conflict_evidence(system, solution, tolerance, *, backend="scipy"):
     current, proof = system, solution.certificate
     removals, unresolved = {}, []
     for name in system.row_refs:
@@ -47,7 +47,7 @@ def conflict_evidence(system, solution, tolerance):
             upper=[current.upper[i] for i in indices],
             row_refs=[current.row_refs[i] for i in indices],
         )
-        checked = solve_system(trial, tolerance)
+        checked = solve_system(trial, tolerance, backend=backend)
         if checked.feasibility == "infeasible":
             current, proof = trial, checked.certificate
         elif checked.feasibility == "feasible":
@@ -86,7 +86,7 @@ def conflict_evidence(system, solution, tolerance):
     )
 
 
-def relief_evidence(claim, point, system, options):
+def relief_evidence(claim, point, system, options, *, backend="scipy"):
     from ._linear_process_results import _physical_response
 
     model = claim.adapter
@@ -181,14 +181,21 @@ def relief_evidence(claim, point, system, options):
         ]
         upper = [finite(float(b), "LP rhs") for b in augmented.upper]
         objective = [0.0] * len(system.controls) + [maximum]
-        primal, report = linear.solve_lp(
-            objective,
-            [(0.0, 1.0)] * len(objective),
-            inequalities=rows,
-            upper=upper,
-            tolerance=model.solver_tolerance,
-        )
-        attempts.append({"purpose": "minimum_relief_candidate", **asdict(report)})
+        if backend == "cvxpy":
+            from ._cvxpy_backend import solve_bounded
+
+            proposal = solve_bounded(augmented, objective, model.solver_tolerance)
+            primal, multipliers = proposal.point, proposal.multipliers
+            attempts.extend(proposal.attempts)
+        else:
+            primal, report = linear.solve_lp(
+                objective,
+                [(0.0, 1.0)] * len(objective),
+                inequalities=rows,
+                upper=upper,
+                tolerance=model.solver_tolerance,
+            )
+            attempts.append({"purpose": "minimum_relief_candidate", **asdict(report)})
         if primal is not None:
             # A numerical optimum can lie just outside a row. Use its commands
             # at the allowed maximum, then recompute the required physical limit.
@@ -202,23 +209,27 @@ def relief_evidence(claim, point, system, options):
             for proposal in proposals:
                 consider(augmented.candidate(proposal + [1.0]))
         n, m = len(objective), len(rows)
-        dual, report = linear.solve_lp(
-            upper + [-1.0] * n,
-            [(0.0, None)] * m + [(None, 0.0)] * n,
-            inequalities=[
-                [-row[j] for row in rows] + [float(k == j) for k in range(n)]
-                for j in range(n)
-            ],
-            upper=objective,
-            tolerance=model.solver_tolerance,
-        )
-        attempts.append({"purpose": "relief_lower_bound_candidate", **asdict(report)})
-        if dual is not None:
-            bound, proof = augmented.objective_bound(objective, dual[:m])
+        if backend != "cvxpy":
+            dual, report = linear.solve_lp(
+                upper + [-1.0] * n,
+                [(0.0, None)] * m + [(None, 0.0)] * n,
+                inequalities=[
+                    [-row[j] for row in rows] + [float(k == j) for k in range(n)]
+                    for j in range(n)
+                ],
+                upper=objective,
+                tolerance=model.solver_tolerance,
+            )
+            attempts.append(
+                {"purpose": "relief_lower_bound_candidate", **asdict(report)}
+            )
+            multipliers = dual[:m] if dual is not None else None
+        if multipliers is not None:
+            bound, proof = augmented.objective_bound(objective, multipliers)
             if bound > lower:
                 lower, certificate = bound, proof
         if candidate is None:
-            feasible = solve_system(augmented, model.solver_tolerance)
+            feasible = solve_system(augmented, model.solver_tolerance, backend=backend)
             if feasible.feasibility == "infeasible":
                 details.update(
                     {

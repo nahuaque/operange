@@ -54,5 +54,6 @@ checkout, using an isolated Python environment with only the installed wheel
 and its declared dependencies. Those checks cover numerical results, evidence,
 witness replay and compatibility with saved artifacts on Python 3.10–3.13.
 
-The optional `cvxpy` extra supports the experimental backend checks. It is not
-needed for the shared or reference APIs; see the [API guide](api.md#experimental-namespace).
+The optional `cvxpy` extra enables [prepared dispatch and convex intersection
+support](convex-backends.md), as well as experimental backend comparisons.
+Default dispatch and the other built-in primitive geometries use NumPy/SciPy.

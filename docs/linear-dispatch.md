@@ -194,3 +194,8 @@ The [continuous controller example](frozen-controllers.md) demonstrates this
 complete workflow. Both diagnostic records use the existing standard and compact
 `EvaluationResult` exports; loading validates records and identities, without
 re-proving the mathematical evidence.
+
+Use `backend="cvxpy"` on evaluations or finite audits to opt into prepared
+programs with reusable parameters and joint primal/dual candidate extraction.
+The [optional backend guide](convex-backends.md) explains installation, evidence,
+and performance tradeoffs. The default backend remains SciPy.

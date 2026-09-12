@@ -152,7 +152,34 @@ class Intersection(_Composition):
     feasible_point: object = None
     provenance: str = "Caller-declared intersection"
     tolerance: float = 1e-10
+    backend: str | None = None
     kind: ClassVar[str] = "intersection"
+
+    def __post_init__(self):
+        if self.backend not in (None, "cvxpy"):
+            raise ValueError("intersection backend must be None or 'cvxpy'")
+        super().__post_init__()
+
+    @property
+    def capabilities(self):
+        if self.backend == "cvxpy":
+            from ._intersection_support import supported
+
+            return DomainCapabilities(linear_optimization=supported(self))
+        return DomainCapabilities()
+
+    def to_manifest(self):
+        manifest = super().to_manifest()
+        if self.backend is not None:
+            manifest["backend"] = self.backend
+        return manifest
+
+    def maximize_linear(self, coefficients):
+        if self.backend == "cvxpy":
+            from ._intersection_support import maximize
+
+            return maximize(self, weights(self.space, coefficients))
+        return super().maximize_linear(coefficients)
 
 
 @dataclass(frozen=True)

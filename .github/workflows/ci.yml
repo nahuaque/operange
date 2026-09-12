@@ -40,6 +40,14 @@ jobs:
           cp examples/steam_header.py examples/linear_dispatch.py examples/failure_distance.py examples/engineering_changes.py examples/frozen_controllers.py examples/storage_replay.py examples/startup.py examples/pinch.py tests/acceptance/wheel.py tests/fixtures/prototype_result_v1.json "$RUNNER_TEMP/operange-consumer/"
           cd "$RUNNER_TEMP/operange-consumer"
           "$RUNNER_TEMP/operange-consumer-venv/bin/python" -I wheel.py
+      - name: Verify optional CVXPY support from the installed wheel
+        shell: bash
+        run: |
+          wheels=(dist/*.whl)
+          uv pip install --python "$RUNNER_TEMP/operange-consumer-venv/bin/python" "${wheels[0]}[cvxpy]"
+          cp tests/acceptance/cvxpy_wheel.py "$RUNNER_TEMP/operange-consumer/"
+          cd "$RUNNER_TEMP/operange-consumer"
+          "$RUNNER_TEMP/operange-consumer-venv/bin/python" -I cvxpy_wheel.py
   quality:
     runs-on: ubuntu-latest
     steps:

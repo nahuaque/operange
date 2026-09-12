@@ -40,6 +40,13 @@ uv run python -m examples.startup
 uv run python -m examples.pinch
 ```
 
+With the optional extra, [prepared dispatch and joint convex
+envelopes](convex-backends.md) have a separate worked example:
+
+```bash
+uv run --extra cvxpy python -m examples.convex_backends
+```
+
 The heat-recovery and thermal-storage reference studies also include downstream
 reporting and priced repair catalogs:
 

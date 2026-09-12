@@ -47,6 +47,8 @@ service-equivalence rules, reference-model examples and portable evidence scope.
 
 Domains declare their own membership and support capabilities independently
 of the adapter. Composition does not automatically add a numerical optimizer.
+`Intersection(..., backend="cvxpy")` opts into checked support for supported
+convex factors; see [optional convex backends](convex-backends.md).
 Normalization scales are explicit; vector coordinates preserve their labels.
 Units describe quantities and derivatives without converting values.
 

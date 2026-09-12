@@ -1,6 +1,8 @@
 """Portable results for bounded linear dispatch and finite recourse audits."""
 
 from fractions import Fraction
+from dataclasses import replace
+from functools import partial
 
 from ._finite_audit import audit_finite
 from ._linear_recourse import compile_system, solve_system
@@ -50,11 +52,15 @@ def _physical_response(model, requirements, point, controls):
     return values, residuals
 
 
-def evaluate_result(claim, realization, *, contract=None, diagnose=False, relief=None):
+def evaluate_result(
+    claim, realization, *, contract=None, diagnose=False, relief=None, backend="scipy"
+):
     contract = claim.contract if contract is None else contract
     request = snapshot({"query": "evaluation", "realization": realization})
     if diagnose or relief is not None:
         request = snapshot({**request, "diagnose": diagnose, "relief": relief})
+    if backend != "scipy":
+        request = snapshot({**request, "backend": backend})
     from ._linear_diagnosis import conflict_evidence, relief_evidence, validate_options
 
     try:
@@ -115,14 +121,20 @@ def evaluate_result(claim, realization, *, contract=None, diagnose=False, relief
     feasibility, message = "unknown", "Linear recourse was not resolved."
     try:
         system = compile_system(claim, point)
-        solution = solve_system(system, claim.adapter.solver_tolerance)
+        solution = solve_system(
+            system,
+            claim.adapter.solver_tolerance,
+            **({"backend": backend} if backend != "scipy" else {}),
+        )
         message = solution.message
         if solution.attempts:
             evidence.append(
                 Evidence(
                     "solver",
                     "solver_termination",
-                    "scipy_highs_candidates",
+                    "cvxpy_prepared_candidates"
+                    if backend == "cvxpy"
+                    else "scipy_highs_candidates",
                     "verified"
                     if all(a["status"] == "optimal" for a in solution.attempts)
                     else "unresolved",
@@ -181,10 +193,12 @@ def evaluate_result(claim, realization, *, contract=None, diagnose=False, relief
     # values for the original infeasible contract.
     if feasibility == "infeasible" and diagnose:
         evidence.append(
-            conflict_evidence(system, solution, claim.adapter.solver_tolerance)
+            conflict_evidence(
+                system, solution, claim.adapter.solver_tolerance, backend=backend
+            )
         )
     if feasibility in ("feasible", "infeasible") and relief is not None:
-        evidence.append(relief_evidence(claim, point, system, relief))
+        evidence.append(relief_evidence(claim, point, system, relief, backend=backend))
     return EvaluationResult(
         contract,
         request,
@@ -232,10 +246,10 @@ def _failure(claim, result, affected):
     ), tuple(e for e in result.evidence if e.evidence_id in ("membership", "recourse"))
 
 
-def audit_result(claim):
-    return audit_finite(
+def audit_result(claim, *, backend="scipy"):
+    result = audit_finite(
         claim,
-        evaluate_result,
+        partial(evaluate_result, backend=backend),
         _failure,
         method="complete_finite_linear_recourse",
         scope={
@@ -244,4 +258,9 @@ def audit_result(claim):
         },
         failure_constraints=_failed_constraints,
         diagnostic="A scenario has neither a verified dispatch nor a verified infeasibility certificate.",
+    )
+    return (
+        replace(result, request={"query": "audit", "backend": backend})
+        if backend != "scipy"
+        else result
     )

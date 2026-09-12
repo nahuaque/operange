@@ -158,7 +158,7 @@ class RecourseSolution:
     message: str
 
 
-def solve_system(system, tolerance):
+def solve_system(system, tolerance, *, backend="scipy"):
     attempts = []
 
     def solve(label, *args, **kwargs):
@@ -190,6 +190,38 @@ def solve_system(system, tolerance):
             proof = system.certificate([float(j == i) for j in range(m)])
             if proof is not None:
                 return infeasible(proof)
+        if backend == "cvxpy" and n:
+            from ._cvxpy_backend import solve_bounded
+
+            candidate = solve_bounded(system, [0.0] * n, tolerance, phase_one=True)
+            attempts.extend(candidate.attempts)
+            values = (
+                system.candidate(candidate.point)
+                if candidate.point is not None
+                else None
+            )
+            if values is not None:
+                return RecourseSolution(
+                    "feasible",
+                    values,
+                    None,
+                    attempts,
+                    "Returned physical controls checked with exact rational residuals.",
+                )
+            proof = (
+                system.certificate(candidate.multipliers)
+                if candidate.multipliers is not None
+                else None
+            )
+            if proof is not None:
+                return infeasible(proof)
+            return RecourseSolution(
+                "unknown",
+                None,
+                None,
+                attempts,
+                "Neither a physical candidate nor an exact contradiction was verified from the prepared program.",
+            )
         if not n:
             values = system.candidate([])
         else:

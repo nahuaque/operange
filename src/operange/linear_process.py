@@ -226,7 +226,13 @@ class LinearProcessAdapter(Record):
     def run(self, claim, operation, realization, options):
         from ._linear_process_results import audit_result, evaluate_result
 
-        allowed = {"diagnose", "relief"} if operation == "evaluation" else set()
+        allowed = (
+            {"diagnose", "relief", "backend"}
+            if operation == "evaluation"
+            else {"backend"}
+            if operation == "audit"
+            else set()
+        )
         if set(options) - allowed:
             return rejected_result(
                 claim.contract,
@@ -236,10 +242,27 @@ class LinearProcessAdapter(Record):
                 code="invalid_query_options",
                 execution="invalid",
             )
+        from ._cvxpy_backend import BackendUnavailable, validate_backend
+
+        try:
+            validate_backend(options.get("backend", "scipy"))
+        except (ValueError, BackendUnavailable) as exc:
+            return rejected_result(
+                claim.contract,
+                operation,
+                {"query": operation, "realization": realization, **options},
+                str(exc),
+                code="backend_unavailable"
+                if isinstance(exc, BackendUnavailable)
+                else "invalid_backend",
+                execution="unsupported"
+                if isinstance(exc, BackendUnavailable)
+                else "invalid",
+            )
         if operation == "evaluation":
             return evaluate_result(claim, realization, **options)
         if operation == "audit":
-            return audit_result(claim)
+            return audit_result(claim, **options)
         return rejected_result(
             claim.contract,
             operation,
