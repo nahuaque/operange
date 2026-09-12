@@ -107,7 +107,7 @@ class PreparedLinearProgram:
             "purpose": "dispatch_candidate"
             if self.phase_one
             else "minimum_relief_candidate",
-            "solver": f"CVXPY {cp.__version__} / SCIPY-HiGHS",
+            "solver": f"CVXPY {cp.__version__} / {self.solver_name}",
             "status": "unresolved",
             "tolerance": tolerance,
             "message": "No numerical candidate returned.",
@@ -115,14 +115,9 @@ class PreparedLinearProgram:
         }
         try:
             self.problem.solve(
-                solver="SCIPY",
                 enforce_dpp=True,
                 warm_start=True,
-                scipy_options={
-                    "method": "highs",
-                    "primal_feasibility_tolerance": tolerance,
-                    "dual_feasibility_tolerance": tolerance,
-                },
+                **self.solver_options(tolerance),
             )
             status = self.problem.status
             report.update(
@@ -140,8 +135,50 @@ class PreparedLinearProgram:
             report.update(status="unresolved", message=str(exc))
             return CandidateSolve(None, None, [report])
 
+    solver_name = "SCIPY-HiGHS"
 
-def solve_bounded(system, objective, tolerance, *, phase_one=False):
+    def solver_options(self, tolerance):
+        return {
+            "solver": "SCIPY",
+            "scipy_options": {
+                "method": "highs",
+                "primal_feasibility_tolerance": tolerance,
+                "dual_feasibility_tolerance": tolerance,
+            },
+        }
+
+
+class PreparedQuadraticProgram(PreparedLinearProgram):
+    """Fixed nonnegative diagonal quadratic terms with parameterized linear terms."""
+
+    solver_name = "CLARABEL"
+
+    def __init__(self, rows, diagonal):
+        super().__init__(rows, phase_one=False)
+        cp = self.cp
+        self.problem = cp.Problem(
+            cp.Minimize(
+                self.cost @ self.z + cp.sum(cp.multiply(diagonal, cp.square(self.z)))
+            ),
+            self.problem.constraints,
+        )
+        if not self.problem.is_dcp(dpp=True):
+            raise ValueError(
+                "prepared quadratic program must be convex and DPP-compliant"
+            )
+
+    def solver_options(self, tolerance):
+        return {
+            "solver": "CLARABEL",
+            "tol_gap_abs": tolerance,
+            # The physical objective's constant is omitted from the numerical
+            # problem. Relative gap tests would depend on that arbitrary offset.
+            "tol_gap_rel": 0.0,
+            "tol_feas": tolerance,
+        }
+
+
+def solve_bounded(system, objective, tolerance, *, phase_one=False, quadratic=None):
     rows = tuple(
         tuple(finite(float(a), "LP coefficient") for a in row) for row in system.rows
     )
@@ -151,10 +188,19 @@ def solve_bounded(system, objective, tolerance, *, phase_one=False):
         raise ValueError(
             "prepared bounded LP needs rows, controls and an aligned objective"
         )
-    program = cached_program(
-        ("linear", rows, phase_one),
-        lambda: PreparedLinearProgram(rows, phase_one=phase_one),
-    )
+    if quadratic is not None:
+        diagonal = tuple(finite(float(v), "quadratic coefficient") for v in quadratic)
+        if phase_one or len(diagonal) != len(objective) or any(v < 0 for v in diagonal):
+            raise ValueError("invalid convex quadratic objective")
+        program = cached_program(
+            ("quadratic", rows, diagonal),
+            lambda: PreparedQuadraticProgram(rows, diagonal),
+        )
+    else:
+        program = cached_program(
+            ("linear", rows, phase_one),
+            lambda: PreparedLinearProgram(rows, phase_one=phase_one),
+        )
     result = program.solve(upper, objective, tolerance)
     for attempt in result.attempts:
         attempt["row_constraint_refs"] = list(system.row_refs)

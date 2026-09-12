@@ -45,7 +45,11 @@ envelopes](convex-backends.md) have a separate worked example:
 
 ```bash
 uv run --extra cvxpy python -m examples.convex_backends
+uv run --extra cvxpy python -m examples.dispatch_objectives
 ```
+
+The [dispatch-objective example](dispatch-objectives.md) compares minimum fuel
+with squared departure from nominal boiler commands under the same hard limits.
 
 The heat-recovery and thermal-storage reference studies also include downstream
 reporting and priced repair catalogs:

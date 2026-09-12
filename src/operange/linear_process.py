@@ -13,6 +13,7 @@ from .claim import (
 )
 from .contract_types import ConstraintSpec, QuantitySpec, Record, nonempty
 from .domains import FiniteSet, ParameterSpace
+from .objectives import ControlTrackingObjective, LinearObjective
 from .recourse import DecisionRule, RecoursePolicy
 
 
@@ -43,8 +44,8 @@ class LinearProcessAdapter(Record):
 
     Outputs use the same physical affine expressions as AffineProcessAdapter.
     Operating limits use AffineRequirement declarations but always apply, even
-    when a claim selects only some service requirements. No economic or dispatch
-    objective is implied: the returned feasible control vector need not be unique.
+    when a claim selects only some service requirements. An optional objective
+    selects a preferred feasible dispatch; optimality is checked separately.
     """
 
     name: str
@@ -54,6 +55,7 @@ class LinearProcessAdapter(Record):
     controls: tuple[LinearControl, ...]
     operating_limits: tuple[AffineRequirement, ...] = ()
     solver_tolerance: float = 1e-9
+    objective: LinearObjective | ControlTrackingObjective | None = None
 
     def _validate(self):
         if not self.controls or not self.requirements:
@@ -62,6 +64,13 @@ class LinearProcessAdapter(Record):
             raise ValueError("solver_tolerance must lie between 1e-10 and 1e-4")
         # Reuse affine declaration/unit validation, then check generated bounds.
         self.base_contract
+
+    def to_dict(self):
+        data = super().to_dict()
+        # Preserve existing model and frozen-controller identities when omitted.
+        if self.objective is None:
+            data.pop("objective")
+        return data
 
     @cached_property
     def _affine(self):
@@ -116,20 +125,49 @@ class LinearProcessAdapter(Record):
                         0,
                     )
                 )
+        if isinstance(self.objective, LinearObjective):
+            self.output(self.objective.output)
+        elif isinstance(self.objective, ControlTrackingObjective):
+            units = {c.name: c.unit for c in self.controls}
+            for target in self.objective.targets:
+                if target.control not in units or units[target.control] != target.unit:
+                    raise ValueError(
+                        "objective targets must name controls with matching units"
+                    )
+            quantities.append(
+                QuantitySpec(
+                    self.objective.quantity_id,
+                    "1",
+                    "normalized_squared_command_departure",
+                    "output",
+                )
+            )
         return replace(
             base,
             model_id="linear_process/v1",
             model=self.to_dict(),
             operating={
-                "response": "linear_feasibility",
+                "response": "optimized_dispatch"
+                if self.objective is not None
+                else "linear_feasibility",
                 "feasibility_scope": "model_and_selected_requirements",
                 "stage": "operation",
                 "adjustable_observations": self.input_space.names,
-                "objective": "find any feasible controls; no dispatch optimum asserted",
+                "objective": self.objective.to_dict()
+                if self.objective is not None
+                else "find any feasible controls; no dispatch optimum asserted",
             },
             quantities=tuple(quantities),
             constraints=tuple(constraints),
             numerical_policy={
+                **(
+                    {
+                        "absolute_tolerance": self.objective.tolerance,
+                        "optimality": "verified primal and global objective bounds; distinct from feasibility",
+                    }
+                    if self.objective is not None
+                    else {}
+                ),
                 "arithmetic": "exact_rationals_of_declared_floats",
                 "solver_tolerance": self.solver_tolerance,
                 "control_bound_tolerance": 0,
@@ -245,6 +283,17 @@ class LinearProcessAdapter(Record):
         from ._cvxpy_backend import BackendUnavailable, validate_backend
 
         try:
+            if (
+                isinstance(self.objective, ControlTrackingObjective)
+                and options.get("backend", "scipy") == "scipy"
+            ):
+                return rejected_result(
+                    claim.contract,
+                    operation,
+                    {"query": operation, "realization": realization, **options},
+                    'Control tracking requires backend="cvxpy" and the operange[cvxpy] extra.',
+                    code="unsupported_objective_backend",
+                )
             validate_backend(options.get("backend", "scipy"))
         except (ValueError, BackendUnavailable) as exc:
             return rejected_result(

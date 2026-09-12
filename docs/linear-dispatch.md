@@ -65,9 +65,11 @@ from B. Fuel consumption is then `1.25 * 12 + 2 * 8 = 31 MW`, above the shared
 
 Feasible evaluations return controls, outputs and checked constraint residuals
 in `payload.values` and `payload.constraint_checks`. This is a feasibility
-query: it does not minimize fuel, select an economic optimum or promise a
-unique dispatch. The numerical phase-I objective only helps find a feasible
-candidate and is not a process objective in the result.
+query by default: it does not imply minimum fuel or a unique dispatch. An
+optional [operating objective](dispatch-objectives.md) can minimize an affine
+output or squared departures from target commands, with separately checked
+optimality bounds. Without that declaration, the numerical phase-I objective
+only helps find a feasible candidate and is not a process objective in the result.
 
 ## Re-audit an equipment change
 

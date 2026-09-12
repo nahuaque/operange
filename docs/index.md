@@ -155,6 +155,7 @@ installation
 examples
 api
 linear-dispatch
+dispatch-objectives
 convex-backends
 failure-distance
 engineering-changes

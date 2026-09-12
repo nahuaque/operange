@@ -45,6 +45,10 @@ installation guidance; invalid backend names return `invalid`.
 
 ## Optimize over a convex intersection
 
+The same optional extra also supports [squared command-tracking objectives
+for adjustable dispatch](dispatch-objectives.md), with exact separable
+quadratic bounds and a prepared Clarabel program.
+
 An intersection can explicitly enable linear support:
 
 ```python

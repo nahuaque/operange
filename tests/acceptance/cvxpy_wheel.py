@@ -5,6 +5,7 @@ package and checks that the new private backend modules ship in the wheel.
 """
 
 from importlib import util
+from dataclasses import replace
 from pathlib import Path
 import runpy
 import sys
@@ -52,6 +53,32 @@ def main():
 
     consumer = runpy.run_path(str(Path(__file__).parent / "linear_dispatch.py"))
     model, cases = consumer["example"]()
+    tracking = replace(
+        model,
+        objective=process.ControlTrackingObjective(
+            (
+                process.ControlTarget("boiler_a", 8, 1, "MW"),
+                process.ControlTarget("boiler_b", 8, 1, "MW"),
+            )
+        ),
+    )
+    tracked = tracking.as_claim(cases).evaluate_result(
+        {"dryer": 12, "evaporator": 6}, backend="cvxpy"
+    )
+    require(
+        tracked.payload.feasibility == "feasible"
+        and tracked.payload.objective.optimality == "verified",
+        "tracking optimum was not verified",
+    )
+    require(
+        abs(tracked.payload.objective.attained_value - 2) < 1e-6,
+        "wrong command tracking objective",
+    )
+    require(
+        process.result_from_json(tracked.to_json(compact=True)).result_id
+        == tracked.result_id,
+        "tracking result did not round trip",
+    )
     claim = model.as_claim(cases)
     audit = claim.audit_result(backend="cvxpy")
     require(

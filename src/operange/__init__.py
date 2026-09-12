@@ -2,6 +2,7 @@
 
 from .affine import AffineOutput, AffineProcessAdapter, AffineRequirement, AffineTerm
 from .linear_process import LinearControl, LinearProcessAdapter
+from .objectives import LinearObjective, ControlTarget, ControlTrackingObjective
 from .controllers import AffineControlRule, AffineController
 from .frozen_controller import FrozenController
 from .vector import VectorParameter
@@ -71,6 +72,9 @@ __all__ = [
     "AffineTerm",
     "LinearControl",
     "LinearProcessAdapter",
+    "LinearObjective",
+    "ControlTarget",
+    "ControlTrackingObjective",
     "AffineControlRule",
     "AffineController",
     "FrozenController",

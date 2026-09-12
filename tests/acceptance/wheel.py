@@ -6,6 +6,7 @@ There are no pytest, repository, optional solver, or test-environment imports.
 """
 
 from importlib import metadata, util
+from dataclasses import replace
 import json
 from math import isclose
 from pathlib import Path
@@ -141,6 +142,31 @@ def main():
         "fuel capacity change altered the scenario domain",
     )
     dispatch_model, dispatch_domain = dispatch["example"]()
+    preferred = replace(dispatch_model, objective=process.LinearObjective("fuel"))
+    optimized = preferred.as_claim(dispatch_domain).evaluate_result(
+        {"dryer": 10, "evaporator": 6}
+    )
+    require(
+        optimized.payload.feasibility == "feasible", "objective lost feasible dispatch"
+    )
+    require(
+        optimized.payload.objective.optimality == "verified",
+        "minimum fuel needs a checked gap",
+    )
+    require(
+        isclose(optimized.payload.objective.attained_value, 23, abs_tol=1e-7),
+        "minimum fuel value changed",
+    )
+    require(
+        process.result_from_json(optimized.to_json(compact=True)).result_id
+        == optimized.result_id,
+        "objective result failed portable replay",
+    )
+    require(
+        process.LinearProcessAdapter(**preferred.to_dict()).base_contract.ref
+        == preferred.base_contract.ref,
+        "objective declaration did not round trip",
+    )
     failure = dispatch_results["adjustable"].payload.witness
     require(failure is not None, "linear failure witness missing")
     replay = dispatch_model.as_claim(dispatch_domain).evaluate_result(

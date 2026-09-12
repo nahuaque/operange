@@ -19,6 +19,7 @@ Import these from `operange`:
 | Operating permissions and severity | `DecisionRule`, `RecoursePolicy`, `Distance`, `NormalizedLInf` |
 | Fixed affine model | `AffineProcessAdapter`, `AffineOutput`, `AffineTerm`, `AffineRequirement` |
 | Adjustable linear model | `LinearProcessAdapter`, `LinearControl`; reuses `AffineOutput`, `AffineTerm`, `AffineRequirement` |
+| Dispatch objectives | `LinearObjective`, `ControlTrackingObjective`, `ControlTarget` |
 | Executable linear controllers | `AffineControlRule`, `AffineController`, `FrozenController` |
 | Engineering changes | `EngineeringChange`, `compare_changes`, `ChangeComparison`, `ChangeResult`, `ContractComparison`, `FieldChange`, `RequirementSummary` |
 | Supplied time profile | `PiecewiseLinearProfile` |
@@ -51,6 +52,10 @@ of the adapter. Composition does not automatically add a numerical optimizer.
 convex factors; see [optional convex backends](convex-backends.md).
 Normalization scales are explicit; vector coordinates preserve their labels.
 Units describe quantities and derivatives without converting values.
+
+Adjustable dispatch can optimize a declared affine output or track physical
+command targets with a convex quadratic objective. Feasibility and optimality
+have separate evidence; see [operating objectives](dispatch-objectives.md).
 
 ## What the built-in adapters establish
 

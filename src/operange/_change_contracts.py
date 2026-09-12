@@ -125,6 +125,7 @@ def _basis(contract):
                 }
                 design["operating_limits"] = _by_name(model.pop("operating_limits"))
                 model.pop("solver_tolerance")  # Compared as numerical policy below.
+                model.pop("objective", None)  # An operating preference, not physics.
             else:
                 model["controls"] = _by_name(model["controls"], "quantity_id")
             model["outputs"] = _by_name(model["outputs"])

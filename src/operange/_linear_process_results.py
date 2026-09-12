@@ -20,6 +20,7 @@ from .contract_types import (
 )
 from .engineering_results import EvaluationResult
 from .primitives import finite
+from .objectives import ControlTrackingObjective
 
 
 def _included(claim, contract):
@@ -119,13 +120,25 @@ def evaluate_result(
     values = [QuantityValue(n, v) for n, v in point.items()]
     checks = tuple(ConstraintCheck(c.constraint_id, "unknown") for c in included)
     feasibility, message = "unknown", "Linear recourse was not resolved."
+    objective = None
     try:
         system = compile_system(claim, point)
-        solution = solve_system(
-            system,
-            claim.adapter.solver_tolerance,
-            **({"backend": backend} if backend != "scipy" else {}),
-        )
+        if claim.adapter.objective is None:
+            solution = solve_system(
+                system,
+                claim.adapter.solver_tolerance,
+                **({"backend": backend} if backend != "scipy" else {}),
+            )
+        else:
+            from ._dispatch_objective import compile_objective, solve_dispatch
+
+            polynomial = compile_objective(claim.adapter, point, system)
+            solution, objective_lower, objective_proof = solve_dispatch(
+                system,
+                polynomial,
+                claim.adapter.solver_tolerance,
+                backend=backend,
+            )
         message = solution.message
         if solution.attempts:
             evidence.append(
@@ -187,6 +200,23 @@ def evaluate_result(
                 for c in included
             )
             feasibility = "feasible"
+            if claim.adapter.objective is not None:
+                from ._dispatch_objective import objective_result
+
+                objective, proof = objective_result(
+                    claim.adapter,
+                    point,
+                    system,
+                    solution.controls,
+                    polynomial,
+                    objective_lower,
+                    objective_proof,
+                )
+                evidence.append(proof)
+                if isinstance(claim.adapter.objective, ControlTrackingObjective):
+                    values.append(
+                        QuantityValue(objective.quantity_ref, objective.attained_value)
+                    )
     except (ValueError, OverflowError) as exc:
         message = str(exc)
     # Optional diagnosis does not alter the physical verdict or invent dispatch
@@ -199,6 +229,22 @@ def evaluate_result(
         )
     if feasibility in ("feasible", "infeasible") and relief is not None:
         evidence.append(relief_evidence(claim, point, system, relief, backend=backend))
+    diagnostics = []
+    if feasibility == "unknown":
+        diagnostics.append(
+            Diagnostic("linear_recourse_unresolved", "response", message)
+        )
+    elif feasibility == "feasible" and claim.adapter.objective is not None:
+        if objective is None or objective.optimality != "verified":
+            diagnostics.append(
+                Diagnostic(
+                    "dispatch_optimality_unresolved",
+                    "operating_objective",
+                    message
+                    if objective is None
+                    else "A feasible dispatch and global objective bounds were verified, but the optimality gap remains open.",
+                )
+            )
     return EvaluationResult(
         contract,
         request,
@@ -208,12 +254,11 @@ def evaluate_result(
             member,
             tuple(values),
             checks,
+            objective=objective,
             included_constraints=tuple(c.constraint_id for c in included),
         ),
         tuple(evidence),
-        (Diagnostic("linear_recourse_unresolved", "response", message),)
-        if feasibility == "unknown"
-        else (),
+        tuple(diagnostics),
     )
 
 
