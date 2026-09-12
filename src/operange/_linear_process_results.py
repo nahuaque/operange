@@ -5,7 +5,7 @@ from dataclasses import replace
 from functools import partial
 
 from ._finite_audit import audit_finite
-from ._linear_recourse import compile_system, solve_system
+from ._linear_recourse import RecourseSolution, compile_system, solve_system
 from ._numeric import round_up
 from .claim import rejected_result
 from .contract_types import (
@@ -54,7 +54,14 @@ def _physical_response(model, requirements, point, controls):
 
 
 def evaluate_result(
-    claim, realization, *, contract=None, diagnose=False, relief=None, backend="scipy"
+    claim,
+    realization,
+    *,
+    contract=None,
+    diagnose=False,
+    relief=None,
+    backend="scipy",
+    _controls=None,
 ):
     contract = claim.contract if contract is None else contract
     request = snapshot({"query": "evaluation", "realization": realization})
@@ -62,6 +69,14 @@ def evaluate_result(
         request = snapshot({**request, "diagnose": diagnose, "relief": relief})
     if backend != "scipy":
         request = snapshot({**request, "backend": backend})
+    if _controls is not None:
+        request = snapshot(
+            {
+                **request,
+                "dispatch_source": "shared_relief_candidate",
+                "controls": _controls,
+            }
+        )
     from ._linear_diagnosis import conflict_evidence, relief_evidence, validate_options
 
     try:
@@ -136,7 +151,23 @@ def evaluate_result(
     objective = None
     try:
         system = compile_system(claim, point)
-        if claim.adapter.objective is None:
+        if _controls is not None:
+            checked = system.checked_values(_controls)
+            solution = RecourseSolution(
+                "feasible" if checked is not None else "unknown",
+                checked,
+                None,
+                [],
+                "Shared relief commands independently checked against the changed model; dispatch optimality is not asserted.",
+            )
+            if claim.adapter.objective is not None:
+                from ._dispatch_objective import compile_objective
+
+                polynomial = compile_objective(claim.adapter, point, system)
+                objective_lower, objective_proof = polynomial.bound(
+                    system, [0.0] * len(system.rows)
+                )
+        elif claim.adapter.objective is None:
             solution = solve_system(
                 system,
                 claim.adapter.solver_tolerance,
@@ -304,16 +335,27 @@ def _failure(claim, result, affected):
     ), tuple(e for e in result.evidence if e.evidence_id in ("membership", "recourse"))
 
 
-def audit_result(claim, *, backend="scipy", max_vertices=256):
+def audit_result(
+    claim, *, backend="scipy", max_vertices=256, relief=None, _evaluate=None
+):
     from .domains import FiniteSet
 
+    if relief is not None:
+        from ._shared_relief import audit_with_relief
+
+        return audit_with_relief(
+            claim, relief, backend=backend, max_vertices=max_vertices
+        )
+    evaluate = evaluate_result if _evaluate is None else _evaluate
     if type(claim.domain) is not FiniteSet:
         from ._linear_vertex_audit import audit_vertices
 
-        return audit_vertices(claim, backend=backend, max_vertices=max_vertices)
+        return audit_vertices(
+            claim, backend=backend, max_vertices=max_vertices, evaluate=evaluate
+        )
     result = audit_finite(
         claim,
-        partial(evaluate_result, backend=backend),
+        partial(evaluate, backend=backend),
         _failure,
         method="complete_finite_linear_recourse",
         scope={

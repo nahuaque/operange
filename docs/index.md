@@ -156,6 +156,7 @@ examples
 api
 linear-dispatch
 continuous-dispatch
+shared-relief
 dispatch-objectives
 convex-backends
 uncertainty-compositions

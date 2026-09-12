@@ -272,9 +272,9 @@ class LinearProcessAdapter(Record):
         allowed = (
             {"diagnose", "relief", "backend"}
             if operation == "evaluation"
-            else {"backend", "max_vertices"}
+            else {"backend", "max_vertices", "relief"}
             if operation == "audit" and type(claim.domain) in (BoxSet, ConvexHullSet)
-            else {"backend"}
+            else {"backend", "relief"}
             if operation == "audit"
             else set()
         )

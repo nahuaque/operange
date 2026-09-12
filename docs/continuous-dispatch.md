@@ -79,6 +79,10 @@ verdict. A solver's success or infeasibility status alone proves neither verdict
 
 ## Enumeration and numerical limits
 
+Use `claim.audit_result(relief=...)` to find one shared set of equipment-limit
+changes that restores the entire box or hull. The [shared relief guide](shared-relief.md)
+describes its objective bounds and independent candidate re-audit.
+
 `claim.audit_result(max_vertices=256)` is the default. A box with `k` varying
 scalar coordinates requires `2**k` checks; vector coordinates count by component.
 A hull counts every declared generator, retaining duplicate labels. If the

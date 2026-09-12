@@ -131,6 +131,14 @@ domain-wide dispatch optimum. Enumeration above the limit is rejected before
 solving. General polytopes, other composed geometries and partial-observation
 adjustable policies remain unsupported. See [continuous dispatch](continuous-dispatch.md).
 
+`claim.audit_result(relief={"changes": [...], "objective": "linear"})` finds one
+shared operating-limit relief plan across a `FiniteSet`, `BoxSet` or
+`ConvexHullSet`. It preserves the original audit verdict and adds checked
+equipment-objective bounds plus a full-domain re-audit of any candidate.
+Quadratic relief requires `backend="cvxpy"`; `relief.max_scenarios` defaults to
+256. Service requirements, hard control bounds and recourse permissions remain
+fixed. See [shared equipment relief](shared-relief.md) for declarations and replay.
+
 `model.as_claim(domain, controller=controller, recourse=None, requirements=None)`
 instead binds an `AffineController`. Default permissions use the observations
 named by each rule; explicit `recourse` permissions must permit all its inputs.

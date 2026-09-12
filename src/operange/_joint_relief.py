@@ -57,13 +57,10 @@ def declarations(model, options):
     return tuple(result)
 
 
-def relief_evidence(claim, point, system, options, *, backend):
-    from ._linear_process_results import _physical_response
-
-    model = claim.adapter
-    changes = declarations(model, options)
+def compile_relief(model, system, changes, objective):
+    """Append one shared relief vector to a point or scenario-block system."""
     limits = {r.name: r for r in model.operating_limits}
-    controls, names = [], {c.name for c in model.controls}
+    controls, names = [], {c.name for c in system.controls} | set(system.fixed)
     for i, change in enumerate(changes):
         name = f"_operange_relief_{i}"
         while name in names:
@@ -86,7 +83,7 @@ def relief_evidence(claim, point, system, options, *, backend):
         list(system.upper),
         list(system.row_refs),
     )
-    quadratic = options["objective"] == "quadratic"
+    quadratic = objective == "quadratic"
     costs = tuple(
         F(c["weight"]) * (F(c["maximum"]) / F(c["scale"])) ** (2 if quadratic else 1)
         for c in changes
@@ -97,6 +94,62 @@ def relief_evidence(claim, point, system, options, *, backend):
         zero if quadratic else (F(0),) * len(system.controls) + costs,
         (F(0),) * len(system.controls) + costs if quadratic else zero,
     )
+    return augmented, polynomial
+
+
+def candidate_changes(model, changes, dispatches, objective):
+    """Round one set of limits outward to cover every proposed dispatch."""
+    limits = {r.name: r for r in model.operating_limits}
+    updates, records, value = {}, [], F(0)
+    for change in changes:
+        limit = limits[change["constraint"]]
+        needed = max(
+            F(0),
+            max(
+                limit.sign
+                * (
+                    model.output(limit.output)._exact_value({**point, **commands})
+                    - F(limit.limit)
+                )
+                - F(limit.tolerance)
+                for point, commands in dispatches
+            ),
+        )
+        adjusted = F(limit.limit) + limit.sign * needed
+        adjusted = round_up(adjusted) if limit.sign > 0 else round_down(adjusted)
+        amount = limit.sign * (F(adjusted) - F(limit.limit))
+        if not 0 <= amount <= F(change["maximum"]):
+            raise ValueError("representable changed limit exceeds the permitted relief")
+        updates[limit.name] = adjusted
+        value += F(change["weight"]) * (amount / F(change["scale"])) ** (
+            2 if objective == "quadratic" else 1
+        )
+        records.append(
+            {
+                **change,
+                "original_limit": limit.limit,
+                "changed_limit": adjusted,
+                "physical_relief": round_up(amount),
+                "relief_exact": str(amount),
+            }
+        )
+    changed = replace(
+        model,
+        operating_limits=tuple(
+            replace(r, limit=updates.get(r.name, r.limit))
+            for r in model.operating_limits
+        ),
+    )
+    return changed, records, value
+
+
+def relief_evidence(claim, point, system, options, *, backend):
+    from ._linear_process_results import _physical_response
+
+    model = claim.adapter
+    changes = declarations(model, options)
+    augmented, polynomial = compile_relief(model, system, changes, options["objective"])
+    quadratic = options["objective"] == "quadratic"
     details = {
         "declaration": {
             "changes": changes,
@@ -152,43 +205,8 @@ def relief_evidence(claim, point, system, options, *, backend):
             )
         if solution.controls is not None:
             commands = {c.name: solution.controls[c.name] for c in model.controls}
-            updates, records, value = {}, [], F(0)
-            for change in changes:
-                limit = limits[change["constraint"]]
-                response = model.output(limit.output)._exact_value(
-                    {**point, **commands}
-                )
-                needed = max(
-                    F(0), limit.sign * (response - F(limit.limit)) - F(limit.tolerance)
-                )
-                adjusted = F(limit.limit) + limit.sign * needed
-                adjusted = (
-                    round_up(adjusted) if limit.sign > 0 else round_down(adjusted)
-                )
-                amount = limit.sign * (F(adjusted) - F(limit.limit))
-                if not 0 <= amount <= F(change["maximum"]):
-                    raise ValueError(
-                        "representable changed limit exceeds the permitted relief"
-                    )
-                updates[limit.name] = adjusted
-                value += F(change["weight"]) * (amount / F(change["scale"])) ** (
-                    2 if quadratic else 1
-                )
-                records.append(
-                    {
-                        **change,
-                        "original_limit": limit.limit,
-                        "changed_limit": adjusted,
-                        "physical_relief": round_up(amount),
-                        "relief_exact": str(amount),
-                    }
-                )
-            changed = replace(
-                model,
-                operating_limits=tuple(
-                    replace(r, limit=updates.get(r.name, r.limit))
-                    for r in model.operating_limits
-                ),
+            changed, records, value = candidate_changes(
+                model, changes, [(point, commands)], options["objective"]
             )
             _, residuals = _physical_response(
                 changed, claim.requirements, point, commands

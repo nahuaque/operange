@@ -158,7 +158,15 @@ def _numerical(system, polynomial, tolerance, backend):
     return primal, None if dual is None else dual[:m], attempts
 
 
-def solve_dispatch(system, polynomial, tolerance, *, backend, candidate_transform=None):
+def solve_dispatch(
+    system,
+    polynomial,
+    tolerance,
+    *,
+    backend,
+    candidate_transform=None,
+    candidate_values=None,
+):
     lower, proof = polynomial.bound(system, [0.0] * len(system.rows))
     attempts, candidates, primal = [], [], None
     if system.controls and (any(polynomial.linear) or any(polynomial.diagonal)):
@@ -169,7 +177,12 @@ def solve_dispatch(system, polynomial, tolerance, *, backend, candidate_transfor
             attempts.extend(reports)
             if primal is not None and candidate_transform is not None:
                 primal = candidate_transform(primal)
-            candidates = _candidates(system, primal)
+            if primal is not None and candidate_values is not None:
+                values = candidate_values(primal)
+                checked = system.checked_values(values) if values is not None else None
+                candidates = [checked] if checked is not None else []
+            else:
+                candidates = _candidates(system, primal)
             if multipliers is not None:
                 proposed, certificate = polynomial.bound(system, multipliers)
                 if proposed > lower:

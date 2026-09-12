@@ -149,3 +149,8 @@ Apply `candidate.changes[*].changed_limit` to a new model and re-audit the full
 declared domain. The example does this separately for both objectives. A relief
 minimum at one realization does not establish restoration elsewhere. Existing
 one-limit queries retain their API and physical-unit bounds.
+
+For one plan shared by the full domain, use
+`claim.audit_result(relief={"changes": ..., "objective": ...})` instead.
+[Shared equipment relief](shared-relief.md) supports finite scenarios and
+continuous boxes/hulls, and includes a separate full-domain candidate re-audit.

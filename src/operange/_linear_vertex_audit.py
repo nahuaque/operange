@@ -11,7 +11,17 @@ from .domains import Scenario
 from .primitives import BoxSet
 
 
-def audit_vertices(claim, *, backend, max_vertices):
+def vertex_count(domain):
+    if type(domain) is BoxSet:
+        return 2 ** sum(p.lower != p.upper for p in domain.scalar_parameters)
+    if type(domain) is ConvexHullSet:
+        return len(domain.vertices)
+    raise ValueError(
+        "Continuous recourse requires a BoxSet or an explicit ConvexHullSet."
+    )
+
+
+def audit_vertices(claim, *, backend, max_vertices, evaluate=None):
     from ._linear_process_results import evaluate_result, _failure, _failed_constraints
 
     request = {"query": "audit", "backend": backend, "max_vertices": max_vertices}
@@ -27,10 +37,10 @@ def audit_vertices(claim, *, backend, max_vertices):
     domain = claim.domain
     if type(domain) is BoxSet:
         parameters = sorted(domain.scalar_parameters, key=lambda p: p.name)
-        count = 2 ** sum(p.lower != p.upper for p in parameters)
+        count = vertex_count(domain)
         kind = "all_box_corners"
     elif type(domain) is ConvexHullSet:
-        count = len(domain.vertices)
+        count = vertex_count(domain)
         kind = "all_declared_hull_generators"
     else:
         return rejected_result(
@@ -76,7 +86,7 @@ def audit_vertices(claim, *, backend, max_vertices):
     }
     result = audit_finite(
         claim,
-        partial(evaluate_result, backend=backend),
+        partial(evaluate_result if evaluate is None else evaluate, backend=backend),
         _failure,
         generators=vertices,
         coverage_method="analytical_domain",

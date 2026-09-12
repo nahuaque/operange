@@ -8,6 +8,7 @@ modules ship in the wheel.
 from importlib import util
 from dataclasses import replace
 from pathlib import Path
+import json
 import runpy
 import sys
 
@@ -164,6 +165,26 @@ def main():
     require(
         process.result_from_json(joint_result.to_json(compact=True)) == joint_result,
         "joint relief result changed on round trip",
+    )
+    shared_result = relief_model.as_claim(cases).audit_result(
+        backend="cvxpy",
+        relief=joint_result.request["relief"],
+    )
+    shared = next(
+        e.to_dict()["details"]
+        for e in shared_result.evidence
+        if e.evidence_id == "relief"
+    )
+    require(
+        shared["resolution"] == "minimum_verified",
+        "shared quadratic relief did not close its gap",
+    )
+    require(abs(shared["upper"] - 0.64) <= 1e-8, "wrong shared quadratic objective")
+    repaired = process.result_from_json(json.dumps(shared["candidate"]["reaudit"]))
+    require(repaired.payload.verdict == "pass", "shared quadratic relief failed replay")
+    require(
+        process.result_from_json(shared_result.to_json(compact=True)) == shared_result,
+        "shared quadratic result did not round trip",
     )
     tracking = replace(
         model,

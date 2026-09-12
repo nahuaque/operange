@@ -279,6 +279,48 @@ def main():
         "vertex limit must reject incomplete enumeration",
     )
 
+    for domain in (dispatch_domain, dispatch_box):
+        shared_result = dispatch_model.as_claim(domain).audit_result(
+            relief={
+                "changes": [
+                    {
+                        "constraint": "shared_fuel",
+                        "maximum": 2,
+                        "scale": 1,
+                        "unit": "MW",
+                    }
+                ],
+                "objective": "linear",
+            }
+        )
+        shared = next(
+            e.to_dict()["details"]
+            for e in shared_result.evidence
+            if e.evidence_id == "relief"
+        )
+        require(
+            shared_result.payload.verdict == "fail",
+            "shared relief changed the original verdict",
+        )
+        require(
+            shared["resolution"] == "minimum_verified",
+            "shared fuel relief minimum missing",
+        )
+        require(isclose(shared["upper"], 1, abs_tol=1e-7), "wrong shared fuel change")
+        repaired = process.result_from_json(json.dumps(shared["candidate"]["reaudit"]))
+        require(
+            repaired.payload.verdict == "pass", "shared plan failed full-domain replay"
+        )
+        require(
+            repaired.contract.domain == shared_result.contract.domain,
+            "relief changed domain coverage",
+        )
+        require(
+            process.result_from_json(shared_result.to_json(compact=True))
+            == shared_result,
+            "shared plan did not round trip",
+        )
+
     distance_example = runpy.run_path(str(directory / "failure_distance.py"))
     distance_results = {
         name: process.result_from_json(json.dumps(data))
