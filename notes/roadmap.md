@@ -42,6 +42,16 @@ physical candidates and bounded dual certificates across all selected requiremen
 Continuous-domain recourse and distance searches with adjustable controls remain
 future work.
 
+Saved affine controllers now support continuous-domain audits through checked
+linear bounds, including command rounding and every equipment bound. Boxes and
+polytopes additionally support threshold-distance bounds with actual controller
+replay. The linear point evaluator offers opt-in conflict reduction relative to
+the declared control box and independently checked one-operating-limit relief.
+The [controller example](../docs/frozen-controllers.md) connects a failing
+continuous audit, adjustable point diagnosis, a caller-supplied equipment change,
+full-envelope re-audit and frozen replay. These capabilities do not extend the
+fully adjustable adapter's continuous-domain scope.
+
 The [common engineering-change comparison](../docs/engineering-changes.md) now
 re-audits caller-supplied claims across the shared and reference adapters. It
 records equipment, operating, domain and service changes, preserves unresolved
@@ -132,7 +142,9 @@ tree; it does not establish robustness over continuous or unlisted trajectories.
 The [frozen-controller slice](../docs/frozen-controllers.md) now captures a linear
 model, explicit affine controller, domain, permissions and evidence settings.
 Direct replay retains controller-specific failures and supports new finite
-scenario domains without retuning. It integrates with the common comparison API.
+scenario domains without retuning. Continuous controller audits and bounded
+threshold searches are also supported as described above. It integrates with
+the common comparison API.
 
 The [causal storage replay slice](../docs/storage-replay.md) now freezes the
 two-period storage model, tree, explicit controller, initial-state rule and

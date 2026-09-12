@@ -33,6 +33,7 @@ class ThresholdProblem:
     rows: list
     upper: list
     row_labels: list
+    residual_form: object = None
 
     @property
     def objective(self):
@@ -55,6 +56,10 @@ class ThresholdProblem:
             exact_dot(row, z) > b for row, b in zip(self.domain_rows, self.domain_upper)
         ):
             return False
+        if self.residual_form is not None:
+            return self.residual_form.actual(self.claim, point) >= Fraction(
+                self.threshold
+            )
         model = self.claim.adapter
         residual = self.requirement.sign * (
             model.output(self.requirement.output)._exact_value(
@@ -72,10 +77,14 @@ class ThresholdProblem:
             + Fraction(p.scale) * Fraction(finite(z, "search coordinate"))
             for p, z in zip(self.parameters, coordinates)
         ]
-        coefficients = {
-            t.variable: self.requirement.sign * t.coefficient
-            for t in self.claim.adapter.output(self.requirement.output).terms
-        }
+        coefficients = (
+            self.residual_form.coefficients
+            if self.residual_form is not None
+            else {
+                t.variable: self.requirement.sign * t.coefficient
+                for t in self.claim.adapter.output(self.requirement.output).terms
+            }
+        )
         bases = []
         for directed in (False, True):
             values = []
@@ -135,7 +144,17 @@ class ThresholdProblem:
         return {
             "requirement": self.requirement.name,
             "threshold": self.threshold,
-            "unit": self.claim.adapter.output(self.requirement.output).unit,
+            "unit": self.residual_form.unit
+            if self.residual_form is not None
+            else self.claim.adapter.output(self.requirement.output).unit,
+            **(
+                {
+                    "controller_rounding_error_exact": str(self.residual_form.error),
+                    "controller_enclosure_evidence_ref": "controller_enclosure",
+                }
+                if self.residual_form is not None
+                else {}
+            ),
             "coordinates": [p.name for p in self.parameters] + ["distance_radius"],
             "coordinate_space": "domain_normalized_inputs_and_normalized_linf_radius",
             "origins": [p.nominal for p in self.parameters],
@@ -149,7 +168,7 @@ class ThresholdProblem:
         }
 
 
-def compile_problem(claim, requirement, threshold):
+def compile_problem(claim, requirement, threshold, *, residual_form=None):
     polytope = claim.domain if type(claim.domain) is PolytopeSet else None
     box = polytope.envelope if polytope is not None else claim.domain
     parameters = box.scalar_parameters
@@ -191,20 +210,32 @@ def compile_problem(claim, requirement, threshold):
             rows.append(tuple(row))
             upper.append(-sign * offset)
             labels.append(f"distance:{p.name}:{sign}")
-    model = claim.adapter
-    output = model.output(requirement.output)
-    coefficients = {t.variable: Fraction(t.coefficient) for t in output.terms}
-    residual_scale = Fraction(requirement.residual_scale)
-    baseline = requirement.sign * (
-        output._exact_value({**box.nominal, **model._fixed_values(claim)})
-        - Fraction(requirement.limit)
-    )
+    if residual_form is None:
+        model = claim.adapter
+        output = model.output(requirement.output)
+        coefficients = {
+            t.variable: requirement.sign * Fraction(t.coefficient) for t in output.terms
+        }
+        residual_scale = Fraction(requirement.residual_scale)
+        baseline = requirement.sign * (
+            output._exact_value({**box.nominal, **model._fixed_values(claim)})
+            - Fraction(requirement.limit)
+        )
+    else:
+        coefficients, residual_scale = residual_form.coefficients, Fraction(1)
+        # A necessary outer condition supplies lower bounds and unreachability.
+        # Candidate acceptance always checks the actual rounded commands.
+        baseline = (
+            residual_form.offset
+            + exact_dot(
+                (coefficients.get(p.name, 0) for p in parameters),
+                (p.nominal for p in parameters),
+            )
+            + residual_form.error
+        )
     rows.append(
         tuple(
-            -requirement.sign
-            * coefficients.get(p.name, 0)
-            * Fraction(p.scale)
-            / residual_scale
+            -coefficients.get(p.name, 0) * Fraction(p.scale) / residual_scale
             for p in parameters
         )
         + (Fraction(0),)
@@ -230,6 +261,7 @@ def compile_problem(claim, requirement, threshold):
         rows,
         upper,
         labels,
+        residual_form,
     )
 
 

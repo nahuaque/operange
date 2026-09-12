@@ -12,8 +12,10 @@ from ._numeric import exact_dot
 from .claim import AdapterCapabilities, Capability, bind_contract, rejected_result
 from .contract_types import Record, nonempty, reference, snapshot, unique
 from .domains import FiniteSet
+from .distance import NormalizedLInf
+from .polytope import PolytopeSet
 from .linear_process import LinearProcessAdapter
-from .primitives import finite
+from .primitives import BoxSet, finite
 from .recourse import DecisionRule, RecoursePolicy
 
 
@@ -245,6 +247,19 @@ class _ControllerAdapter(Record):
         except ValueError as exc:
             unavailable = Capability(False, str(exc))
             return AdapterCapabilities(*(unavailable for _ in range(5)))
+        support = (
+            claim.domain.capabilities.linear_optimization
+            and callable(getattr(claim.domain, "maximize_linear", None))
+            and all(
+                c.nominal is not None and c.scale is not None
+                for c in claim.domain.space.coordinates
+            )
+        )
+        search = Capability(
+            type(claim.domain) in (BoxSet, PolytopeSet)
+            and type(claim.distance) is NormalizedLInf,
+            "Rounded-controller threshold bounds over boxes and polytopes require NormalizedLInf; candidates execute the saved rule.",
+        )
         return AdapterCapabilities(
             Capability(
                 True,
@@ -255,19 +270,24 @@ class _ControllerAdapter(Record):
                 "Controller-response sensitivities are not provided in this slice.",
             ),
             Capability(
-                type(claim.domain) is FiniteSet,
-                "Complete finite-scenario replay of the frozen controller; no continuous-domain audit.",
+                type(claim.domain) is FiniteSet or support,
+                "Finite replay or continuous affine enclosures with command rounding, equipment bounds and selected requirements.",
             ),
-            Capability(False, "Controller boundary searches are not provided."),
-            Capability(
-                False, "Controller breaking-distance searches are not provided."
-            ),
+            search,
+            search,
         )
 
     def run(self, claim, operation, realization, options):
         from ._controller_results import audit_result, evaluate_result
 
-        if options:
+        allowed = (
+            {"constraints", "distance_tolerance"}
+            if operation == "boundary"
+            else {"constraints", "violation_margins", "distance_tolerance"}
+            if operation == "breaking"
+            else set()
+        )
+        if set(options) - allowed:
             return rejected_result(
                 claim.contract,
                 operation,
@@ -279,7 +299,15 @@ class _ControllerAdapter(Record):
         if operation == "evaluation":
             return evaluate_result(claim, realization)
         if operation == "audit":
-            return audit_result(claim)
+            if type(claim.domain) is FiniteSet:
+                return audit_result(claim)
+            from ._controller_envelope import audit_result as audit_envelope
+
+            return audit_envelope(claim)
+        if operation in ("boundary", "breaking"):
+            from ._controller_distance import threshold_result
+
+            return threshold_result(claim, boundary=operation == "boundary", **options)
         return rejected_result(
             claim.contract,
             operation,

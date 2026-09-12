@@ -22,7 +22,18 @@ from .primitives import finite
 
 
 def threshold_result(
-    claim, *, boundary=False, violation_margins=None, distance_tolerance=1e-8
+    claim,
+    *,
+    boundary=False,
+    violation_margins=None,
+    distance_tolerance=1e-8,
+    requirements=None,
+    compile_branch=None,
+    evaluate_response=None,
+    failure=None,
+    failure_constraints=None,
+    unit=None,
+    residual_id=None,
 ):
     operation = "boundary" if boundary else "breaking"
     contract = claim.contract
@@ -34,7 +45,18 @@ def threshold_result(
             "distance": claim.distance.to_manifest(),
         }
     )
-    requirements = _requirements(claim)
+    if requirements is not None:
+        request = snapshot(
+            {**request, "constraints": tuple(r.name for r in requirements)}
+        )
+    requirements = _requirements(claim) if requirements is None else requirements
+    compile_branch = compile_problem if compile_branch is None else compile_branch
+    evaluate_response = (
+        evaluate_result if evaluate_response is None else evaluate_response
+    )
+    failure = _failure if failure is None else failure
+    unit = unit or (lambda r: claim.adapter.output(r.output).unit)
+    residual_id = residual_id or claim.adapter.residual_id
     try:
         distance_tolerance = finite(distance_tolerance, "distance_tolerance")
         if distance_tolerance < 0:
@@ -42,9 +64,9 @@ def threshold_result(
         if boundary:
             thresholds = {r.name: 0.0 for r in requirements}
         else:
-            if not isinstance(violation_margins, Mapping) or set(
-                violation_margins
-            ) != set(claim.requirements):
+            if not isinstance(violation_margins, Mapping) or set(violation_margins) != {
+                r.name for r in requirements
+            }:
                 raise ValueError(
                     "violation_margins must give a physical-unit threshold for every selected requirement"
                 )
@@ -71,7 +93,7 @@ def threshold_result(
     def evaluate(point):
         key = tuple(point[n] for n in claim.domain.space.names)
         if key not in evaluations:
-            evaluations[key] = evaluate_result(claim, point, contract=contract)
+            evaluations[key] = evaluate_response(claim, point, contract=contract)
         return evaluations[key]
 
     branches = []
@@ -80,7 +102,7 @@ def threshold_result(
     # not disappear from the union or allow another candidate to claim a minimum.
     for index, requirement in enumerate(requirements):
         try:
-            problem = compile_problem(claim, requirement, thresholds[requirement.name])
+            problem = compile_branch(claim, requirement, thresholds[requirement.name])
             branch = solve_branch(problem, evaluate)
             # A mathematically finite radius can exceed the JSON float range.
             # Keep that branch unresolved instead of crashing or exporting inf.
@@ -187,13 +209,17 @@ def threshold_result(
     # A boundary target is not itself a failure. Only an evaluated requirement
     # violation beyond its declared tolerance can become a failure witness.
     if candidate is not None:
-        affected = tuple(
-            c.constraint_ref
-            for c in candidate.evaluation.payload.constraint_checks
-            if c.assessment == "violated" and c.constraint_ref in claim.requirements
+        affected = (
+            failure_constraints(claim, candidate.evaluation)
+            if failure_constraints is not None
+            else tuple(
+                c.constraint_ref
+                for c in candidate.evaluation.payload.constraint_checks
+                if c.assessment == "violated" and c.constraint_ref in claim.requirements
+            )
         )
         if affected:
-            witness, proofs = _failure(claim, candidate.evaluation, affected)
+            witness, proofs = failure(claim, candidate.evaluation, affected)
             evidence.extend(proofs)
     resolution = (
         "unreachable"
@@ -222,18 +248,16 @@ def threshold_result(
     search = Search(
         "nonpositive_margin" if boundary else "breaking_shortfall",
         "ge",
-        QuantityValue(
-            claim.adapter.residual_id(reported.name), thresholds[reported.name]
-        ),
+        QuantityValue(residual_id(reported.name), thresholds[reported.name]),
         {
             **claim.distance.to_manifest(),
             "target": "any_selected_requirement_threshold",
             "reported_threshold_requirement": reported.name,
             "thresholds": {
                 r.name: {
-                    "quantity_ref": claim.adapter.residual_id(r.name),
+                    "quantity_ref": residual_id(r.name),
                     "value": thresholds[r.name],
-                    "unit": claim.adapter.output(r.output).unit,
+                    "unit": unit(r),
                 }
                 for r in requirements
             },

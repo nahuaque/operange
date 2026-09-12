@@ -317,13 +317,13 @@ def test_command_underflow_checks_the_actual_rounded_command():
     assert result.payload.feasibility == "infeasible"  # nosec B101
 
 
-def test_point_evaluation_does_not_grant_continuous_audits_or_distances():
+def test_continuous_audit_does_not_grant_derivatives_or_undeclared_distances():
     model = small_model()
     domain = BoxSet((Parameter("load", "MW", 0.5, 0, 1, 0.5, "Test box"),))
     claim = model.as_claim(domain, controller=single_rule())
     assert claim.evaluate_result({"load": 0.25}).payload.feasibility == "feasible"  # nosec B101
+    assert claim.audit_result().payload.verdict == "pass"  # nosec B101
     for result in (
-        claim.audit_result(),
         claim.sensitivity_result({"load": 0.25}),
         claim.boundary_result(),
         claim.breaking_result(),

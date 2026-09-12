@@ -1,6 +1,7 @@
 """Freeze and replay two boiler allocation rules using only the installed API."""
 
 import json
+from dataclasses import replace
 
 from operange import (
     AffineControlRule,
@@ -8,12 +9,15 @@ from operange import (
     AffineOutput,
     AffineRequirement,
     AffineTerm,
+    BoxSet,
     Coordinate,
     EngineeringChange,
     FiniteSet,
     FrozenController,
     LinearControl,
     LinearProcessAdapter,
+    NormalizedLInf,
+    Parameter,
     ParameterSpace,
     Scenario,
 )
@@ -142,6 +146,79 @@ def run_example():
         "held_out_audit": loaded.as_claim(held_out)
         .audit_result()
         .to_dict(compact=True),
+        "continuous_envelope": run_envelope_example(),
+    }
+
+
+def envelope_example():
+    model, _ = example()
+    domain = BoxSet(
+        (
+            Parameter("dryer", "MW", 10, 8, 12, 2, "Declared continuous load envelope"),
+            Parameter(
+                "evaporator", "MW", 6, 4, 8, 2, "Declared continuous load envelope"
+            ),
+        )
+    )
+    model = replace(
+        model,
+        input_space=domain.space,
+        operating_limits=tuple(
+            replace(r, limit=30) if r.name == "shared_fuel" else r
+            for r in model.operating_limits
+        ),
+    )
+    return model.as_claim(
+        domain,
+        controller=allocation("60/40 allocation", 0.6, 0.4),
+        distance=NormalizedLInf(domain.space),
+    )
+
+
+def run_envelope_example():
+    claim = envelope_example()
+    audit = claim.audit_result()
+    point = audit.payload.witness.realizations[0]
+    # Diagnose physically adjustable dispatch at the controller's failing point.
+    # This is a separate question, with explicitly fully observed permissions.
+    diagnostic = claim.adapter.model.as_claim(claim.domain).evaluate_result(
+        point,
+        diagnose=True,
+        relief={"constraint": "shared_fuel", "maximum": 2},
+    )
+    upgraded = replace(
+        claim.adapter.model,
+        operating_limits=tuple(
+            replace(r, limit=32) if r.name == "shared_fuel" else r
+            for r in claim.adapter.model.operating_limits
+        ),
+    )
+    changed = upgraded.as_claim(
+        claim.domain,
+        controller=claim.adapter.controller,
+        recourse=claim.recourse,
+        distance=claim.distance,
+    )
+    comparison = claim.compare_changes(
+        (
+            EngineeringChange(
+                "32 MW fuel supply",
+                changed,
+                "Caller-supplied equipment change preserving the load envelope and controller",
+            ),
+        )
+    )
+    frozen = changed.freeze()
+    loaded = FrozenController.from_json(frozen.to_json())
+    return {
+        "audit": audit.to_dict(compact=True),
+        "breaking": claim.breaking_result(
+            constraints=("shared_fuel",), violation_margins={"shared_fuel": 0.01}
+        ).to_dict(compact=True),
+        "diagnosis": diagnostic.to_dict(compact=True),
+        "comparison": comparison.to_dict(compact=True),
+        "frozen_controller": frozen.to_dict(),
+        "replayed_audit": loaded.audit_result().to_dict(compact=True),
     }
 
 

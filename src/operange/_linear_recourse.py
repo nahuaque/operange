@@ -45,6 +45,25 @@ class LinearSystem:
             return None
         return values
 
+    def objective_bound(self, objective, multipliers):
+        """Checked weak duality on the normalized control box."""
+        if len(objective) != len(self.controls) or len(multipliers) != len(self.rows):
+            raise ValueError("invalid objective certificate dimensions")
+        multipliers = [max(0.0, finite(v, "multiplier")) for v in multipliers]
+        weighted = [exact_dot(column, multipliers) for column in zip(*self.rows)]
+        residual = [Fraction(c) + a for c, a in zip(objective, weighted)]
+        minimum = sum((min(Fraction(0), a) for a in residual), Fraction(0))
+        rhs = exact_dot(self.upper, multipliers)
+        return minimum - rhs, {
+            "formula": "min_box((c + lambda A) z) - lambda b <= minimum relief",
+            "objective_exact": list(map(str, objective)),
+            "multipliers": multipliers,
+            "weighted_residual_exact": list(map(str, residual)),
+            "box_minimum_exact": str(minimum),
+            "weighted_upper_exact": str(rhs),
+            "lower_exact": str(minimum - rhs),
+        }
+
     def certificate(self, multipliers):
         if len(multipliers) != len(self.rows):
             raise ValueError("solver returned the wrong number of multipliers")
@@ -158,6 +177,14 @@ def solve_system(system, tolerance):
 
     try:
         m, n = len(system.rows), len(system.controls)
+        if not m:
+            return RecourseSolution(
+                "feasible",
+                system.candidate([0.5] * n),
+                None,
+                attempts,
+                "Empty row set within the declared control box.",
+            )
         # A single impossible row can be resolved without invoking a solver.
         for i in range(m):
             proof = system.certificate([float(j == i) for j in range(m)])

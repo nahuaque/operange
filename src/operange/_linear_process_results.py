@@ -50,9 +50,24 @@ def _physical_response(model, requirements, point, controls):
     return values, residuals
 
 
-def evaluate_result(claim, realization, *, contract=None):
+def evaluate_result(claim, realization, *, contract=None, diagnose=False, relief=None):
     contract = claim.contract if contract is None else contract
     request = snapshot({"query": "evaluation", "realization": realization})
+    if diagnose or relief is not None:
+        request = snapshot({**request, "diagnose": diagnose, "relief": relief})
+    from ._linear_diagnosis import conflict_evidence, relief_evidence, validate_options
+
+    try:
+        validate_options(claim.adapter, diagnose, relief)
+    except (ValueError, TypeError) as exc:
+        return rejected_result(
+            contract,
+            "evaluation",
+            request,
+            str(exc),
+            code="invalid_diagnosis_options",
+            execution="invalid",
+        )
     try:
         check = claim.domain.membership(realization)
         point = claim.domain.space.validate(realization)
@@ -162,6 +177,14 @@ def evaluate_result(claim, realization, *, contract=None):
             feasibility = "feasible"
     except (ValueError, OverflowError) as exc:
         message = str(exc)
+    # Optional diagnosis does not alter the physical verdict or invent dispatch
+    # values for the original infeasible contract.
+    if feasibility == "infeasible" and diagnose:
+        evidence.append(
+            conflict_evidence(system, solution, claim.adapter.solver_tolerance)
+        )
+    if feasibility in ("feasible", "infeasible") and relief is not None:
+        evidence.append(relief_evidence(claim, point, system, relief))
     return EvaluationResult(
         contract,
         request,

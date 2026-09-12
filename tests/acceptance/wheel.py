@@ -232,6 +232,65 @@ def main():
 
     controllers = runpy.run_path(str(directory / "frozen_controllers.py"))
     controller_results = controllers["run_example"]()
+    envelope = controller_results["continuous_envelope"]
+    envelope_audit = process.result_from_json(json.dumps(envelope["audit"]))
+    envelope_replay = process.result_from_json(json.dumps(envelope["replayed_audit"]))
+    envelope_distance = process.result_from_json(json.dumps(envelope["breaking"]))
+    envelope_diagnosis = process.result_from_json(json.dumps(envelope["diagnosis"]))
+    envelope_comparison = process.ChangeComparison.from_json(
+        json.dumps(envelope["comparison"])
+    )
+    require(
+        envelope_audit.payload.verdict == "fail",
+        "continuous controller failure missing",
+    )
+    require(
+        envelope_replay.payload.verdict == "pass"
+        and envelope_replay.payload.coverage.method == "analytical_domain",
+        "continuous controller restoration missing",
+    )
+    require(
+        envelope_comparison.candidates[0].transition == "restored",
+        "envelope comparison lost restoration",
+    )
+    require(
+        envelope_distance.payload.search.resolution == "minimum_verified",
+        "controller distance minimum unresolved",
+    )
+    conflict = next(
+        e.details for e in envelope_diagnosis.evidence if e.evidence_id == "conflict"
+    )
+    relief = next(
+        e.details for e in envelope_diagnosis.evidence if e.evidence_id == "relief"
+    )
+    require(
+        conflict["irreducible"]
+        and set(conflict["constraint_refs"]) == {"meet_load", "shared_fuel"},
+        "boiler conflict changed",
+    )
+    require(
+        relief["resolution"] == "minimum_verified"
+        and isclose(relief["upper"], 1, abs_tol=1e-7),
+        "checked fuel relief changed",
+    )
+    envelope_frozen = process.FrozenController.from_json(
+        json.dumps(envelope["frozen_controller"])
+    )
+    require(
+        envelope_frozen.audit_result().result_id == envelope_replay.result_id,
+        "continuous frozen audit changed on replay",
+    )
+    for result in (
+        envelope_audit,
+        envelope_replay,
+        envelope_distance,
+        envelope_diagnosis,
+    ):
+        require(
+            process.result_from_json(result.to_json(compact=True)).to_dict()
+            == result.to_dict(),
+            "continuous result round trip changed",
+        )
     controller_comparison = process.ChangeComparison.from_json(
         json.dumps(controller_results["comparison"])
     )

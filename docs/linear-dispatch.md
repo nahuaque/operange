@@ -143,3 +143,54 @@ Point evaluation is also available for other aligned domains when membership
 is established. Continuous-domain recourse audits, dispatch derivatives,
 closest-failure searches, nonlinear or integer controls, and executable causal
 controllers are outside this adapter's current scope.
+
+## Diagnose a conflict and quantify one-limit relief
+
+Point evaluations can request additional evidence without changing the original
+physical verdict:
+
+```python
+diagnosis = model.as_claim(loads).evaluate_result(
+    {"dryer": 12, "evaporator": 8},
+    diagnose=True,
+    relief={"constraint": "shared_fuel", "maximum": 2, "tolerance": 1e-8},
+)
+conflict = next(e.details for e in diagnosis.evidence if e.evidence_id == "conflict")
+relief = next(e.details for e in diagnosis.evidence if e.evidence_id == "relief")
+```
+
+The conflict query removes rows only after verifying that the remaining rows
+are still infeasible. `irreducible=True` requires a verified feasible dispatch
+for deleting each retained row. It means an irreducible row conflict **relative
+to the declared control bounds and fixed commands**, not a minimum-cardinality
+conflict across all equipment assumptions. Unresolved deletion checks preserve
+the known contradiction and report `irreducible=False`.
+
+For the boilers, the retained rows are `meet_load` and `shared_fuel`.
+`certificate_bound_refs` identifies `control_upper:boiler_a` as a bound used
+by the contradiction. The evidence preserves all background control bounds,
+the exact contradiction and feasible row-removal dispatches. No control vector
+is fabricated for the original infeasible evaluation.
+
+The relief query relaxes one named **operating limit** in its permitted direction,
+up to the caller's `maximum`, in that output's physical unit. It preserves
+service requirements and operating permissions. It reports a verified lower
+bound, an independently checked changed-limit candidate when available, and
+`minimum_verified`, `bounded`, `unreachable` or `unresolved`. A `ge` limit is
+relaxed downward; a `le` limit is relaxed upward. `unreachable` requires a
+checked contradiction even at the maximum allowed relief. Feasible cases can
+return zero relief. Numerical solver status alone proves none of these results.
+
+Here the minimum extra fuel capacity is approximately 1 MW. More precisely,
+the mathematical minimum is `1 - 3e-8` MW after accounting for this example's
+declared service and fuel tolerances; the returned float limit is checked independently.
+The bounds can retain a small gap when representable commands or limits prevent
+attainment of the mathematical optimum. Inspect `resolution` and both bounds.
+
+This is a pointwise adjustable-dispatch diagnosis. It does not establish that
+the same change restores a saved controller or the full uncertainty domain.
+Construct a candidate claim and use `compare_changes` to re-audit that question.
+The [continuous controller example](frozen-controllers.md) demonstrates this
+complete workflow. Both diagnostic records use the existing standard and compact
+`EvaluationResult` exports; loading validates records and identities, without
+re-proving the mathematical evidence.

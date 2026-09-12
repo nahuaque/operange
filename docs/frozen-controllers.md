@@ -7,8 +7,9 @@ equipment and service violations without redispatching or clipping the commands.
 
 The linear implementation binds caller-supplied affine rules to
 `LinearProcessAdapter`. It supports point evaluation at verified domain members
-and complete finite-scenario audits. It does not fit controllers, maintain dynamic
-state, synthesize causal policies, or establish continuous-domain robustness.
+and complete finite-scenario audits, plus continuous-envelope audits for domains
+with supported normalized linear bounds. It does not fit controllers, maintain
+dynamic state, or synthesize causal policies.
 The [causal storage replay guide](storage-replay.md) adds a separate bounded
 two-stage controller with explicit observation signals and carried energy state.
 
@@ -100,8 +101,8 @@ held_out_audit = loaded.as_claim(held_out_domain).audit_result()
 The `frozen_controller/v1` artifact contains the complete physical model,
 controller definition, domain, operating permissions, selected requirements,
 units, numerical settings and any attached `NormalizedLInf` distance declaration.
-Distance declarations are preserved but controller distance searches remain
-unsupported. The nested `affine_controller/v1` declaration also has its own
+Boxes and polytopes support controller threshold searches with an explicit
+`NormalizedLInf` distance. The nested `affine_controller/v1` declaration also has its own
 identity and standalone `to_json` / `from_json` methods.
 
 Loading checks identities and reconstructs the supported declarative binding,
@@ -148,3 +149,74 @@ semantics and the existing `process_result/v1` identities.
 Causal storage controllers use the same frozen envelope and result families.
 See [storage replay](storage-replay.md) for signal rules, initial and terminal
 energy, ordered paths and explicit tree rebinding.
+
+## Audit a continuous envelope
+
+`claim.audit_result()` also supports a `BoxSet`, `PolytopeSet`, `EllipsoidSet`,
+and other domains exposing checked normalized linear support. All coordinates
+need explicit nominals and scales. Membership-only domain compositions remain
+unsupported. The audit covers the same saved rule throughout the domain and
+checks selected service requirements, every operating limit and every control
+bound. A passing audit reports `coverage.method="analytical_domain"`.
+
+The implementation substitutes the affine rules using exact rational
+coefficients and encloses the error from rounding each command to a float.
+Boxes use exact extrema; other supported domains retain their support bounds,
+coefficient-rounding corrections and numerical guards. Control bounds use the
+monotonicity of command rounding, so an exact attainable upper command can
+meet a zero-tolerance equipment bound. Constant and identity commands introduce
+no rounding error. Bounds, command enclosures and their derivations are retained
+in structured evidence.
+
+Every failure witness comes from executing the actual controller at a verified
+domain member. An upper bound above a limit alone gives `inconclusive`, not
+`fail`. Rounding can create an interior violation even when the ideal affine
+map and endpoint executions satisfy a zero-tolerance balance; the enclosure
+must not turn those endpoint checks into a continuous pass.
+
+The continuous extension of the boiler example uses a 30 MW fuel supply and
+loads of 8–12 MW for the dryer and 4–8 MW for the evaporator. Its 60/40 controller
+requires 31 MW fuel at the combined peak. The example diagnoses adjustable
+dispatch at that failing point, then re-audits a caller-supplied 32 MW supply
+with the original envelope and controller. The changed controller contract
+passes and can be frozen, loaded and audited again.
+
+```python
+from examples.frozen_controllers import envelope_example
+
+claim = envelope_example()
+audit = claim.audit_result()
+frozen = claim.freeze()
+```
+
+`uv run python -m examples.frozen_controllers` exports the continuous study
+under `continuous_envelope`, alongside the original finite-scenario study.
+
+## Distance to a controller limit
+
+For boxes and polytopes, attach an explicit `NormalizedLInf` distance with
+`model.as_claim(..., controller=controller, distance=distance)`. Search either
+the zero residual boundary or a strictly positive physical violation:
+
+```python
+boundary = claim.boundary_result(constraints=("shared_fuel",))
+breaking = claim.breaking_result(
+    constraints=("shared_fuel",),
+    violation_margins={"shared_fuel": 0.01},  # MW, above its declared tolerance
+)
+```
+
+`constraints` selects included service or equipment constraint IDs. Omitting
+it searches all selected service requirements, operating limits and control
+bounds. Breaking searches require a margin for every searched constraint;
+control bounds have zero tolerance. Selection narrows the search target, not
+the physical checks performed during replay. Zero-residual searches can return
+distance zero for a balance or an already-binding control bound.
+
+Affine outer bounds account for command rounding when establishing lower
+distances or unreachability. Every upper distance requires exact membership,
+the actual rounded commands and the physical target. `minimum_verified` means
+the checked distance bounds close within `distance_tolerance`; otherwise the
+result retains `bounded` or `unresolved`. A boundary is not itself a failure,
+and a threshold search does not replace the whole-domain audit. Ellipsoid
+audits are supported, but ellipsoid distance searches are not.

@@ -195,7 +195,15 @@ class LinearProcessAdapter(Record):
             ),
         )
 
-    def as_claim(self, domain, *, recourse=None, requirements=None, controller=None):
+    def as_claim(
+        self,
+        domain,
+        *,
+        recourse=None,
+        requirements=None,
+        controller=None,
+        distance=None,
+    ):
         if controller is not None:
             from .controllers import _ControllerAdapter
 
@@ -204,7 +212,7 @@ class LinearProcessAdapter(Record):
                 adapter.controller.recourse_policy if recourse is None else recourse
             )
             adapter.validate_binding(recourse)
-            return Claim(adapter, domain, recourse, requirements)
+            return Claim(adapter, domain, recourse, requirements, distance)
         if recourse is None:
             recourse = RecoursePolicy(
                 "static",
@@ -213,12 +221,13 @@ class LinearProcessAdapter(Record):
                     for c in self.controls
                 ),
             )
-        return Claim(self, domain, recourse, requirements)
+        return Claim(self, domain, recourse, requirements, distance)
 
     def run(self, claim, operation, realization, options):
         from ._linear_process_results import audit_result, evaluate_result
 
-        if options:
+        allowed = {"diagnose", "relief"} if operation == "evaluation" else set()
+        if set(options) - allowed:
             return rejected_result(
                 claim.contract,
                 operation,
@@ -228,7 +237,7 @@ class LinearProcessAdapter(Record):
                 execution="invalid",
             )
         if operation == "evaluation":
-            return evaluate_result(claim, realization)
+            return evaluate_result(claim, realization, **options)
         if operation == "audit":
             return audit_result(claim)
         return rejected_result(
