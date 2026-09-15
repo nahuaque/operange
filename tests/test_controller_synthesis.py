@@ -79,7 +79,18 @@ def test_minimax_fuel_has_checked_performance_and_portable_replay(cp, kind):
         "complete_finite" if kind == "finite" else "analytical_domain"
     )  # nosec B101
     bound = objective(result)
-    assert bound["lower"] <= 31 <= bound["upper"]  # nosec B101
+    # A different optimal policy may use the declared service tolerance. Check
+    # this controller's attained values rather than requiring a particular rule.
+    attained = max(
+        claim.adapter.output("fuel")._exact_value(
+            {**point, **result.controller.commands(point)}
+        )
+        for point in (
+            {"dryer": x, "evaporator": y} for x, y in ((8, 4), (8, 8), (12, 4), (12, 8))
+        )
+    )
+    assert F(bound["lower_exact"]) <= attained <= F(bound["upper_exact"])  # nosec B101
+    assert bound["guaranteed_value"] == pytest.approx(31, abs=1e-7)  # nosec B101
     assert bound["upper"] - bound["lower"] < 1e-7  # nosec B101
     assert bound["optimality"] == "not_certified"  # nosec B101
     frozen = result.freeze()
@@ -196,7 +207,7 @@ def test_maximize_guaranteed_margin_and_query_objective_do_not_change_model(cp):
     )
     assert result.verified and model.objective is None  # nosec B101
     assert objective(result)["aggregation"] == "minimum"  # nosec B101
-    assert objective(result)["guaranteed_value"] == 1  # nosec B101
+    assert objective(result)["guaranteed_value"] == pytest.approx(1, abs=1e-14)  # nosec B101
     assert result.controller.commands({"load": 1}) == {"power": 2}  # nosec B101
     # Choosing coefficients on an already bound claim is explicit retuning.
     revised = result.claim.synthesize_controller(objective=LinearObjective("margin"))
@@ -319,7 +330,16 @@ def test_generator_budget_checked_before_solving(monkeypatch, kind):
         raise AssertionError("backend should not be loaded")
 
     monkeypatch.setattr(synthesis, "load_cvxpy", no_backend)
-    result = boiler(kind).synthesize_controller(max_vertices=3)
+    options = (
+        {
+            "objective": ControlTrackingObjective(
+                (ControlTarget("boiler_a", 10, 1, "MW"),)
+            )
+        }
+        if kind == "box"
+        else {}
+    )
+    result = boiler(kind).synthesize_controller(max_vertices=3, **options)
     assert result.execution == "unsupported"  # nosec B101
     assert "4 generators" in result.diagnostics[0].message  # nosec B101
     assert result.controller is None and result.audit is None  # nosec B101

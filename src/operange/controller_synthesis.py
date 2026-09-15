@@ -109,9 +109,11 @@ def synthesize_controller(
     """Choose permitted affine coefficients using the optional CVXPY backend.
 
     An explicit LinearObjective or ControlTrackingObjective overrides the model's
-    objective for this search without changing the model. Complete generators are
-    required for a built-in finite set, box or explicit convex hull. There is no
-    sampling fallback, clipping, state, or automatic permission expansion.
+    objective for this search without changing the model. Boxes with a linear
+    objective use whole-domain support constraints without enumerating corners.
+    Finite sets, explicit convex hulls and box tracking objectives use complete
+    generators, limited by max_vertices. There is no sampling fallback, clipping,
+    state, or automatic permission expansion.
     """
     from ._controller_synthesis import synthesize
 

@@ -93,6 +93,10 @@ def _validate(claim, objective, name, max_vertices):
     binding = claim.with_controller(dummy)
     if not binding.capabilities.audit.supported:
         raise NotImplementedError(binding.capabilities.audit.scope)
+    # Linear box objectives have a direct support formulation. None explicitly
+    # distinguishes this route from a finite collection of scenarios.
+    if type(claim.domain) is BoxSet and type(objective) is LinearObjective:
+        return model, objective, None
     scenarios = _generators(claim.domain, max_vertices)
     for scenario in scenarios:
         if claim.domain.membership(scenario.values).status != "inside":
@@ -106,13 +110,17 @@ class PolicyProgram:
     def __init__(self, cp, claim, model, objective, scenarios):
         self.cp, self.model, self.objective = cp, model, objective
         self.scenarios = scenarios
-        self.ranges = {
-            n: (
-                min(F(s.values[n]) for s in scenarios),
-                max(F(s.values[n]) for s in scenarios),
-            )
-            for n in claim.domain.space.names
-        }
+        self.ranges = (
+            {p.name: (F(p.lower), F(p.upper)) for p in claim.domain.scalar_parameters}
+            if scenarios is None
+            else {
+                n: (
+                    min(F(s.values[n]) for s in scenarios),
+                    max(F(s.values[n]) for s in scenarios),
+                )
+                for n in claim.domain.space.names
+            }
+        )
         self.rules = {}
         for control in model.controls:
             permission = claim.recourse.rule(control.name)
@@ -173,7 +181,11 @@ class PolicyProgram:
             0,
         )
 
-    def solve(self, requirements, reserve):
+    def _constraints(self, requirements, reserve):
+        if self.scenarios is None:
+            from ._box_controller_synthesis import constraints
+
+            return constraints(self, requirements, reserve)
         cp, model, spec = self.cp, self.model, self.objective
         constraints, epigraph = [], cp.Variable(name="worst_case_cost")
         for scenario in self.scenarios:
@@ -206,11 +218,19 @@ class PolicyProgram:
                     for t in spec.targets
                 )
             constraints.append(cost <= epigraph)
+        return constraints, epigraph
+
+    def solve(self, requirements, reserve):
+        cp, model, spec = self.cp, self.model, self.objective
+        constraints, epigraph = self._constraints(requirements, reserve)
         problem = cp.Problem(cp.Minimize(epigraph), constraints)
         report = {
             "backend": f"CVXPY {cp.__version__}",
             "status": "unresolved",
             "reserved_tolerance_fraction": reserve,
+            "formulation": "box_support_lp"
+            if self.scenarios is None
+            else "complete_generators",
         }
         try:
             if type(spec) is LinearObjective:
@@ -308,6 +328,21 @@ def _objective_bound(claim, objective, scenarios):
     errors = (
         {n: triple[2] for n, triple in envelope.commands.items()} if continuous else {}
     )
+    enumerated = scenarios is not None
+    if not enumerated:
+        # One extremizer of the ideal affine output gives an attained bound
+        # after actual command rounding. Coverage comes from the envelope,
+        # never from treating this one point as a complete generator set.
+        _, coefficients, _ = envelope.output_form(model.output(objective.output))
+        point = {
+            p.name: p.upper if sign * coefficients.get(p.name, 0) > 0 else p.lower
+            for p in claim.domain.scalar_parameters
+        }
+        if claim.domain.membership(point).status != "inside":
+            raise ValueError("objective attainment point is not a verified box member")
+        scenarios = (
+            Scenario("objective_extremum", point, "Exact box affine extremum"),
+        )
     for scenario in scenarios:
         point = scenario.values
         commands = controller.commands(point)
@@ -367,7 +402,7 @@ def _objective_bound(claim, objective, scenarios):
     else:
         upper = max(enclosures)
     if lower > upper:
-        raise ValueError("objective enclosure contradicts rounded generator execution")
+        raise ValueError("objective enclosure contradicts rounded command execution")
     low, high = (lower, upper) if sign == 1 else (-upper, -lower)
     return Evidence(
         "objective",
@@ -387,11 +422,15 @@ def _objective_bound(claim, objective, scenarios):
             "guaranteed_value": round_down(low) if sign == -1 else round_up(high),
             "scope": "worst-case performance of this saved rounded controller over the declared domain; not bounds on the optimum over controllers",
             "optimality": "not_certified",
-            "generator_minimization_values_exact": list(map(str, values)),
+            "generator_minimization_values_exact": list(map(str, values))
+            if enumerated
+            else [],
+            "attainment_realizations": [dict(s.values) for s in scenarios],
+            "attained_minimization_values_exact": list(map(str, values)),
             "command_rounding_errors_exact": {n: str(e) for n, e in errors.items()},
             "tracking_generator_enclosures_exact": list(map(str, enclosures)),
             "support_bounds": [] if envelope is None else envelope.proofs,
-            "derivation": "Finite replay is exact. Continuous affine output uses its signed affine enclosure plus command rounding; tracking uses the maximum over generators of sum(weight*((abs(ideal_command-target)+rounding_error)/scale)**2), a convex upper enclosure throughout their convex hull.",
+            "derivation": "Attained values use actual rounded commands at the listed realizations. Finite replay is exact. Continuous affine output uses its signed affine enclosure plus command rounding; box support needs only one ideal affine extremizer for attainment, not corner enumeration. Tracking uses the maximum over generators of sum(weight*((abs(ideal_command-target)+rounding_error)/scale)**2), a convex upper enclosure throughout their convex hull.",
         },
     )
 
@@ -426,6 +465,9 @@ def synthesize(claim, *, objective, name, max_vertices):
     try:
         model, objective, scenarios = _validate(claim, objective, name, max_vertices)
         request["objective"] = objective.to_dict()
+        request["formulation"] = (
+            "box_support_lp" if scenarios is None else "complete_generators"
+        )
         cp = load_cvxpy()
     except (NotImplementedError, BackendUnavailable) as exc:
         return result("unsupported", str(exc))
@@ -435,13 +477,33 @@ def synthesize(claim, *, objective, name, max_vertices):
         Evidence(
             "search",
             "controller_synthesis",
-            "complete_generator_affine_policy_search",
+            "box_support_affine_policy_search"
+            if scenarios is None
+            else "complete_generator_affine_policy_search",
             "verified",
             details={
-                "generator_count": len(scenarios),
-                "generators": [s.to_dict() for s in scenarios],
+                "generator_count": 0 if scenarios is None else len(scenarios),
+                "generators": []
+                if scenarios is None
+                else [s.to_dict() for s in scenarios],
+                "formulation": request["formulation"],
+                "box_support": {
+                    "varying_input_count": sum(
+                        p.lower != p.upper for p in claim.domain.scalar_parameters
+                    ),
+                    "normalization": "independent centered inputs in [-1, 1]; constant coordinates absorbed into offsets",
+                    "row_maximum": "affine center + sum(abs(combined input slopes))",
+                    "max_vertices_applies": False,
+                }
+                if scenarios is None
+                else None,
                 "policy_class": "one static affine physical command per control; only permitted observations; fixed commands retained",
-                "scope": "proposal over every declared generator; acceptance requires a separate whole-domain audit of the exported float coefficients and rounded commands",
+                "scope": (
+                    "proposal using whole-box affine support"
+                    if scenarios is None
+                    else "proposal over every declared generator"
+                )
+                + "; acceptance requires a separate whole-domain audit of the exported float coefficients and rounded commands",
             },
         )
     )

@@ -15,6 +15,7 @@ All examples use synthetic engineering data and state the scope of their claims.
 | Comparing engineering changes | Distinguish restored service from changes to the uncertainty envelope or service requirement. | [Engineering changes](engineering-changes.md) |
 | Frozen boiler allocation | A 50/50 allocation violates the fuel limit; a 60/40 rule and the adjustable benchmark pass. Save and replay the rule. | [Frozen controllers](frozen-controllers.md) |
 | Synthesized boiler rules | Choose permitted affine coefficients for worst-case fuel use or command tracking, audit rounded commands and export a frozen controller. | [Controller synthesis](controller-synthesis.md) |
+| Twenty independent steam loads | Synthesize a controller over a million-corner box without enumeration, then replay and independently verify its physical audit. | [Scalable synthesis](controller-synthesis.md#scale-to-many-independent-loads) |
 | Independent certificate verification | Verify an exported equipment plan and reject incorrect proof arithmetic even after content identities are recomputed. | [Certificate verification](certificate-verification.md) |
 | Causal storage replay | Preserve preparation signals, carried energy and terminal checks when a saved rule faces held-out paths. | [Storage replay](storage-replay.md) |
 | Compressor starts | Staggering fixed starts reduces the peak from 700 kVA to 480 kVA against a 500 kVA limit over the same 65 scenarios. | [Startup loads](startup.md) |
@@ -57,6 +58,7 @@ envelopes](convex-backends.md) have a separate worked example:
 uv run --extra cvxpy python -m examples.convex_backends
 uv run --extra cvxpy python -m examples.dispatch_objectives
 uv run --extra cvxpy python -m examples.controller_synthesis
+uv run --extra cvxpy python -m examples.scalable_controller
 uv run --extra cvxpy python -m examples.uncertainty_compositions --convex
 uv run --extra cvxpy python -m examples.distance_and_relief
 ```

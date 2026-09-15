@@ -5,12 +5,20 @@ using only its permitted observations. It then audits the saved float
 coefficients and actual rounded commands over the original domain. A successful
 search returns a controller ready for the existing `FrozenController` format.
 
-Install the optional backend with `pip install "operange[cvxpy]"`. The first
-implementation supports `LinearProcessAdapter` with a built-in `BoxSet`,
-`FiniteSet`, or explicit `ConvexHullSet`. It uses every box corner, finite case,
-or hull generator. `max_vertices=256` limits the total number of generators
-(including duplicate points with distinct labels); exceeding it returns
-`unsupported` before solving. There is no sampling fallback.
+Install the optional backend with `pip install "operange[cvxpy]"`. Synthesis
+supports `LinearProcessAdapter` with a built-in `BoxSet`, `FiniteSet`, or explicit
+`ConvexHullSet`.
+
+| Domain and objective | Search formulation |
+| --- | --- |
+| Box with a linear objective | Whole-domain affine support constraints; no corner enumeration. |
+| Box with a quadratic tracking objective | Every box corner. |
+| Finite set or explicit convex hull | Every declared case or hull generator. |
+
+`max_vertices=256` limits enumerated generators, including duplicate points with
+distinct labels. Exceeding it returns `unsupported` before solving. Linear box
+synthesis does not use that budget, although its value must still be a positive
+integer. No route substitutes sampling for whole-domain coverage.
 
 ## Choose the operating objective
 
@@ -40,18 +48,18 @@ objective on the query preserves the original model and its identity.
 | `LinearObjective("margin", sense="maximize")` | Maximize the smallest margin output. The caller declares the affine margin as a model output. |
 | `ControlTrackingObjective(targets)` | Minimize the largest sum of weighted squared, scaled departures from the target commands. |
 
-These objectives apply across all generators, without scenario probabilities.
+These objectives apply over the whole declared domain, without scenario probabilities.
 Worst-case tracking gives each scenario a sum of target errors and minimizes
 the largest such sum. It does not minimize the sum across scenarios.
 
 For the synthetic boiler example, dryer demand spans 8–12 MW and evaporator
 demand spans 4–8 MW. Boiler A has a 12 MW steam capacity and 80% efficiency;
 boiler B has a 10 MW capacity and 50% efficiency. They share a 32 MW fuel supply.
-Minimum worst-case fuel synthesis finds a simple feasible rule: hold A at
-12 MW and command B to the total demand minus 12 MW. Its worst-case fuel use
-is enclosed at approximately 31 MW, including command rounding. The optimum
-need not select a unique controller, and interior dispatch need not minimize
-fuel separately at every input.
+A simple feasible rule holds A at 12 MW and commands B to total demand minus
+12 MW. Synthesis can choose a different rule with the same worst-case fuel use,
+enclosed at approximately 31 MW including command rounding and declared service
+tolerances. The optimum need not select a unique controller, and interior
+dispatch need not minimize fuel separately at every input.
 
 The [complete consumer example](https://github.com/nahuaque/operange/blob/main/examples/controller_synthesis.py)
 also synthesizes a controller tracking preferred commands of 10 MW and 6 MW,
@@ -60,6 +68,45 @@ exports both reports, and replays a frozen controller at an interior input:
 ```bash
 uv run --extra cvxpy python -m examples.controller_synthesis
 ```
+
+## Scale to many independent loads
+
+For a box and linear objective, the search expresses inputs in independent
+centered coordinates `z_i` between -1 and 1. Substituting an affine controller
+into a physical row gives `center + sum(slope_i * z_i)`. Its maximum over the
+box is exactly `center + sum(abs(slope_i))`. Contributions from the physical
+inputs and controller commands are combined before taking absolute values.
+CVXPY expresses these bounds as a linear program whose size grows with the
+number of row coefficients, rather than the number of corners.
+
+This applies to both senses of each physical constraint, every hard command
+bound, and minimization or maximization of an affine output. Constant input
+coordinates require no slope. Observation restrictions and fixed commands
+are preserved. The numerical program proposes coefficients; the separate
+physical audit still determines whether their actual execution is acceptable.
+
+The [twenty-load example](https://github.com/nahuaque/operange/blob/main/examples/scalable_controller.py)
+serves 20 independent steam demands between 0.75 and 1 MW with the two boilers.
+Its box has 1,048,576 corners. Synthesis, frozen replay and independent audit
+verification require no enumeration; worst-case fuel use is approximately
+31 MW. The example exports the controller, physical audit and verification report:
+
+```bash
+uv run --extra cvxpy python -m examples.scalable_controller
+```
+
+The search evidence identifies `box_support_affine_policy_search`, records zero
+enumerated generators and describes the normalization and support formula.
+The objective evidence lists an attained value at one extremizer of the ideal
+affine output. That value supplies one side of the performance enclosure; the
+whole-domain affine bound plus command-rounding error supplies the other.
+The attainment point alone is not a coverage certificate. Rounding can move an
+actual worst case away from an ideal extremizer, and the enclosure covers that.
+
+This formulation currently covers boxes with linear objectives. Quadratic
+tracking retains its generator formulation and budget. Polytope and ellipsoid
+synthesis remain unsupported. Fully adjustable dispatch audits and shared
+equipment-relief searches retain their existing enumeration limits.
 
 ## Preserve observations and physical limits
 
@@ -83,9 +130,9 @@ nearby simple rational coefficients and its original numerical coefficients;
 both are converted into physical float coefficients and independently audited.
 These are bounded candidate-generation heuristics, not completeness guarantees.
 
-For continuous domains, passing generator executions alone does not accept a
-controller. The existing continuous audit encloses its rounded commands between
-generators. Boxes and explicit hulls use exact affine extrema; tracking bounds
+For continuous domains, the separate audit encloses actual rounded commands
+throughout the domain. Passing executions at individual points alone do not
+accept a controller. Boxes and explicit hulls use exact affine extrema; tracking bounds
 use a convex enclosure of squared target errors plus command-rounding error.
 Finite-domain acceptance covers only the declared cases.
 
@@ -102,7 +149,7 @@ verdict about adjustable operation:
 | `execution == "invalid"` | An invalid objective, permission declaration, name, or limit. |
 | `controller`, `audit` | The saved candidate and its independent audit, when available. An unresolved search can retain a failing candidate for diagnosis. |
 | `claim` | The candidate bound to the original domain, model, requirements and permissions. Raises if no candidate exists. |
-| `evidence` | Generator coverage, numerical solver attempts, candidate audit references, and checked objective bounds. |
+| `evidence` | Whole-box support formulation or generator coverage, numerical solver attempts, candidate audit references, and checked objective bounds. |
 
 The `objective` evidence contains outward-rounded `lower` and `upper` bounds on
 the **worst-case performance of this controller**. `guaranteed_value` is the

@@ -54,6 +54,16 @@ continuous audit, adjustable point diagnosis, a caller-supplied equipment change
 full-envelope re-audit and frozen replay. These capabilities do not extend the
 fully adjustable adapter's continuous-domain scope.
 
+[Controller synthesis](../docs/controller-synthesis.md) now selects permitted
+affine rules and independently audits their actual rounded commands. Boxes with
+linear objectives use direct whole-domain support constraints without corner
+enumeration; quadratic tracking, finite cases and explicit hulls retain complete
+generator searches. A twenty-load steam example demonstrates synthesis, frozen
+replay and independent physical-audit verification over a million-corner box.
+Controller optimality remains uncertified. Measurement uncertainty and guaranteed
+operating-limit queries are subsequent priorities; broader uncertainty geometries
+and general multi-period operation remain future extensions.
+
 The [common engineering-change comparison](../docs/engineering-changes.md) now
 re-audits caller-supplied claims across the shared and reference adapters. It
 records equipment, operating, domain and service changes, preserves unresolved

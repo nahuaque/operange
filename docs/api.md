@@ -151,7 +151,10 @@ fixed. See [shared equipment relief](shared-relief.md) for declarations and repl
 
 `claim.synthesize_controller(objective=LinearObjective("fuel"))` chooses permitted
 affine coefficients over boxes, finite sets and explicit convex hulls using the
-optional CVXPY backend. The model's objective is used when omitted. A separate
+optional CVXPY backend. Boxes with a linear objective use whole-domain support
+constraints without corner enumeration; finite sets, hulls and quadratic box
+tracking use complete generators subject to `max_vertices`. The model's
+objective is used when omitted. A separate
 `ControllerSynthesis` report retains the candidate, its independent rounded-command
 audit and whole-domain performance enclosure. `search.freeze()` exports an
 accepted candidate through `FrozenController`. Numerical failure establishes no
