@@ -155,6 +155,7 @@ installation
 examples
 api
 linear-dispatch
+equipment-networks
 continuous-dispatch
 shared-relief
 dispatch-objectives

@@ -47,6 +47,8 @@ for checkout and wheel installation.
   to declare, how to interpret a verdict, and what makes a comparison meaningful.
 - [Worked examples](docs/examples.md) — shared
   utilities, adjustable boilers, storage replay, startup loads and heat integration.
+- [Equipment and streams](docs/equipment-networks.md) — connect boilers, headers,
+  mixers and splitters to generate checked linear balances.
 - [API and capabilities](docs/api.md) — supported
   models, uncertainty sets, queries and portable results.
 - [Methods and scope](docs/methods.md) — the

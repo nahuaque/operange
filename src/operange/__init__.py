@@ -5,6 +5,17 @@ from .linear_process import LinearControl, LinearProcessAdapter
 from .objectives import LinearObjective, ControlTarget, ControlTrackingObjective
 from .controllers import AffineControlRule, AffineController
 from .measurements import AffineMeasurement, MeasurementModel
+from .network import (
+    Boiler,
+    FixedRatioSplitter,
+    Mixer,
+    ProcessNetwork,
+    ProcessStream,
+    StreamSink,
+    StreamSource,
+    StreamTotal,
+    UtilityHeader,
+)
 from .frozen_controller import FrozenController
 from .controller_synthesis import ControllerSynthesis, synthesize_controller
 from .operating_limits import OperatingLimitResult, OperatingLimitTrial, operating_limit
@@ -88,6 +99,15 @@ __all__ = [
     "AffineController",
     "AffineMeasurement",
     "MeasurementModel",
+    "Boiler",
+    "FixedRatioSplitter",
+    "Mixer",
+    "ProcessNetwork",
+    "ProcessStream",
+    "StreamSink",
+    "StreamSource",
+    "StreamTotal",
+    "UtilityHeader",
     "FrozenController",
     "ControllerSynthesis",
     "synthesize_controller",

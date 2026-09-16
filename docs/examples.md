@@ -7,6 +7,7 @@ All examples use synthetic engineering data and state the scope of their claims.
 | --- | --- | --- |
 | Shared steam header and boiler | Combined loads can exceed shared capacity even when either individual peak fits; inspect a witness, sensitivities and an equipment revision. | [Getting started](index.md) |
 | Two adjustable boilers | Redispatch handles individual load peaks; a combined peak requires more shared fuel capacity. | [Linear dispatch](linear-dispatch.md) |
+| Connected equipment and streams | Build boilers and a steam header from ports; conserve water through a mixer and fixed-ratio splitter. | [Equipment networks](equipment-networks.md) |
 | Continuous adjustable dispatch | Check every load in a box or declared hull, replay an infeasible corner, and re-audit larger fuel capacity. | [Continuous dispatch](continuous-dispatch.md) |
 | Shared equipment relief | Choose one boiler/fuel plan that restores both low-production and peak-demand modes, with a full-domain re-audit. | [Shared relief](shared-relief.md) |
 | Combined uncertainty domains | Audit alternative operating modes with auxiliary demand, and convex intersections of physical bounds, scheduling restrictions and feed specifications. | [Uncertainty compositions](uncertainty-compositions.md) |
@@ -41,6 +42,7 @@ any of these commands from the repository root:
 ```bash
 uv run python -m examples.steam_header
 uv run python -m examples.linear_dispatch
+uv run python -m examples.equipment_network
 uv run python -m examples.continuous_dispatch
 uv run python -m examples.shared_relief
 uv run python -m examples.certificate_verification

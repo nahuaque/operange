@@ -249,10 +249,30 @@ def solve_system(system, tolerance, *, backend="scipy"):
             proof = system.certificate([float(j == i) for j in range(m)])
             if proof is not None:
                 return infeasible(proof)
+        # Satisfied constant rows (including equal bounds on fixed streams)
+        # must not cap the phase-I interior margin at zero. They remain in the
+        # exact physical system and every candidate/certificate check. Only the
+        # numerical feasibility proposal omits these already checked rows.
+        active = [i for i, row in enumerate(system.rows) if any(row)]
+        if not active:
+            return RecourseSolution(
+                "feasible",
+                system.candidate([0.5] * n),
+                None,
+                attempts,
+                "Constant physical rows checked over the declared control box.",
+            )
         if backend == "cvxpy" and n:
             from ._cvxpy_backend import solve_bounded
 
-            candidate = solve_bounded(system, [0.0] * n, tolerance, phase_one=True)
+            proposal = LinearSystem(
+                system.controls,
+                system.fixed,
+                [system.rows[i] for i in active],
+                [system.upper[i] for i in active],
+                [system.row_refs[i] for i in active],
+            )
+            candidate = solve_bounded(proposal, [0.0] * n, tolerance, phase_one=True)
             attempts.extend(candidate.attempts)
             values = (
                 system.candidate(candidate.point)
@@ -269,11 +289,12 @@ def solve_system(system, tolerance, *, backend="scipy"):
                     attempts,
                     "Returned physical controls checked with exact rational residuals.",
                 )
-            proof = (
-                system.certificate(candidate.multipliers)
-                if candidate.multipliers is not None
-                else None
-            )
+            multipliers = None
+            if candidate.multipliers is not None:
+                multipliers = [0.0] * m
+                for i, value in zip(active, candidate.multipliers):
+                    multipliers[i] = value
+            proof = system.certificate(multipliers) if multipliers is not None else None
             if proof is not None:
                 return infeasible(proof)
             return RecourseSolution(
@@ -296,8 +317,8 @@ def solve_system(system, tolerance, *, backend="scipy"):
                 "dispatch_candidate",
                 [0.0] * n + [1.0],
                 [(0.0, 1.0)] * n + [(None, None)],
-                inequalities=[row + [-1.0] for row in rows],
-                upper=upper,
+                inequalities=[rows[i] + [-1.0] for i in active],
+                upper=[upper[i] for i in active],
             )
             values = system.candidate(primal[:-1]) if primal is not None else None
             if values is None and primal is not None:

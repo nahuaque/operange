@@ -73,6 +73,16 @@ and inconclusive audits cannot become upper bounds. Broader synthesis geometries
 two-dimensional operating maps and general multi-period operation remain future
 extensions.
 
+[Equipment and stream modelling](../docs/equipment-networks.md) now compiles
+named sources, sinks, mixers, utility headers, fixed-ratio splitters and
+fixed-efficiency boilers into the existing linear adapter. Connection and unit
+checks precede solving; conservation laws remain always-applied operating limits.
+Examples cover the two-boiler utility system and water mixing/splitting, with
+continuous audits and independent certificate checks. Source networks have a
+portable declaration, while frozen controllers retain the compiled equations.
+Internal stream rates remain bounded algebraic controls; general property
+calculations, actuator inference and multi-period inventories are future work.
+
 The [common engineering-change comparison](../docs/engineering-changes.md) now
 re-audits caller-supplied claims across the shared and reference adapters. It
 records equipment, operating, domain and service changes, preserves unresolved

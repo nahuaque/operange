@@ -2,7 +2,8 @@
 
 Copy steam_header.py, linear_dispatch.py, failure_distance.py, engineering_changes.py,
 frozen_controllers.py, storage_replay.py, startup.py, pinch.py,
-uncertainty_compositions.py, measurement_uncertainty.py, operating_limits.py and
+uncertainty_compositions.py, measurement_uncertainty.py, operating_limits.py,
+equipment_network.py and
 prototype_result_v1.json here.
 There are no pytest, repository, optional solver, or test-environment imports.
 """
@@ -63,6 +64,39 @@ def main():
     )
 
     directory = Path(__file__).resolve().parent
+    network_example = runpy.run_path(str(directory / "equipment_network.py"))
+    network_results = network_example["run_example"]()
+    network = process.ProcessNetwork.from_json(json.dumps(network_results["network"]))
+    require(
+        type(network.compile()) is process.LinearProcessAdapter,
+        "network did not compile to the standard model",
+    )
+    for name, data in network_results["results"].items():
+        result = process.result_from_json(json.dumps(data))
+        require(
+            process.verify_result(result).verified,
+            f"network certificate failed: {name}",
+        )
+        if name.endswith("audit"):
+            require(result.payload.verdict == "pass", f"network audit failed: {name}")
+        elif name == "restricted_fuel":
+            require(
+                result.payload.verdict == "fail", "network missed the fuel restriction"
+            )
+        else:
+            require(
+                result.payload.feasibility == "feasible",
+                f"network dispatch failed: {name}",
+            )
+    material = process.result_from_json(
+        json.dumps(network_results["results"]["material_nominal"])
+    )
+    material_values = {v.quantity_ref: v.value for v in material.payload.values}
+    require(
+        isclose(material_values["left"], 1.5, abs_tol=1e-7)
+        and isclose(material_values["right"], 4.5, abs_tol=1e-7),
+        "material stream balances changed",
+    )
     compositions = runpy.run_path(str(directory / "uncertainty_compositions.py"))
     model, combined, unrestricted = compositions["operating_modes_example"]()
     require(

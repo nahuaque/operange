@@ -19,6 +19,7 @@ Import these from `operange`:
 | Operating permissions and severity | `DecisionRule`, `RecoursePolicy`, `Distance`, `NormalizedLInf`, `NormalizedL2` |
 | Fixed affine model | `AffineProcessAdapter`, `AffineOutput`, `AffineTerm`, `AffineRequirement` |
 | Adjustable linear model | `LinearProcessAdapter`, `LinearControl`; reuses `AffineOutput`, `AffineTerm`, `AffineRequirement` |
+| Connected steady-state equipment | `ProcessNetwork`, `ProcessStream`, `StreamSource`, `StreamSink`, `Mixer`, `UtilityHeader`, `FixedRatioSplitter`, `Boiler`, `StreamTotal` |
 | Dispatch objectives | `LinearObjective`, `ControlTrackingObjective`, `ControlTarget` |
 | Controller synthesis | `ControllerSynthesis`, `synthesize_controller` |
 | Independent certificate checks | `verify_result`, `CertificateVerification`, `VerificationCheck` |
@@ -70,6 +71,13 @@ Units describe quantities and derivatives without converting values.
 Adjustable dispatch can optimize a declared affine output or track physical
 command targets with a convex quadratic objective. Feasibility and optimality
 have separate evidence; see [operating objectives](dispatch-objectives.md).
+
+`ProcessNetwork.compile()` generates a `LinearProcessAdapter` from connected,
+unit-compatible material or thermal-power streams. Physical balances always
+apply; service sinks remain selectable requirements. Its `process_network/v1`
+source JSON is separate from compiled results and frozen controllers. See
+[equipment and stream modelling](equipment-networks.md) for declarations,
+equations, algebraic rate controls and the two-boiler and water-mixing examples.
 
 `verify_result(exported_json, expected_contract_id=...)` independently checks
 supported linear dispatch, objective, relief and controller-audit certificates

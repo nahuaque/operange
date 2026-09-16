@@ -314,6 +314,20 @@ def main():
     require(
         process.verify_result(limit).verified, "CVXPY operating bounds did not verify"
     )
+    network, loads = runpy.run_path(
+        str(Path(__file__).parent / "equipment_network.py")
+    )["example"]()
+    policy = network.compile().as_claim(loads).synthesize_controller()
+    require(policy.verified, "network controller synthesis failed")
+    replay = process.FrozenController.from_json(
+        policy.freeze().to_json()
+    ).audit_result()
+    require(
+        replay.payload.verdict == "pass", "compiled network controller replay failed"
+    )
+    require(
+        process.verify_result(replay).verified, "compiled network verification failed"
+    )
     print("Optional CVXPY installed-wheel acceptance passed")
 
 
