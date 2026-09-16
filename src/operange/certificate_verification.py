@@ -234,6 +234,7 @@ def verify_result(
     from ._certificate_math import UnsupportedCertificate
     from collections.abc import Mapping
     from .operating_limits import OperatingLimitResult
+    from .dispatch_sensitivity import DispatchSensitivityResult
     from .controllers import _read_json
 
     verifier = _Verifier(max_checks)
@@ -257,6 +258,7 @@ def verify_result(
                 RobustnessResult,
                 SensitivityResult,
                 OperatingLimitResult,
+                DispatchSensitivityResult,
             ),
         ):
             document = document.to_json()
@@ -268,7 +270,10 @@ def verify_result(
             raise ValueError("expected result JSON within max_bytes")
         header = _read_json(document)
         result = (
-            OperatingLimitResult.from_json(document)
+            DispatchSensitivityResult.from_json(document)
+            if isinstance(header, Mapping)
+            and header.get("schema_version") == DispatchSensitivityResult.schema_version
+            else OperatingLimitResult.from_json(document)
             if isinstance(header, Mapping)
             and header.get("schema_version") == OperatingLimitResult.schema_version
             else result_from_json(document)
@@ -301,6 +306,12 @@ def verify_result(
                 from ._certificate_operating_limit import verify_operating_limit
 
                 verify_operating_limit(verifier, result)
+            elif isinstance(result, DispatchSensitivityResult):
+                from ._certificate_dispatch_sensitivity import (
+                    verify_dispatch_sensitivity,
+                )
+
+                verify_dispatch_sensitivity(verifier, result)
             else:
                 verifier.result(result)
         except (UnsupportedCertificate, RecursionError) as exc:

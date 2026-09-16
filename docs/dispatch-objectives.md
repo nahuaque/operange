@@ -145,8 +145,11 @@ such a binding preserves the model's objective declaration but does not turn
 controller replay into optimization or assert an optimum for those commands.
 Objective changes appear as operating preferences in engineering comparisons.
 
-This addition does not provide optimized-dispatch derivatives, lexicographic
-tie-breaking, mixed-integer decisions, or general nonlinear objectives.
+For linear objectives, [dispatch sensitivity](dispatch-sensitivity.md) now
+provides checked local objective-value slopes for changes to loads, operating
+limits and control bounds. Derivatives of a selected command vector,
+lexicographic tie-breaking, mixed-integer decisions and general nonlinear
+objectives remain outside the current scope.
 
 Run the complete example from a checkout:
 

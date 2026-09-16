@@ -1,6 +1,7 @@
 """Run outside the checkout with -I after installing the wheel's cvxpy extra.
 
-Copy linear_dispatch.py, uncertainty_compositions.py, measurement_uncertainty.py and operating_limits.py
+Copy linear_dispatch.py, uncertainty_compositions.py, measurement_uncertainty.py,
+operating_limits.py, equipment_network.py and dispatch_sensitivity.py
 alongside this consumer.
 It needs no pytest or examples package and checks that the private backend
 modules ship in the wheel.
@@ -327,6 +328,20 @@ def main():
     )
     require(
         process.verify_result(replay).verified, "compiled network verification failed"
+    )
+    marginal, loads = runpy.run_path(
+        str(Path(__file__).parent / "dispatch_sensitivity.py")
+    )["example"]()
+    sensitivity = marginal.as_claim(loads).dispatch_sensitivity(
+        {"load": 12},
+        changes=(process.DispatchChange("input", "load", "MW", 2),),
+        backend="cvxpy",
+    )
+    require(
+        sensitivity.sensitivities[0].resolution == "kink", "CVXPY local kink missing"
+    )
+    require(
+        process.verify_result(sensitivity).verified, "CVXPY local certificate failed"
     )
     print("Optional CVXPY installed-wheel acceptance passed")
 

@@ -48,6 +48,7 @@ over boxes, finite sets and explicit convex hulls:
 | Frozen affine controllers | Allowed observations, exact affine execution followed by command rounding, physical replay, and continuous box/hull residual enclosures. |
 | Declared uncertain measurements | Independent reading evaluation, permitted sensor observations, physical checks against truth, and box/hull enclosures for sensor and command rounding. |
 | Operating-limit reports | Trial ranges change only one declared upper endpoint; achievable bounds have complete audits and excluded endpoints have independently checked infeasible realizations. |
+| Dispatch-sensitivity reports | Physical perturbation rows, exact primal/dual optimality and slope, interval feasibility, and Farkas rays for locally infeasible directions. |
 
 The verifier independently reconstructs rows from the original model. A valid
 contradiction for an altered matrix, a missing equipment constraint, or a relief
@@ -62,7 +63,7 @@ domain.
 
 Hull membership is currently checked at explicitly declared generators. A
 point result at another hull member needs an independent barycentric membership
-checker and is reported as `unsupported`. Other model families, sensitivities,
+checker and is reported as `unsupported`. Other model families, fixed-response sensitivities,
 distance/threshold searches, and support proofs for other convex geometries are
 also outside this version's scope. Unknown evidence is reported explicitly.
 
@@ -75,6 +76,12 @@ The separate `operating_limit/v1` report is accepted by `verify_result` and the
 verification CLI. It proves bounds on a nested operating range while preserving
 the source model, policy and all other uncertainty. A passing caller-declared
 ceiling establishes no global maximum. See [operating limits](operating-limits.md).
+
+The `dispatch_sensitivity/v1` report is also accepted by the verifier and CLI.
+Its checked segments describe ambient local objective-value changes, including
+left/right differences at a kink; they do not establish robustness over the
+uncertainty set or derivatives of executable commands. See
+[dispatch sensitivities](dispatch-sensitivity.md).
 
 ## Read the report
 

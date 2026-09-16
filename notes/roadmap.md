@@ -73,6 +73,15 @@ and inconclusive audits cannot become upper bounds. Broader synthesis geometries
 two-dimensional operating maps and general multi-period operation remain future
 extensions.
 
+[Dispatch and bottleneck sensitivities](../docs/dispatch-sensitivity.md) now
+check optimized linear objective slopes for individual physical inputs,
+operating limits and control bounds. Exact primal/dual paths establish local
+validity intervals; kinks, blocked upgrades and infeasible directions have
+distinct results. Portable reports have an independent arithmetic verifier.
+The scope is the mathematical objective value under fixed or fully observed
+operation; selected-command derivatives and joint coefficient changes remain
+future work.
+
 [Equipment and stream modelling](../docs/equipment-networks.md) now compiles
 named sources, sinks, mixers, utility headers, fixed-ratio splitters and
 fixed-efficiency boilers into the existing linear adapter. Connection and unit

@@ -19,6 +19,7 @@ All examples use synthetic engineering data and state the scope of their claims.
 | Twenty independent steam loads | Synthesize a controller over a million-corner box without enumeration, then replay and independently verify its physical audit. | [Scalable synthesis](controller-synthesis.md#scale-to-many-independent-loads) |
 | Biased demand meter | Synthesize a rule that serves the true load despite bounded sensor error, verify the audit, and test a wider bias range. | [Measurement uncertainty](measurement-uncertainty.md) |
 | Guaranteed production | Compare checked throughput limits under a saved boiler rule and adjustable dispatch, retaining the limiting realization. | [Operating limits](operating-limits.md) |
+| Marginal fuel and bottlenecks | Check fuel needed for extra demand, fuel saved by a capacity upgrade, and a burner limit that blocks that upgrade. | [Dispatch sensitivities](dispatch-sensitivity.md) |
 | Independent certificate verification | Verify an exported equipment plan and reject incorrect proof arithmetic even after content identities are recomputed. | [Certificate verification](certificate-verification.md) |
 | Causal storage replay | Preserve preparation signals, carried energy and terminal checks when a saved rule faces held-out paths. | [Storage replay](storage-replay.md) |
 | Compressor starts | Staggering fixed starts reduces the peak from 700 kVA to 480 kVA against a 500 kVA limit over the same 65 scenarios. | [Startup loads](startup.md) |
@@ -50,6 +51,7 @@ uv run python -m examples.failure_distance
 uv run python -m examples.engineering_changes
 uv run python -m examples.frozen_controllers
 uv run python -m examples.operating_limits
+uv run python -m examples.dispatch_sensitivity
 uv run python -m examples.storage_replay
 uv run python -m examples.startup
 uv run python -m examples.pinch

@@ -21,6 +21,7 @@ Import these from `operange`:
 | Adjustable linear model | `LinearProcessAdapter`, `LinearControl`; reuses `AffineOutput`, `AffineTerm`, `AffineRequirement` |
 | Connected steady-state equipment | `ProcessNetwork`, `ProcessStream`, `StreamSource`, `StreamSink`, `Mixer`, `UtilityHeader`, `FixedRatioSplitter`, `Boiler`, `StreamTotal` |
 | Dispatch objectives | `LinearObjective`, `ControlTrackingObjective`, `ControlTarget` |
+| Optimized objective sensitivities | `DispatchChange`, `DispatchSlope`, `DispatchSensitivity`, `DispatchSensitivityResult`, `dispatch_sensitivity` |
 | Controller synthesis | `ControllerSynthesis`, `synthesize_controller` |
 | Independent certificate checks | `verify_result`, `CertificateVerification`, `VerificationCheck` |
 | Executable linear controllers | `AffineControlRule`, `AffineController`, `FrozenController` |
@@ -72,6 +73,13 @@ Adjustable dispatch can optimize a declared affine output or track physical
 command targets with a convex quadratic objective. Feasibility and optimality
 have separate evidence; see [operating objectives](dispatch-objectives.md).
 
+`claim.dispatch_sensitivity(realization, changes=(DispatchChange(...), ...))`
+checks one-sided optimized-objective slopes for physical inputs, operating
+limits and control bounds. Exact primal/dual paths establish local validity
+intervals; kinks and infeasible directions remain explicit. The separate
+`dispatch_sensitivity/v1` report supports portable independent verification.
+See [dispatch and bottleneck sensitivities](dispatch-sensitivity.md).
+
 `ProcessNetwork.compile()` generates a `LinearProcessAdapter` from connected,
 unit-compatible material or thermal-power streams. Physical balances always
 apply; service sinks remain selectable requirements. Its `process_network/v1`
@@ -92,7 +100,7 @@ for supported proofs, limits and explicit unsupported results.
 | Adapter | Evaluation and sensitivity | Robustness |
 | --- | --- | --- |
 | `AffineProcessAdapter` | Fixed affine responses; analytical first derivatives in physical or normalized coordinates | Finite and supported linear-support audits; L∞ box/polytope distances by default, and optional convex-domain L∞/Euclidean distances; no adjustable recourse |
-| `LinearProcessAdapter` | Joint bounded-control feasibility; opt-in irreducible row conflicts and single or jointly weighted operating-limit relief via `evaluate_result(diagnose=True, relief=...)`; no dispatch derivatives | Complete `FiniteSet` audits, plus continuous `BoxSet`/`ConvexHullSet` audits by checked generators under fixed or fully observed static operation; exact physical feasibility and infeasibility certificates; no adjustable distance searches |
+| `LinearProcessAdapter` | Joint bounded-control feasibility; opt-in irreducible row conflicts and single or jointly weighted operating-limit relief via `evaluate_result(diagnose=True, relief=...)`; separate checked objective-value slopes via `dispatch_sensitivity` | Complete `FiniteSet` audits, plus continuous `BoxSet`/`ConvexHullSet` audits by checked generators under fixed or fully observed static operation; exact physical feasibility and infeasibility certificates; no adjustable distance searches |
 | Linear model with an `AffineController` | Direct affine command execution and physical checks, retaining commands and violations; no optimizer or sensitivity query | Finite and supported continuous-envelope audits with command-rounding bounds and `fixed_policy_failure` witnesses; default L∞ box/polytope distances and optional convex-domain L∞/Euclidean distances; no causal state |
 | `reference.HeatRecoveryAdapter` | Static constant-COP heat model with declared recourse; analytical local and directional first derivatives where supported | Box audits, boundary and positive-shortfall breaking searches within its verified static model and normalized distance |
 | `reference.ThermalStorageAdapter` | Two-period finite-tree dispatch with fixed, causal or perfect-foresight permissions; no sensitivity operator | Audits of the declared finite tree, including incompatible futures; no continuous-domain radius or general multistage search |

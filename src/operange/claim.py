@@ -251,6 +251,12 @@ class Claim:
 
         return operating_limit(self, parameter, **options)
 
+    def dispatch_sensitivity(self, realization, **options):
+        """Check local objective slopes for changes to inputs and equipment bounds."""
+        from .dispatch_sensitivity import dispatch_sensitivity
+
+        return dispatch_sensitivity(self, realization, **options)
+
     def boundary_result(self, **options):
         return self._run("boundary", **options)
 

@@ -19,6 +19,13 @@ from .network import (
 from .frozen_controller import FrozenController
 from .controller_synthesis import ControllerSynthesis, synthesize_controller
 from .operating_limits import OperatingLimitResult, OperatingLimitTrial, operating_limit
+from .dispatch_sensitivity import (
+    DispatchChange,
+    DispatchSlope,
+    DispatchSensitivity,
+    DispatchSensitivityResult,
+    dispatch_sensitivity,
+)
 from .certificate_verification import (
     CertificateVerification,
     VerificationCheck,
@@ -114,6 +121,11 @@ __all__ = [
     "OperatingLimitResult",
     "OperatingLimitTrial",
     "operating_limit",
+    "DispatchChange",
+    "DispatchSlope",
+    "DispatchSensitivity",
+    "DispatchSensitivityResult",
+    "dispatch_sensitivity",
     "CertificateVerification",
     "VerificationCheck",
     "verify_result",

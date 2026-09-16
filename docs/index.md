@@ -159,6 +159,7 @@ equipment-networks
 continuous-dispatch
 shared-relief
 dispatch-objectives
+dispatch-sensitivity
 convex-backends
 uncertainty-compositions
 failure-distance

@@ -244,7 +244,8 @@ class LinearProcessAdapter(Record):
         return AdapterCapabilities(
             Capability(True, "Joint linear feasibility at one verified domain member."),
             Capability(
-                False, "Derivatives of a selected linear dispatch are not provided."
+                False,
+                "Selected-command derivatives are not provided; use dispatch_sensitivity() for checked local objective-value slopes.",
             ),
             Capability(
                 type(claim.domain) is FiniteSet

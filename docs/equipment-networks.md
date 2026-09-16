@@ -148,6 +148,8 @@ if search.verified:
 ```
 
 Query capabilities remain those of the compiled adapter and bound domain.
+Use [dispatch sensitivities](dispatch-sensitivity.md) to check local fuel savings
+from a stream-capacity change and identify another limit that blocks the benefit.
 Adjustable audits establish existence of joint steady-state flows. The compiled
 controls include **algebraic stream rates**, which need not each correspond to
 an independent physical actuator. A saved controller supplies one rule for

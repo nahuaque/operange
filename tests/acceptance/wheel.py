@@ -3,7 +3,7 @@
 Copy steam_header.py, linear_dispatch.py, failure_distance.py, engineering_changes.py,
 frozen_controllers.py, storage_replay.py, startup.py, pinch.py,
 uncertainty_compositions.py, measurement_uncertainty.py, operating_limits.py,
-equipment_network.py and
+equipment_network.py, dispatch_sensitivity.py and
 prototype_result_v1.json here.
 There are no pytest, repository, optional solver, or test-environment imports.
 """
@@ -64,6 +64,23 @@ def main():
     )
 
     directory = Path(__file__).resolve().parent
+    marginal = runpy.run_path(str(directory / "dispatch_sensitivity.py"))[
+        "run_example"
+    ]()
+    for name, study in marginal.items():
+        result = process.DispatchSensitivityResult.from_json(
+            json.dumps(study["sensitivity"])
+        )
+        require(result.execution == "completed", f"local sensitivity failed: {name}")
+        require(process.verify_result(result).verified, f"local proof failed: {name}")
+    kink = process.DispatchSensitivityResult.from_json(
+        json.dumps(marginal["boiler_threshold"]["sensitivity"])
+    )
+    require(
+        kink.sensitivities[0].backward.value == 1.25
+        and kink.sensitivities[0].forward.value == 2,
+        "boiler threshold slopes changed",
+    )
     network_example = runpy.run_path(str(directory / "equipment_network.py"))
     network_results = network_example["run_example"]()
     network = process.ProcessNetwork.from_json(json.dumps(network_results["network"]))
