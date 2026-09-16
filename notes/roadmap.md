@@ -5,7 +5,10 @@ storage model now have an [implementation](../README.md).
 The optional [IDAES/Pyomo integration](../docs/idaes.md) now binds existing
 continuous algebraic flowsheets for numerical point and finite-scenario studies,
 with checked affine export into the existing certificate path. It reuses upstream
-parmest for reconciliation and calibration. General nonlinear certificates and
+parmest for reconciliation and calibration. The heat-exchanger reference study
+now exercises upstream unit/property equations, explicit per-scenario IDAES
+initialization, and structural/scaling/numerical diagnostics. Initializers supply
+starting values without modifying the checked study equations. General nonlinear certificates and
 production simulator integration remain future work. Frozen affine controllers support static linear-model replay, and causal
 storage controllers support ordered held-out paths. The legacy frozen heat
 contract remains a separate static-recourse format. An experimental

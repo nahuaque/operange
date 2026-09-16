@@ -9,6 +9,7 @@ All examples use synthetic engineering data and state the scope of their claims.
 | Two adjustable boilers | Redispatch handles individual load peaks; a combined peak requires more shared fuel capacity. | [Linear dispatch](linear-dispatch.md) |
 | Connected equipment and streams | Build boilers and a steam header from ports; conserve water through a mixer and fixed-ratio splitter. | [Equipment networks](equipment-networks.md) |
 | Existing IDAES flowsheet | Audit a two-boiler plant, verify an affine export, and repeat the study after upstream parmest reconciliation and calibration. | [IDAES integration](idaes.md) |
+| IDAES heat exchanger | Initialize an upstream unit/property model for each scenario, vary inlet conditions, demand and fouling, and retain structural, scaling and convergence diagnostics. | [Heat-exchanger study](idaes.md#heat-exchanger-operating-study) |
 | Continuous adjustable dispatch | Check every load in a box or declared hull, replay an infeasible corner, and re-audit larger fuel capacity. | [Continuous dispatch](continuous-dispatch.md) |
 | Shared equipment relief | Choose one boiler/fuel plan that restores both low-production and peak-demand modes, with a full-domain re-audit. | [Shared relief](shared-relief.md) |
 | Combined uncertainty domains | Audit alternative operating modes with auxiliary demand, and convex intersections of physical bounds, scheduling restrictions and feed specifications. | [Uncertainty compositions](uncertainty-compositions.md) |

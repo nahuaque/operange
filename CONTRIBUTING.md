@@ -26,6 +26,15 @@ override its selected interpreter. CI also installs the wheel into a clean
 environment and runs copied consumers outside this checkout, verifying
 independence from `updatesupport`, old package imports and repository examples.
 
+`uv sync --locked --group dev --extra idaes` enables the optional IDAES tests.
+Run `uv run --locked --extra idaes pytest -q tests/test_idaes*.py`. The real
+heat-exchanger and upstream parmest tests require Ipopt on PATH; CI installs
+IDAES solver extensions and runs these on all four supported Python versions,
+including the heat-exchanger consumer from an installed wheel. PyNumero ASL
+enables additional Jacobian diagnostics but is not required for the reference
+study or its physical residual checks. Run the example with
+`uv run --locked --extra idaes python examples/idaes_heat_exchanger.py --output study.json`.
+
 To test another supported interpreter locally without replacing `.venv`, use
 an isolated environment (substitute 3.10, 3.11, 3.12 or 3.13):
 

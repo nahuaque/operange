@@ -13,6 +13,11 @@ from ..contract_types import (
 )
 from ..engineering_results import EvaluationResult
 from ._idaes_model import backend, component, number
+from ._idaes_workflow import InitializationFailure, diagnostics, initialize
+
+
+class SolverUnavailable(RuntimeError):
+    pass
 
 
 def _solve(model, adapter):
@@ -34,7 +39,7 @@ def _solve(model, adapter):
         )
     solver = pyo.SolverFactory(adapter.solver)
     if not solver.available(exception_flag=False):
-        raise RuntimeError(
+        raise SolverUnavailable(
             f"Solver {adapter.solver!r} is unavailable; install/configure it separately"
         )
     result = solver.solve(
@@ -111,6 +116,11 @@ def evaluate_result(claim, realization=None, *, contract=None):
     values = tuple(QuantityValue(name, value) for name, value in point.items())
     checks = tuple(ConstraintCheck(row.name, "unknown") for row in included)
     feasible = False
+    code = "idaes_evaluation_error"
+    stage = "scenario_setup"
+    model = None
+    diagnostic_model = None
+    iterate_origin = "source_start"
     message = "No checked numerical candidate was returned."
     try:
         pyo, _ = backend()
@@ -128,9 +138,22 @@ def evaluate_result(claim, realization=None, *, contract=None):
         for req in adapter.requirements:
             if req.name not in claim.requirements:
                 component(model, req.component).deactivate()
+        diagnostics(
+            model,
+            adapter,
+            evidence,
+            stage="before_initialization",
+            rows=included,
+            iterate_origin=iterate_origin,
+        )
+        stage = "initialization"
+        initialize(model, adapter, evidence)
         # Solver plugins may transform their model. Check the returned variables
         # against a separate, unmodified copy of the requested source equations.
         checker = model.clone()
+        diagnostic_model = checker
+        iterate_origin = "prepared_start_without_solver_solution"
+        stage = "solve"
         solved, details = _solve(model, adapter)
         evidence.append(
             Evidence(
@@ -143,8 +166,10 @@ def evaluate_result(claim, realization=None, *, contract=None):
             )
         )
         if solved:
+            stage = "candidate_check"
             from ._idaes_model import uid
 
+            candidates = []
             for var in checker.component_data_objects(
                 pyo.Var, active=True, descend_into=True
             ):
@@ -153,8 +178,11 @@ def evaluate_result(claim, realization=None, *, contract=None):
                     raise ValueError(
                         f"Solver changed a fixed input, command or state: {uid(var)}"
                     )
+                candidates.append((var, candidate))
+            for var, candidate in candidates:
                 var.set_value(candidate, skip_validation=True)
             model = checker
+            iterate_origin = "returned_solver_candidate"
             candidate_values = [*values]
             candidate_values.extend(
                 QuantityValue(v.name, number(component(model, v.component)))
@@ -191,13 +219,34 @@ def evaluate_result(claim, realization=None, *, contract=None):
             )
             values = tuple(candidate_values)
             feasible = all(check.assessment == "satisfied" for check in checks)
+            code = "idaes_residual_violation"
             message = "Returned candidate violates a source constraint or bound; no infeasibility conclusion follows."
         else:
+            code = "idaes_solver_failed"
             message = f"Solver termination {details['termination']}; no feasible candidate or infeasibility proof established."
     except Exception as exc:
         # External models and solver plugins can fail in many backend-specific ways.
         # Keep an unresolved scenario so a finite audit cannot silently pass.
         message = f"{type(exc).__name__}: {exc}"
+        if isinstance(exc, InitializationFailure):
+            code = exc.code
+        elif isinstance(exc, SolverUnavailable):
+            code = "idaes_solver_unavailable"
+        else:
+            code = {
+                "initialization": "idaes_initialization_failed",
+                "solve": "idaes_solver_error",
+                "candidate_check": "idaes_candidate_error",
+            }.get(stage, "idaes_evaluation_error")
+    if model is not None:
+        diagnostics(
+            diagnostic_model if diagnostic_model is not None else model,
+            adapter,
+            evidence,
+            stage="checked_candidate" if feasible else f"unresolved_{stage}",
+            rows=included,
+            iterate_origin=iterate_origin,
+        )
     return EvaluationResult(
         contract,
         request,
@@ -210,7 +259,7 @@ def evaluate_result(claim, realization=None, *, contract=None):
             included_constraints=tuple(row.name for row in included),
         ),
         tuple(evidence),
-        () if feasible else (Diagnostic("idaes_unresolved", "evaluation", message),),
+        () if feasible else (Diagnostic(code, stage, message),),
     )
 
 

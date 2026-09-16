@@ -6,7 +6,7 @@ contain declarations and numerical evidence, never executable Pyomo objects.
 
 from collections.abc import Mapping
 from dataclasses import InitVar, dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 from ..claim import (
     AdapterCapabilities,
@@ -20,7 +20,13 @@ from ..domains import FiniteSet, ParameterSpace
 from ..recourse import DecisionRule, RecoursePolicy
 from ._idaes_affine import IdaesLinearExport
 
-__all__ = ["IdaesAdapter", "IdaesVariable", "IdaesRequirement", "IdaesLinearExport"]
+__all__ = [
+    "IdaesAdapter",
+    "IdaesVariable",
+    "IdaesRequirement",
+    "IdaesInitialization",
+    "IdaesLinearExport",
+]
 
 
 @dataclass(frozen=True)
@@ -52,6 +58,24 @@ class IdaesRequirement(Record):
             raise ValueError("requirement tolerance must be nonnegative")
 
 
+@dataclass(frozen=True)
+class IdaesInitialization(Record):
+    """Initialize a square unit using its upstream IDAES initialization API.
+
+    ``block`` calls ``block.initialize(**options)``; ``default`` constructs
+    ``block.default_initializer(**options)`` and calls its ``initialize``.
+    Options are explicit JSON values, including any solver configuration.
+    Each step runs on a disposable clone; only free variable guesses survive.
+    """
+
+    component: str
+    method: Literal["block", "default"] = "block"
+    options: Mapping[str, Any] = field(default_factory=dict)
+
+    def _validate(self):
+        nonempty(self.component, "initialization component")
+
+
 @dataclass(frozen=True, kw_only=True)
 class IdaesAdapter:
     """Snapshot a constructed continuous algebraic model, then solve clones.
@@ -74,6 +98,8 @@ class IdaesAdapter:
     solver_options: Mapping[str, Any] = field(default_factory=dict)
     tolerance: float = 1e-7
     provenance: Mapping[str, Any] = field(default_factory=dict)
+    initialization: tuple[IdaesInitialization, ...] = ()
+    diagnostics: bool = False
     _template: object = field(init=False, repr=False, compare=False)
     _rows: tuple = field(init=False, repr=False)
     _states: tuple = field(init=False, repr=False)
@@ -88,16 +114,20 @@ class IdaesAdapter:
             raise ValueError("input_space must be a ParameterSpace")
         if not 0 <= self.tolerance <= 1e-3:
             raise ValueError("tolerance must lie between zero and 1e-3")
+        if type(self.diagnostics) is not bool:
+            raise ValueError("diagnostics must be a bool")
         for name, cls in (
             ("inputs", IdaesVariable),
             ("controls", IdaesVariable),
             ("outputs", IdaesVariable),
             ("requirements", IdaesRequirement),
+            ("initialization", IdaesInitialization),
         ):
             items = tuple(getattr(self, name))
             if any(type(item) is not cls for item in items):
                 raise ValueError(f"{name} need {cls.__name__} declarations")
-            unique(tuple(item.name for item in items), name)
+            if name != "initialization":
+                unique(tuple(item.name for item in items), name)
             unique(tuple(item.component for item in items), f"{name} components")
             object.__setattr__(self, name, items)
         if not self.outputs or not self.requirements:

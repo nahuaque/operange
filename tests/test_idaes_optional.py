@@ -17,7 +17,8 @@ class BlockOptional(importlib.abc.MetaPathFinder):
 
 sys.meta_path.insert(0, BlockOptional())
 from operange import Coordinate, ParameterSpace
-from operange.integrations.idaes import IdaesAdapter, IdaesRequirement, IdaesVariable
+from operange.integrations.idaes import IdaesAdapter, IdaesRequirement, IdaesVariable, IdaesInitialization
+IdaesInitialization('fs.hx', options={'solver': 'ipopt'})
 if any(name.split('.')[0] in {'idaes', 'pyomo', 'highspy'} for name in sys.modules):
     raise RuntimeError('optional backend imported eagerly')
 try:

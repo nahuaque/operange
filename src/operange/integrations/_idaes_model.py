@@ -41,7 +41,10 @@ def unit(item):
 
 def number(expr):
     pyo, _ = backend()
-    return finite(float(pyo.value(expr)), "Pyomo value")
+    value = pyo.value(expr, exception=False)
+    if value is None:
+        raise ValueError(f"Undefined Pyomo value: {expr}")
+    return finite(float(value), "Pyomo value")
 
 
 @dataclass(frozen=True)
@@ -221,6 +224,13 @@ def prepare_template(adapter, model):
             pyo.Param, active=True, descend_into=True
         )
     }
+    # A scalar Param with a default can be referenced before its lazy _data[None]
+    # entry exists (used by IDAES property reference temperatures).
+    known_parameters.update(
+        id(p)
+        for p in template.component_objects(pyo.Param, active=True)
+        if not p.is_indexed()
+    )
     expressions = [r.expression(template) for r in rows]
     expressions.extend(
         component(template, v.component) for v in adapter.inputs + adapter.outputs
@@ -249,6 +259,13 @@ def prepare_template(adapter, model):
     )
     if len(objectives) > 1:
         raise ValueError("The model must have at most one active objective")
+    for step in adapter.initialization:
+        block = component(template, step.component)
+        if block.ctype is not pyo.Block or not block.active:
+            raise ValueError("Initialization steps must bind active scalar blocks")
+        api = "initialize" if step.method == "block" else "default_initializer"
+        if not callable(getattr(block, api, None)):
+            raise ValueError(f"{step.component} has no callable {api} API")
     return template, tuple(rows), states
 
 
@@ -269,16 +286,30 @@ def model_manifest(model):
                 pyo.Var, active=True, descend_into=True
             )
         ],
+        # Immutable indexed Params yield native Python values, not ParamData.
+        # Record their index/value pairs under the owning component's CUID.
         "parameters": [
             {
                 "component": uid(p),
-                "value": pyo.value(p),
+                "values": [
+                    {"index": index, "value": pyo.value(value)}
+                    for index, value in (p.items() if p.is_indexed() else ((None, p),))
+                ],
                 "unit": unit(p),
-                "mutable": p.parent_component().mutable,
+                "mutable": p.mutable,
             }
-            for p in model.component_data_objects(
-                pyo.Param, active=True, descend_into=True
-            )
+            for p in model.component_objects(pyo.Param, active=True, descend_into=True)
+        ],
+        "suffixes": [
+            {
+                "component": uid(s),
+                "direction": int(s.direction),
+                "values": [
+                    {"component": None if key is None else uid(key), "value": value}
+                    for key, value in s.items()
+                ],
+            }
+            for s in model.component_objects(pyo.Suffix, active=True, descend_into=True)
         ],
         "constraints": [
             {"component": uid(c), "expression": str(c.expr)}
@@ -352,6 +383,8 @@ def build_contract(adapter):
             "states": "Unbound variables are algebraic states, not independent actuator commands; uniqueness is not established.",
             "solver": adapter.solver,
             "solver_options": adapter.solver_options,
+            "initialization": [s.to_dict() for s in adapter.initialization],
+            "diagnostics": adapter.diagnostics,
         },
         tuple(quantities),
         tuple(
