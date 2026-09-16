@@ -238,9 +238,10 @@ class Context:
             require(rule.stage == "operation", "unsupported operating stage")
             if self.controller is None and rule.fixed_value is None:
                 require(
-                    self.policy.mode == "static"
+                    self.model.measurements is None
+                    and self.policy.mode == "static"
                     and set(rule.observes) == set(self.domain.space.names),
-                    "adjustable certificates require full observations",
+                    "adjustable certificates require full observations without a measurement restriction",
                 )
         self.limits = self.model.operating_limits + tuple(
             r for r in self.model.requirements if r.name in self.selected
@@ -387,13 +388,28 @@ class Context:
         return values, residuals
 
     def commands(self, point):
+        observations = self.observations(point)
         return {
             r.control: rounded(
+                q(r.offset)
+                + sum(
+                    (q(t.coefficient) * q(observations[t.variable]) for t in r.terms),
+                    Fraction(0),
+                )
+            )
+            for r in self.controller.rules
+        }
+
+    def observations(self, point):
+        if self.model.measurements is None:
+            return point
+        return {
+            r.name: rounded(
                 q(r.offset)
                 + sum(
                     (q(t.coefficient) * q(point[t.variable]) for t in r.terms),
                     Fraction(0),
                 )
             )
-            for r in self.controller.rules
+            for r in self.model.measurements.readings
         }

@@ -5,6 +5,12 @@ can still respond to the observations that the claim permits. Replaying it
 executes those commands directly and checks the physical response, retaining
 equipment and service violations without redispatching or clipping the commands.
 
+With a declared [measurement model](measurement-uncertainty.md), replay receives
+the joint true-input and sensor-error realization, computes rounded readings,
+and executes commands using only permitted readings. Physical checks use the
+true inputs. The frozen artifact preserves the measurement maps and error
+assumptions, and continuous audits account for both rounding steps.
+
 The linear implementation binds caller-supplied affine rules to
 `LinearProcessAdapter`. It supports point evaluation at verified domain members
 and complete finite-scenario audits, plus continuous-envelope audits for domains

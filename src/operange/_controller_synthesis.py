@@ -110,7 +110,7 @@ class PolicyProgram:
     def __init__(self, cp, claim, model, objective, scenarios):
         self.cp, self.model, self.objective = cp, model, objective
         self.scenarios = scenarios
-        self.ranges = (
+        self.input_ranges = (
             {p.name: (F(p.lower), F(p.upper)) for p in claim.domain.scalar_parameters}
             if scenarios is None
             else {
@@ -121,6 +121,43 @@ class PolicyProgram:
                 for n in claim.domain.space.names
             }
         )
+        self.observation_forms = (
+            {n: (F(0), {n: F(1)}) for n in model.input_space.names}
+            if model.measurements is None
+            else {
+                r.name: (F(r.offset), {t.variable: F(t.coefficient) for t in r.terms})
+                for r in model.measurements.readings
+            }
+        )
+        self.ranges = self.input_ranges
+        if model.measurements is not None:
+            if scenarios is None:
+                self.ranges = {}
+                for n, (offset, terms) in self.observation_forms.items():
+                    low = offset + sum(
+                        (
+                            a * self.input_ranges[k][0 if a >= 0 else 1]
+                            for k, a in terms.items()
+                        ),
+                        F(0),
+                    )
+                    high = offset + sum(
+                        (
+                            a * self.input_ranges[k][1 if a >= 0 else 0]
+                            for k, a in terms.items()
+                        ),
+                        F(0),
+                    )
+                    self.ranges[n] = (
+                        F(finite(float(low), n)),
+                        F(finite(float(high), n)),
+                    )
+            else:
+                readings = [model.observations(s.values) for s in scenarios]
+                self.ranges = {
+                    n: (min(F(p[n]) for p in readings), max(F(p[n]) for p in readings))
+                    for n in model.observation_space.names
+                }
         self.rules = {}
         for control in model.controls:
             permission = claim.recourse.rule(control.name)
@@ -146,6 +183,7 @@ class PolicyProgram:
             self.rules[control.name] = (control, fixed, observes, variable)
 
     def commands(self, point):
+        observations = self.model.observations(point)
         commands = {}
         for n, (control, fixed, observes, variable) in self.rules.items():
             if fixed is not None:
@@ -153,7 +191,7 @@ class PolicyProgram:
             else:
                 features = [1.0] + [
                     float(
-                        (F(point[k]) - self.ranges[k][0])
+                        (F(observations[k]) - self.ranges[k][0])
                         / (self.ranges[k][1] - self.ranges[k][0])
                     )
                     for k in observes
@@ -291,7 +329,7 @@ class PolicyProgram:
                         float(span * a / (self.ranges[k][1] - self.ranges[k][0])),
                         "controller coefficient",
                     ),
-                    f"{control.unit}/{self.model.input_space.coordinate(k).unit}",
+                    f"{control.unit}/{self.model.observation_space.coordinate(k).unit}",
                 )
                 for k, a in zip(observes, coefficients[1:])
                 if a
@@ -316,7 +354,7 @@ class PolicyProgram:
 
 
 def _objective_bound(claim, objective, scenarios):
-    model, controller = claim.adapter.model, claim.adapter.controller
+    model = claim.adapter.model
     continuous = type(claim.domain) is not FiniteSet
     envelope = ControllerEnvelope(claim) if continuous else None
     sign = (
@@ -345,7 +383,7 @@ def _objective_bound(claim, objective, scenarios):
         )
     for scenario in scenarios:
         point = scenario.values
-        commands = controller.commands(point)
+        commands = claim.adapter.commands(point)
         if type(objective) is LinearObjective:
             value = sign * model.output(objective.output)._exact_value(
                 {**point, **commands}
@@ -361,12 +399,9 @@ def _objective_bound(claim, objective, scenarios):
             )
             if continuous:
                 ideal = {
-                    r.control: F(r.offset)
-                    + exact_dot(
-                        (t.coefficient for t in r.terms),
-                        (point[t.variable] for t in r.terms),
-                    )
-                    for r in controller.rules
+                    n: offset
+                    + exact_dot(coefficients.values(), (point[k] for k in coefficients))
+                    for n, (offset, coefficients) in envelope.command_forms.items()
                 }
                 enclosures.append(
                     sum(

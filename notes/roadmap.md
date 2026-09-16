@@ -60,9 +60,18 @@ linear objectives use direct whole-domain support constraints without corner
 enumeration; quadratic tracking, finite cases and explicit hulls retain complete
 generator searches. A twenty-load steam example demonstrates synthesis, frozen
 replay and independent physical-audit verification over a million-corner box.
-Controller optimality remains uncertified. Measurement uncertainty and guaranteed
-operating-limit queries are subsequent priorities; broader uncertainty geometries
-and general multi-period operation remain future extensions.
+Controller optimality remains uncertified. [Measurement uncertainty](../docs/measurement-uncertainty.md)
+now separates named affine sensor readings from true physical inputs and bounded
+latent errors. Synthesis, frozen replay, physical audits and independent checks
+preserve observation permissions and both sensor and command rounding. Shared
+biases and aggregate readings retain joint-input dependence.
+[Guaranteed operating-limit queries](../docs/operating-limits.md) now search nested
+ranges of one production/load coordinate, retaining checked achievable bounds,
+excluded endpoints and limiting witnesses. Saved-controller and adjustable
+dispatch scopes remain distinct. Portable reports are independently verifiable,
+and inconclusive audits cannot become upper bounds. Broader synthesis geometries,
+two-dimensional operating maps and general multi-period operation remain future
+extensions.
 
 The [common engineering-change comparison](../docs/engineering-changes.md) now
 re-audits caller-supplied claims across the shared and reference adapters. It

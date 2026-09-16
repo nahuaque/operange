@@ -46,6 +46,8 @@ over boxes, finite sets and explicit convex hulls:
 | Shared equipment relief | Every scenario block, one common change vector, its bounds, and recursive verification of the embedded changed audit with the proposed commands. |
 | Finite and vertex audits | Complete scenario/generator identities and references, supporting responses, and the failure witness or convex-combination coverage argument. |
 | Frozen affine controllers | Allowed observations, exact affine execution followed by command rounding, physical replay, and continuous box/hull residual enclosures. |
+| Declared uncertain measurements | Independent reading evaluation, permitted sensor observations, physical checks against truth, and box/hull enclosures for sensor and command rounding. |
+| Operating-limit reports | Trial ranges change only one declared upper endpoint; achievable bounds have complete audits and excluded endpoints have independently checked infeasible realizations. |
 
 The verifier independently reconstructs rows from the original model. A valid
 contradiction for an altered matrix, a missing equipment constraint, or a relief
@@ -68,6 +70,11 @@ For synthesis, pass the exported `search.audit` to `verify_result()`. The
 `controller_synthesis/v1` report and its separate performance enclosure are not
 inputs to this result verifier. The controller's physical audit is checkable;
 synthesis still makes no certified optimality claim across controllers.
+
+The separate `operating_limit/v1` report is accepted by `verify_result` and the
+verification CLI. It proves bounds on a nested operating range while preserving
+the source model, policy and all other uncertainty. A passing caller-declared
+ceiling establishes no global maximum. See [operating limits](operating-limits.md).
 
 ## Read the report
 

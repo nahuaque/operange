@@ -83,11 +83,16 @@ def evaluation(ctx, result):
         require(
             data["observations_by_control"]
             == {
-                r.control: {n: point[n] for n in r.observes}
+                r.control: {n: ctx.observations(point)[n] for n in r.observes}
                 for r in ctx.controller.rules
             },
             "controller observation evidence differs",
         )
+        if ctx.model.measurements is not None:
+            require(
+                data["measurement_readings"] == ctx.observations(point),
+                "sensor readings differ from the declared measurement map and rounding",
+            )
     else:
         ctx.system(point).feasible(commands)
         if result.request.get("dispatch_source") == "shared_relief_candidate":
@@ -428,41 +433,101 @@ def controller_enclosure(ctx, result):
             for p in points
         )
 
-    rules, commands, errors = {}, {}, {}
+    readings, measurement_bounds = {}, {}
+    if ctx.model.measurements is not None:
+        for r in ctx.model.measurements.readings:
+            offset, coeff = q(r.offset), {t.variable: q(t.coefficient) for t in r.terms}
+            lo = -maximum(-offset, {n: -a for n, a in coeff.items()})
+            hi = maximum(offset, coeff)
+            low, high = rounded(lo), rounded(hi)
+            effective, slopes = offset, dict(coeff)
+            if type(ctx.domain) is BoxSet:
+                for p in ctx.domain.scalar_parameters:
+                    if p.lower == p.upper:
+                        effective += slopes.pop(p.name, F(0)) * q(p.lower)
+            slopes = {n: a for n, a in slopes.items() if a}
+            identity = (
+                effective == 0
+                and len(slopes) == 1
+                and abs(next(iter(slopes.values()))) == 1
+            )
+            error = (
+                abs(q(low) - lo)
+                if lo == hi
+                else F(0)
+                if identity
+                else q(ulp(rounded(max(abs(lo), abs(hi)), 1))) / 2
+            )
+            readings[r.name] = offset, coeff, error
+            measurement_bounds[r.name] = {
+                "lower": low,
+                "upper": high,
+                "rounding_error_exact": str(error),
+            }
+    rules, commands, errors, command_forms = {}, {}, {}, {}
     for r in ctx.controller.rules:
-        coeff = {t.variable: q(t.coefficient) for t in r.terms}
+        offset, coeff, incoming = q(r.offset), {}, F(0)
+        for t in r.terms:
+            a = q(t.coefficient)
+            if ctx.model.measurements is None:
+                coeff[t.variable] = a
+            else:
+                intercept, terms, error = readings[t.variable]
+                offset += a * intercept
+                incoming += abs(a) * error
+                for n, b in terms.items():
+                    coeff[n] = coeff.get(n, F(0)) + a * b
+        command_forms[r.control] = offset, coeff
         lo, hi = (
-            -maximum(-q(r.offset), {n: -a for n, a in coeff.items()}),
-            maximum(q(r.offset), coeff),
+            -maximum(-offset, {n: -a for n, a in coeff.items()}) - incoming,
+            maximum(offset, coeff) + incoming,
         )
+        if ctx.model.measurements is not None:
+            observed_lo, observed_hi = q(r.offset), q(r.offset)
+            for t in r.terms:
+                a, bounds = q(t.coefficient), measurement_bounds[t.variable]
+                observed_lo += a * q(bounds["lower" if a >= 0 else "upper"])
+                observed_hi += a * q(bounds["upper" if a >= 0 else "lower"])
+            lo, hi = max(lo, observed_lo), min(hi, observed_hi)
         identity = (
             r.offset == 0 and len(r.terms) == 1 and abs(r.terms[0].coefficient) == 1
         )
+        constant = (
+            not any(coeff.values()) if ctx.model.measurements is None else not r.terms
+        )
         error = (
-            F(0)
-            if identity or not any(coeff.values())
+            abs(q(rounded(lo)) - lo)
+            if ctx.model.measurements is not None and lo == hi
+            else F(0)
+            if identity or constant
             else q(ulp(rounded(max(abs(lo), abs(hi)), 1))) / 2
         )
         rules[r.control] = r
-        errors[r.control] = error
+        errors[r.control] = incoming + error
         commands[r.control] = {
             "lower": rounded(lo),
             "upper": rounded(hi),
-            "rounding_error_exact": str(error),
+            "rounding_error_exact": str(incoming + error),
         }
+        if ctx.model.measurements is not None and identity:
+            bounds = measurement_bounds[r.terms[0].variable]
+            low, high = (
+                (bounds["lower"], bounds["upper"])
+                if r.terms[0].coefficient == 1
+                else (-bounds["upper"], -bounds["lower"])
+            )
+            commands[r.control].update(lower=low, upper=high)
     forms = {}
     for output in ctx.model.outputs:
         offset, coeff, error = q(output.offset), {}, F(0)
         for term in output.terms:
             a = q(term.coefficient)
             if term.variable in rules:
-                rule = rules[term.variable]
-                offset += a * q(rule.offset)
+                intercept, terms = command_forms[term.variable]
+                offset += a * intercept
                 error += abs(a) * errors[term.variable]
-                for t in rule.terms:
-                    coeff[t.variable] = coeff.get(t.variable, F(0)) + a * q(
-                        t.coefficient
-                    )
+                for n, b in terms.items():
+                    coeff[n] = coeff.get(n, F(0)) + a * b
             else:
                 coeff[term.variable] = coeff.get(term.variable, F(0)) + a
         rounded(maximum(offset, coeff) + error, 1)
@@ -484,10 +549,11 @@ def controller_enclosure(ctx, result):
                 and limit == getattr(control, side),
                 "control enclosure changes a hard bound",
             )
-            rule, sign = rules[name], -1 if side == "lower" else 1
+            intercept, terms = command_forms[name]
+            sign = -1 if side == "lower" else 1
             offset, coefficients, error = (
-                sign * (q(rule.offset) - q(limit)),
-                {t.variable: sign * q(t.coefficient) for t in rule.terms},
+                sign * (intercept - q(limit)),
+                {n: sign * a for n, a in terms.items()},
                 errors[name],
             )
             upper = (
@@ -532,6 +598,11 @@ def controller_enclosure(ctx, result):
         and data["command_bounds"] == commands,
         "controller command enclosure differs",
     )
+    if ctx.model.measurements is not None:
+        require(
+            data["measurement_bounds"] == measurement_bounds,
+            "measurement rounding enclosure differs",
+        )
     for proof in data["support_bounds"]:
         require(
             ctx.membership(proof["point"]), "support extremum lies outside the domain"

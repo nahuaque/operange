@@ -29,7 +29,7 @@ class Residual:
     control_bound: tuple | None = None
 
     def actual(self, claim, point):
-        commands = claim.adapter.controller.commands(point)
+        commands = claim.adapter.commands(point)
         if self.control_bound is not None:
             name, side, limit = self.control_bound
             return (
@@ -55,11 +55,79 @@ class ControllerEnvelope:
         self.model = claim.adapter.model
         self.rules = {r.control: r for r in claim.adapter.controller.rules}
         self.commands = {}
+        self.command_forms = {}
+        self.measurement_forms = {}
+        self.measurement_bounds = {}
         self.points = []
         self.proofs = []
+        if self.model.measurements is not None:
+            for reading in self.model.measurements.readings:
+                offset = Fraction(reading.offset)
+                coefficients = {
+                    t.variable: Fraction(t.coefficient) for t in reading.terms
+                }
+                lo, hi = self.interval(offset, coefficients)
+                low, high = (
+                    finite(float(lo), reading.name),
+                    finite(float(hi), reading.name),
+                )
+                reduced_offset, reduced = offset, dict(coefficients)
+                if type(claim.domain) is BoxSet:
+                    for p in claim.domain.scalar_parameters:
+                        if p.lower == p.upper:
+                            reduced_offset += reduced.pop(
+                                p.name, Fraction(0)
+                            ) * Fraction(p.lower)
+                reduced = {n: a for n, a in reduced.items() if a}
+                identity = (
+                    reduced_offset == 0
+                    and len(reduced) == 1
+                    and abs(next(iter(reduced.values()))) == 1
+                )
+                error = (
+                    abs(Fraction(low) - lo)
+                    if lo == hi
+                    else Fraction(0)
+                    if identity
+                    else Fraction(ulp(round_up(max(abs(lo), abs(hi))))) / 2
+                )
+                self.measurement_forms[reading.name] = (offset, coefficients, error)
+                self.measurement_bounds[reading.name] = {
+                    "lower": low,
+                    "upper": high,
+                    "rounding_error_exact": str(error),
+                }
         for name, rule in self.rules.items():
-            coefficients = {t.variable: Fraction(t.coefficient) for t in rule.terms}
-            lo, hi = self.interval(Fraction(rule.offset), coefficients)
+            offset, coefficients, incoming_error = (
+                Fraction(rule.offset),
+                {},
+                Fraction(0),
+            )
+            for t in rule.terms:
+                a = Fraction(t.coefficient)
+                if self.model.measurements is None:
+                    coefficients[t.variable] = a
+                else:
+                    intercept, terms, error = self.measurement_forms[t.variable]
+                    offset += a * intercept
+                    incoming_error += abs(a) * error
+                    for n, b in terms.items():
+                        coefficients[n] = coefficients.get(n, Fraction(0)) + a * b
+            self.command_forms[name] = (offset, coefficients)
+            lo, hi = self.interval(offset, coefficients)
+            lo, hi = lo - incoming_error, hi + incoming_error
+            if self.model.measurements is not None:
+                # The sensor floats also have their own monotone range bounds.
+                # Intersect these with the correlated affine/error enclosure.
+                observed_lo, observed_hi = Fraction(rule.offset), Fraction(rule.offset)
+                for t in rule.terms:
+                    a, bounds = (
+                        Fraction(t.coefficient),
+                        self.measurement_bounds[t.variable],
+                    )
+                    observed_lo += a * Fraction(bounds["lower" if a >= 0 else "upper"])
+                    observed_hi += a * Fraction(bounds["upper" if a >= 0 else "lower"])
+                lo, hi = max(lo, observed_lo), min(hi, observed_hi)
             # Rounding to nearest is monotone, including at equipment bounds.
             rounded_lo, rounded_hi = finite(float(lo), name), finite(float(hi), name)
             identity = (
@@ -67,13 +135,26 @@ class ControllerEnvelope:
                 and len(rule.terms) == 1
                 and abs(rule.terms[0].coefficient) == 1
             )
-            constant = not any(coefficients.values())
+            constant = (
+                not any(coefficients.values())
+                if self.model.measurements is None
+                else not rule.terms
+            )
             error = (
-                Fraction(0)
+                abs(Fraction(rounded_lo) - lo)
+                if self.model.measurements is not None and lo == hi
+                else Fraction(0)
                 if identity or constant
                 else Fraction(ulp(round_up(max(abs(lo), abs(hi))))) / 2
             )
-            self.commands[name] = (rounded_lo, rounded_hi, error)
+            if self.model.measurements is not None and identity:
+                bounds = self.measurement_bounds[rule.terms[0].variable]
+                rounded_lo, rounded_hi = (
+                    (bounds["lower"], bounds["upper"])
+                    if rule.terms[0].coefficient == 1
+                    else (-bounds["upper"], -bounds["lower"])
+                )
+            self.commands[name] = (rounded_lo, rounded_hi, incoming_error + error)
         # Every declared output must remain exportable, even when unselected.
         for output in self.model.outputs:
             offset, coefficients, error = self.output_form(output)
@@ -178,14 +259,11 @@ class ControllerEnvelope:
         for term in output.terms:
             a = Fraction(term.coefficient)
             if term.variable in self.rules:
-                rule = self.rules[term.variable]
-                offset += a * Fraction(rule.offset)
+                intercept, terms = self.command_forms[term.variable]
+                offset += a * intercept
                 error += abs(a) * self.commands[term.variable][2]
-                for observed in rule.terms:
-                    n = observed.variable
-                    coefficients[n] = coefficients.get(n, Fraction(0)) + a * Fraction(
-                        observed.coefficient
-                    )
+                for n, b in terms.items():
+                    coefficients[n] = coefficients.get(n, Fraction(0)) + a * b
             else:
                 n = term.variable
                 coefficients[n] = coefficients.get(n, Fraction(0)) + a
@@ -209,7 +287,7 @@ class ControllerEnvelope:
                 )
             )
         for control in self.model.controls:
-            rule = self.rules[control.name]
+            offset, coefficients = self.command_forms[control.name]
             for side, sign, limit in (
                 ("lower", -1, control.lower),
                 ("upper", 1, control.upper),
@@ -219,11 +297,8 @@ class ControllerEnvelope:
                         self.model.bound_id(control, side),
                         control.unit,
                         0,
-                        sign * (Fraction(rule.offset) - Fraction(limit)),
-                        {
-                            t.variable: sign * Fraction(t.coefficient)
-                            for t in rule.terms
-                        },
+                        sign * (offset - Fraction(limit)),
+                        {n: sign * a for n, a in coefficients.items()},
                         self.commands[control.name][2],
                         (control.name, side, limit),
                     )
@@ -319,6 +394,11 @@ def audit_result(claim):
                         for n, (lo, hi, error) in envelope.commands.items()
                     },
                     "scope": "same saved controller throughout the declared domain; no redispatch",
+                    **(
+                        {"measurement_bounds": envelope.measurement_bounds}
+                        if claim.adapter.model.measurements is not None
+                        else {}
+                    ),
                 },
             )
         )

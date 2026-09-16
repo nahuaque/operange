@@ -233,6 +233,8 @@ def verify_result(
     """
     from ._certificate_math import UnsupportedCertificate
     from collections.abc import Mapping
+    from .operating_limits import OperatingLimitResult
+    from .controllers import _read_json
 
     verifier = _Verifier(max_checks)
     result = None
@@ -249,7 +251,13 @@ def verify_result(
         ):
             raise ValueError("expected_contract_id must be a string")
         if isinstance(
-            document, (EvaluationResult, RobustnessResult, SensitivityResult)
+            document,
+            (
+                EvaluationResult,
+                RobustnessResult,
+                SensitivityResult,
+                OperatingLimitResult,
+            ),
         ):
             document = document.to_json()
         elif isinstance(document, Mapping):
@@ -258,7 +266,13 @@ def verify_result(
             document = document.decode("utf-8")
         if not isinstance(document, str) or len(document.encode("utf-8")) > max_bytes:
             raise ValueError("expected result JSON within max_bytes")
-        result = result_from_json(document)
+        header = _read_json(document)
+        result = (
+            OperatingLimitResult.from_json(document)
+            if isinstance(header, Mapping)
+            and header.get("schema_version") == OperatingLimitResult.schema_version
+            else result_from_json(document)
+        )
     except (ValueError, TypeError, UnicodeError, RecursionError, OverflowError) as exc:
         return CertificateVerification(
             None, (VerificationCheck("input", "invalid", str(exc)),)
@@ -283,7 +297,12 @@ def verify_result(
         )
     else:
         try:
-            verifier.result(result)
+            if isinstance(result, OperatingLimitResult):
+                from ._certificate_operating_limit import verify_operating_limit
+
+                verify_operating_limit(verifier, result)
+            else:
+                verifier.result(result)
         except (UnsupportedCertificate, RecursionError) as exc:
             verifier.checks.append(VerificationCheck("limits", "unsupported", str(exc)))
     return CertificateVerification(result.ref, tuple(verifier.checks))

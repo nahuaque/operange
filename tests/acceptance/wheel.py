@@ -2,7 +2,8 @@
 
 Copy steam_header.py, linear_dispatch.py, failure_distance.py, engineering_changes.py,
 frozen_controllers.py, storage_replay.py, startup.py, pinch.py,
-uncertainty_compositions.py and prototype_result_v1.json here.
+uncertainty_compositions.py, measurement_uncertainty.py, operating_limits.py and
+prototype_result_v1.json here.
 There are no pytest, repository, optional solver, or test-environment imports.
 """
 
@@ -150,6 +151,53 @@ def main():
         exported["restored_result_id"] == results["audit"].result_id,
         "export identity changed",
     )
+
+    measured = runpy.run_path(str(directory / "measurement_uncertainty.py"))[
+        "example"
+    ]()
+    rule = process.AffineController(
+        "Allow for meter bias",
+        (
+            process.AffineControlRule(
+                "steam", "MW", 0.25, (process.AffineTerm("measured_load", 1, "MW/MW"),)
+            ),
+        ),
+        "Consumer",
+    )
+    measured_frozen = process.FrozenController.from_json(
+        measured.with_controller(rule).freeze().to_json()
+    )
+    measured_audit = measured_frozen.audit_result()
+    require(
+        measured_audit.payload.verdict == "pass", "sensor-aware frozen audit failed"
+    )
+    require(
+        process.verify_result(measured_audit).verified,
+        "sensor audit verification failed",
+    )
+    reading = measured_frozen.evaluate_result({"load": 9, "meter_bias": -0.25})
+    require(reading.payload.feasibility == "feasible", "sensor replay failed")
+    require(
+        process.verify_result(reading).verified, "sensor replay verification failed"
+    )
+
+    limits = runpy.run_path(str(directory / "operating_limits.py"))["run_example"]()
+    for name, study in limits.items():
+        limit = process.OperatingLimitResult.from_json(json.dumps(study["search"]))
+        require(
+            limit.resolution == "limit_bracketed", "production limit was not bracketed"
+        )
+        require(
+            limit.policy_scope == name, "production limit changed operating permissions"
+        )
+        require(
+            process.verify_result(limit).verified,
+            "production bound verification failed",
+        )
+        require(
+            limit.as_claim().audit_result().payload.verdict == "pass",
+            "production limit replay failed",
+        )
 
     dispatch = runpy.run_path(str(directory / "linear_dispatch.py"))
     dispatch_results = {

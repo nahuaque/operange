@@ -165,6 +165,8 @@ distance-and-relief
 engineering-changes
 frozen-controllers
 controller-synthesis
+measurement-uncertainty
+operating-limits
 certificate-verification
 storage-replay
 dwsim

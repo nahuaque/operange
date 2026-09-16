@@ -13,18 +13,30 @@ from .primitives import finite
 
 def constraints(program, requirements, reserve):
     cp, model = program.cp, program.model
-    centers = {n: (lo + hi) / 2 for n, (lo, hi) in program.ranges.items()}
-    radii = {n: (hi - lo) / 2 for n, (lo, hi) in program.ranges.items()}
+    centers = {n: (lo + hi) / 2 for n, (lo, hi) in program.input_ranges.items()}
+    radii = {n: (hi - lo) / 2 for n, (lo, hi) in program.input_ranges.items()}
     commands = {}
     for n, (control, fixed, observes, variable) in program.rules.items():
         if fixed is not None:
             commands[n] = (cp.Constant(fixed), {})
             continue
         span = finite(float(F(control.upper) - F(control.lower)), "control span")
-        center = control.lower + span * (
-            variable[0] + sum((variable[i + 1] / 2 for i in range(len(observes))), 0)
-        )
-        slopes = {n: span * variable[i + 1] / 2 for i, n in enumerate(observes)}
+        center = control.lower + span * variable[0]
+        slopes = {}
+        for i, observed in enumerate(observes):
+            offset, terms = program.observation_forms[observed]
+            lo, hi = program.ranges[observed]
+            midpoint = offset + sum((a * centers[k] for k, a in terms.items()), F(0))
+            center += (
+                span
+                * variable[i + 1]
+                * finite(float((midpoint - lo) / (hi - lo)), "observation center")
+            )
+            for k, a in terms.items():
+                if radii[k]:
+                    slopes[k] = slopes.get(k, 0) + span * variable[i + 1] * finite(
+                        float(a * radii[k] / (hi - lo)), "observation slope"
+                    )
         commands[n] = (center, slopes)
 
     def output_form(output):

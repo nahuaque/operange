@@ -16,6 +16,7 @@ from .domains import FiniteSet, ParameterSpace
 from .convex_hull import ConvexHullSet
 from .primitives import BoxSet
 from .objectives import ControlTrackingObjective, LinearObjective
+from .measurements import MeasurementModel
 from .recourse import DecisionRule, RecoursePolicy
 
 
@@ -58,8 +59,13 @@ class LinearProcessAdapter(Record):
     operating_limits: tuple[AffineRequirement, ...] = ()
     solver_tolerance: float = 1e-9
     objective: LinearObjective | ControlTrackingObjective | None = None
+    measurements: MeasurementModel | None = None
 
     def _validate(self):
+        if self.measurements is not None:
+            if type(self.measurements) is not MeasurementModel:
+                raise ValueError("measurements require a declarative MeasurementModel")
+            self.measurements.validate(self)
         if not self.controls or not self.requirements:
             raise ValueError("linear operation needs bounded controls and requirements")
         if not 1e-10 <= self.solver_tolerance <= 1e-4:
@@ -72,7 +78,22 @@ class LinearProcessAdapter(Record):
         # Preserve existing model and frozen-controller identities when omitted.
         if self.objective is None:
             data.pop("objective")
+        if self.measurements is None:
+            data.pop("measurements")
         return data
+
+    @property
+    def observation_space(self):
+        return (
+            self.input_space if self.measurements is None else self.measurements.space
+        )
+
+    def observations(self, realization):
+        return (
+            realization
+            if self.measurements is None
+            else self.measurements.observe(realization)
+        )
 
     @cached_property
     def _affine(self):
@@ -154,7 +175,7 @@ class LinearProcessAdapter(Record):
                 else "linear_feasibility",
                 "feasibility_scope": "model_and_selected_requirements",
                 "stage": "operation",
-                "adjustable_observations": self.input_space.names,
+                "adjustable_observations": self.observation_space.names,
                 "objective": self.objective.to_dict()
                 if self.objective is not None
                 else "find any feasible controls; no dispatch optimum asserted",
@@ -200,6 +221,10 @@ class LinearProcessAdapter(Record):
                     "linear controls must use the single 'operation' stage"
                 )
             if rule.fixed_value is None:
+                if self.measurements is not None:
+                    raise ValueError(
+                        "measurement-based operation requires an explicit or synthesized controller; pointwise full-information redispatch is not permitted"
+                    )
                 if policy.mode == "fixed" or set(rule.observes) != set(
                     self.input_space.names
                 ):
@@ -260,7 +285,9 @@ class LinearProcessAdapter(Record):
             recourse = RecoursePolicy(
                 "static",
                 tuple(
-                    DecisionRule(c.name, c.unit, "operation", self.input_space.names)
+                    DecisionRule(
+                        c.name, c.unit, "operation", self.observation_space.names
+                    )
                     for c in self.controls
                 ),
             )

@@ -165,6 +165,9 @@ class _ControllerAdapter(Record):
     def input_space(self):
         return self.model.input_space
 
+    def commands(self, realization):
+        return self.controller.commands(self.model.observations(realization))
+
     @cached_property
     def base_contract(self):
         original = self.model.base_contract
@@ -183,7 +186,9 @@ class _ControllerAdapter(Record):
             operating=operating,
             numerical_policy={
                 **dict(original.numerical_policy),
-                "controller_arithmetic": "exact_rationals_of_declared_floats_then_round_command_to_float",
+                "controller_arithmetic": "exact_measurement_sum_then_round_reading_then_exact_command_sum_then_round_command"
+                if self.model.measurements is not None
+                else "exact_rationals_of_declared_floats_then_round_command_to_float",
                 "controller_clipping": False,
                 "infeasibility": "verified violation by the uniquely prescribed commands; other controllers not assessed",
             },
@@ -218,7 +223,9 @@ class _ControllerAdapter(Record):
                 raise ValueError(
                     "controller rules and permissions must use the operation stage"
                 )
-            if any(n not in self.input_space.names for n in permission.observes):
+            if any(
+                n not in self.model.observation_space.names for n in permission.observes
+            ):
                 raise ValueError(
                     "controller permissions reference unknown process observations"
                 )
@@ -234,7 +241,7 @@ class _ControllerAdapter(Record):
                     raise ValueError(
                         "controller uses an observation outside its permissions"
                     )
-                coordinate = self.input_space.coordinate(term.variable)
+                coordinate = self.model.observation_space.coordinate(term.variable)
                 if term.unit != f"{rule.unit}/{coordinate.unit}":
                     raise ValueError(
                         "controller coefficient units must match control/input units"

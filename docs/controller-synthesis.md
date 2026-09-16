@@ -123,6 +123,12 @@ bound controller explicitly searches for a replacement within the same
 permissions. It does not modify the original controller or claim.
 
 The numerical program uses input ranges and control spans for conditioning.
+With a declared [measurement model](measurement-uncertainty.md), it instead
+normalizes permitted sensor readings. Affine sensor maps and shared errors are
+substituted into the whole-box support formulation before coefficients are
+combined. Sensor rounding joins command rounding in the subsequent physical
+audit and performance enclosure. Rules cannot reference latent truth or errors.
+
 It first reserves half of each declared residual tolerance for coefficient and
 command rounding, then retries with the full tolerance if no candidate passes.
 Zero tolerances and hard bounds are never loosened. Each proposal is tried with

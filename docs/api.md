@@ -23,6 +23,8 @@ Import these from `operange`:
 | Controller synthesis | `ControllerSynthesis`, `synthesize_controller` |
 | Independent certificate checks | `verify_result`, `CertificateVerification`, `VerificationCheck` |
 | Executable linear controllers | `AffineControlRule`, `AffineController`, `FrozenController` |
+| Measurement uncertainty | `AffineMeasurement`, `MeasurementModel` |
+| Guaranteed operating ranges | `OperatingLimitResult`, `OperatingLimitTrial`, `operating_limit` |
 | Engineering changes | `EngineeringChange`, `compare_changes`, `ChangeComparison`, `ChangeResult`, `ContractComparison`, `FieldChange`, `RequirementSummary` |
 | Supplied time profile | `PiecewiseLinearProfile` |
 
@@ -37,6 +39,14 @@ Its `contract` and `capabilities` describe that binding. Queries are
 linear or storage claim while preserving its existing permissions. `claim.freeze()` then
 captures the complete executable binding as a `FrozenController`. See the
 [frozen-controller guide](frozen-controllers.md) for portable replay and scope.
+
+`claim.operating_limit("production", tolerance=1e-6)` searches nested ranges of
+one scalar coordinate in a box under fixed commands, adjustable linear dispatch,
+or a saved affine controller. Its separate `operating_limit/v1` report retains
+checked achievable/excluded endpoints and physical audits. A passing search
+ceiling is not a global maximum; unresolved audits never establish an upper
+bound. Read [guaranteed operating limits](operating-limits.md) for units,
+coverage, replay and independent verification.
 
 `claim.compare_changes(changes)` re-audits named candidate claims and returns a
 `ChangeComparison` with the baseline audit, ordered candidate audits, structural
@@ -160,6 +170,13 @@ audit and whole-domain performance enclosure. `search.freeze()` exports an
 accepted candidate through `FrozenController`. Numerical failure establishes no
 adjustable infeasibility, and controller optimality is not certified. See
 [controller synthesis](controller-synthesis.md) for permissions, tracking and scope.
+
+`LinearProcessAdapter(measurements=MeasurementModel(...))` gives controllers
+named affine sensor readings over joint true-input and sensor-error uncertainty.
+Permissions reference readings; physical equations retain true inputs. Synthesis,
+frozen replay and continuous audits account for sensor and command rounding.
+Adjustable evaluation requires a bound controller to preserve the information
+restriction. See [measurement uncertainty](measurement-uncertainty.md).
 
 `model.as_claim(domain, controller=controller, recourse=None, requirements=None)`
 instead binds an `AffineController`. Default permissions use the observations

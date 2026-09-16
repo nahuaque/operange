@@ -245,6 +245,12 @@ class Claim:
 
         return synthesize_controller(self, **options)
 
+    def operating_limit(self, parameter, **options):
+        """Bound a guaranteed production/load range under these operating rules."""
+        from .operating_limits import operating_limit
+
+        return operating_limit(self, parameter, **options)
+
     def boundary_result(self, **options):
         return self._run("boundary", **options)
 

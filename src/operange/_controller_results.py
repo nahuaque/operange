@@ -66,7 +66,8 @@ def evaluate_result(claim, realization, *, contract=None):
     feasibility, message = "unknown", "Controller response was not resolved."
     controller = claim.adapter.controller
     try:
-        commands = controller.commands(point)
+        observations = claim.adapter.model.observations(point)
+        commands = controller.commands(observations)
         values.extend(QuantityValue(n, v) for n, v in commands.items())
         evidence.append(
             Evidence(
@@ -78,11 +79,19 @@ def evaluate_result(claim, realization, *, contract=None):
                     "controller_ref": controller.ref.to_dict(),
                     "commands": commands,
                     "observations_by_control": {
-                        r.control: {n: point[n] for n in r.observes}
+                        r.control: {n: observations[n] for n in r.observes}
                         for r in controller.rules
                     },
                     "arithmetic": "exact rational affine sum followed by one rounding to a physical float command",
                     "clipping": False,
+                    **(
+                        {
+                            "measurement_readings": observations,
+                            "measurement_arithmetic": "exact rational affine sum followed by one rounding to a sensor float",
+                        }
+                        if claim.adapter.model.measurements is not None
+                        else {}
+                    ),
                 },
             )
         )

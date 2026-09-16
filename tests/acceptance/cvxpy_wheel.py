@@ -1,6 +1,7 @@
 """Run outside the checkout with -I after installing the wheel's cvxpy extra.
 
-Copy linear_dispatch.py and uncertainty_compositions.py alongside this consumer.
+Copy linear_dispatch.py, uncertainty_compositions.py, measurement_uncertainty.py and operating_limits.py
+alongside this consumer.
 It needs no pytest or examples package and checks that the private backend
 modules ship in the wheel.
 """
@@ -289,6 +290,30 @@ def main():
             == checked.result_id,
             "portable result changed",
         )
+    measured = runpy.run_path(
+        str(Path(__file__).parent / "measurement_uncertainty.py")
+    )["run_example"]()
+    require(
+        measured["synthesis"]["execution"] == "completed",
+        "measured controller synthesis failed",
+    )
+    require(
+        measured["verification"]["status"] == "verified",
+        "measured audit verification failed",
+    )
+    wider = process.result_from_json(json.dumps(measured["larger_error_audit"]))
+    require(wider.payload.verdict == "fail", "wider meter error was not detected")
+    production, _ = runpy.run_path(str(Path(__file__).parent / "operating_limits.py"))[
+        "example"
+    ]()
+    limit = production.operating_limit("production", backend="cvxpy", max_iterations=4)
+    require(
+        limit.lower is not None and limit.upper is not None,
+        "CVXPY operating bounds missing",
+    )
+    require(
+        process.verify_result(limit).verified, "CVXPY operating bounds did not verify"
+    )
     print("Optional CVXPY installed-wheel acceptance passed")
 
 
