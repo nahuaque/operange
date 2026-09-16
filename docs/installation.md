@@ -58,3 +58,16 @@ Both the base test suite and the full optional CVXPY suite run on each version.
 The optional `cvxpy` extra enables [prepared dispatch and convex intersection
 support](convex-backends.md), as well as experimental backend comparisons.
 Default dispatch and the other built-in primitive geometries use NumPy/SciPy.
+
+The optional `idaes` extra installs IDAES, Pyomo and HiGHS for
+[existing flowsheet studies](idaes.md):
+
+```bash
+uv run --locked --extra idaes python examples/idaes_flowsheet.py
+uv run --locked --extra idaes pytest -q tests/test_idaes.py
+```
+
+Nonlinear solves and the upstream `parmest` example require a separately
+installed solver. The example's `--reconcile` option uses Ipopt. The finite
+affine integration and installed-wheel checks run on Python 3.10–3.13; a separate
+CI job also exercises reconciliation with IDAES's Ipopt binary distribution.

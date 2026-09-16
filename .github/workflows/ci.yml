@@ -34,6 +34,10 @@ jobs:
         run: |
           uv sync --locked --group dev --extra cvxpy
           uv run --locked --extra cvxpy pytest -q
+      - name: Test optional IDAES support
+        run: |
+          uv sync --locked --group dev --extra cvxpy --extra idaes
+          uv run --locked --extra cvxpy --extra idaes pytest -q tests/test_idaes.py
       - name: Build distributions
         run: |
           uv build
@@ -55,6 +59,34 @@ jobs:
           cp tests/acceptance/cvxpy_wheel.py "$RUNNER_TEMP/operange-consumer/"
           cd "$RUNNER_TEMP/operange-consumer"
           "$RUNNER_TEMP/operange-consumer-venv/bin/python" -I cvxpy_wheel.py
+      - name: Verify optional IDAES support from the installed wheel
+        shell: bash
+        run: |
+          wheels=(dist/*.whl)
+          uv pip install --python "$RUNNER_TEMP/operange-consumer-venv/bin/python" "${wheels[0]}[idaes]"
+          cp tests/acceptance/idaes_wheel.py examples/idaes_flowsheet.py "$RUNNER_TEMP/operange-consumer/"
+          cd "$RUNNER_TEMP/operange-consumer"
+          "$RUNNER_TEMP/operange-consumer-venv/bin/python" -I idaes_wheel.py
+  idaes-reconciliation:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv sync --locked --group dev --extra idaes
+      - name: Install IDAES solver binaries
+        run: |
+          uv run --locked --extra idaes idaes get-extensions --distro ubuntu2204
+          echo "$HOME/.idaes/bin" >> "$GITHUB_PATH"
+      - name: Require Ipopt and exercise upstream parmest
+        run: |
+          uv run --locked --extra idaes python -c "import pyomo.environ as p; raise SystemExit(not p.SolverFactory('ipopt').available(False))"
+          uv run --locked --extra idaes pytest -q tests/test_idaes.py
+          uv run --locked --extra idaes python examples/idaes_flowsheet.py --reconcile
   quality:
     runs-on: ubuntu-latest
     steps:

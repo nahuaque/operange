@@ -24,6 +24,7 @@ classifiers = [
 
 [project.optional-dependencies]
 cvxpy = ["cvxpy>=1.5"]
+idaes = ["idaes-pse>=2.10,<3", "pyomo>=6.10,<7", "highspy>=1.9"]
 
 [dependency-groups]
 dev = ["bandit>=1.9.4", "pytest>=8.0", "ruff>=0.8", "twine>=6.1"]

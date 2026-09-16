@@ -49,11 +49,14 @@ for checkout and wheel installation.
   utilities, adjustable boilers, storage replay, startup loads and heat integration.
 - [Equipment and streams](docs/equipment-networks.md) — connect boilers, headers,
   mixers and splitters to generate checked linear balances.
+- [Existing IDAES flowsheets](docs/idaes.md) — bind models, reuse upstream
+  reconciliation, audit finite scenarios and export supported affine equations.
 - [API and capabilities](docs/api.md) — supported
   models, uncertainty sets, queries and portable results.
 - [Methods and scope](docs/methods.md) — the
   relationship to flexibility analysis, robust optimization and downstream economics.
 
 **Status: alpha.** Supports caller-declared affine and linear models plus bounded
-engineering reference models. Broader nonlinear flowsheets and general dynamic
-simulation remain outside the current scope.
+engineering reference models. An optional IDAES/Pyomo adapter provides numerical
+point evaluation and finite-scenario studies. General nonlinear certificates
+and dynamic simulation remain outside the current scope.

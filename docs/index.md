@@ -156,6 +156,7 @@ examples
 api
 linear-dispatch
 equipment-networks
+idaes
 continuous-dispatch
 shared-relief
 dispatch-objectives

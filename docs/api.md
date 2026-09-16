@@ -97,6 +97,13 @@ for supported proofs, limits and explicit unsupported results.
 
 ## What the built-in adapters establish
 
+The optional [IDAES integration](idaes.md) exports `IdaesAdapter`,
+`IdaesVariable`, `IdaesRequirement` and `IdaesLinearExport` from
+`operange.integrations.idaes`. Its native results report numerical point
+feasibility and finite-scenario coverage, with unresolved outcomes for failed
+solves. They carry no nonlinear infeasibility or independent certificate claim.
+Supported exact affine exports use the existing linear model capabilities below.
+
 | Adapter | Evaluation and sensitivity | Robustness |
 | --- | --- | --- |
 | `AffineProcessAdapter` | Fixed affine responses; analytical first derivatives in physical or normalized coordinates | Finite and supported linear-support audits; L∞ box/polytope distances by default, and optional convex-domain L∞/Euclidean distances; no adjustable recourse |

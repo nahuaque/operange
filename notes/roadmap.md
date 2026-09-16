@@ -2,13 +2,24 @@
 
 Part of the [process exploration](README.md). The static slice and a finite-tree
 storage model now have an [implementation](../README.md).
-General nonlinear adapters and production simulator integration remain future
-work. Frozen affine controllers support static linear-model replay, and causal
+The optional [IDAES/Pyomo integration](../docs/idaes.md) now binds existing
+continuous algebraic flowsheets for numerical point and finite-scenario studies,
+with checked affine export into the existing certificate path. It reuses upstream
+parmest for reconciliation and calibration. General nonlinear certificates and
+production simulator integration remain future work. Frozen affine controllers support static linear-model replay, and causal
 storage controllers support ordered held-out paths. The legacy frozen heat
 contract remains a separate static-recourse format. An experimental
 [DWSIM connection](../docs/dwsim.md) now exercises a real installed simulator.
 
 ## Package boundary before expansion
+
+Further thermodynamics, reconciliation, estimation and dynamic modelling should
+reuse IDAES/Pyomo capabilities. Operange owns explicit operating commitments,
+uncertainty/observation permissions, query scope and portable evidence. The next
+integration extensions should assess PyROS for nonlinear robust optimization,
+preserve the distinction between solver outcomes and certificates, and improve
+equipment capacity/outage studies across the shared model binding. The small
+native equipment compiler remains useful for transparent certified linear studies.
 
 The [scope decision](package-boundary.md) fixes the target as a process-engineering
 sensitivity and robustness DSL. Its [result contract](result-contract.md)
