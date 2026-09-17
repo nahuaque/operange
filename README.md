@@ -53,6 +53,8 @@ for checkout and wheel installation.
   reconciliation, audit finite scenarios and export supported affine equations.
 - [Equipment calibration](docs/calibration.md) — fit with parmest, preserve
   portable evidence and explicitly apply estimates before repeating a study.
+- [Calibration credibility](docs/calibration-credibility.md) — inspect local
+  parameter information and evaluate predictions against held-out experiments.
 - [Joint calibration uncertainty](docs/joint-calibration-uncertainty.md) — preserve
   bootstrap parameter dependence and propagate whole vectors through operating cases.
 - [Shared operating commands](docs/shared-idaes-controls.md) — choose one actuator

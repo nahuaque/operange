@@ -1,0 +1,1093 @@
+{
+  "schema_version": "calibration_validation/v1",
+  "result_id": "sha256:9f4af0b03fc168a8f33dea4d5d5f2ee18b6abe8b16e80e084e5bb1edd799c676",
+  "calibration": {
+    "study": {
+      "name": "Synthetic heat-transfer measurements",
+      "objective": "SSE_weighted",
+      "objective_aggregation": "parmest mean of experiment objectives",
+      "solver": "ipopt",
+      "solver_interface": "ef_ipopt",
+      "solver_options": {
+        "tol": 1e-10,
+        "bound_relax_factor": 0
+      },
+      "constraint_tolerance": 1e-05,
+      "variable_bound_tolerance": 0,
+      "versions": {
+        "idaes": "2.12.0",
+        "pyomo": "6.10.1",
+        "pandas": "3.0.5"
+      },
+      "experiments": [
+        {
+          "name": "training-0",
+          "source": {
+            "variables": [
+              {
+                "component": "heat_transfer",
+                "unit": "W/K/m**2",
+                "domain": "Reals",
+                "fixed": false,
+                "value": 85.0,
+                "lower": "10",
+                "upper": "200"
+              },
+              {
+                "component": "area",
+                "unit": "m**2",
+                "domain": "Reals",
+                "fixed": true,
+                "value": 1.0,
+                "lower": "0.5",
+                "upper": "2"
+              },
+              {
+                "component": "delta_temperature",
+                "unit": "K",
+                "domain": "Reals",
+                "fixed": true,
+                "value": 20.0,
+                "lower": "None",
+                "upper": "None"
+              },
+              {
+                "component": "duty",
+                "unit": "W",
+                "domain": "Reals",
+                "fixed": false,
+                "value": 1700.0,
+                "lower": "None",
+                "upper": "None"
+              }
+            ],
+            "parameters": [],
+            "suffixes": [
+              {
+                "component": "experiment_outputs",
+                "direction": 0,
+                "values": [
+                  {
+                    "component": "duty",
+                    "value": 1702
+                  }
+                ]
+              },
+              {
+                "component": "measurement_error",
+                "direction": 0,
+                "values": [
+                  {
+                    "component": "duty",
+                    "value": 10
+                  }
+                ]
+              },
+              {
+                "component": "unknown_parameters",
+                "direction": 0,
+                "values": [
+                  {
+                    "component": "heat_transfer",
+                    "value": {
+                      "component_uid": "heat_transfer"
+                    }
+                  }
+                ]
+              }
+            ],
+            "constraints": [
+              {
+                "component": "balance",
+                "expression": "duty  ==  heat_transfer*area*delta_temperature"
+              }
+            ],
+            "expressions": [],
+            "objectives": [],
+            "external_functions": []
+          },
+          "source_fingerprint": "d5d2a7ec05a53efe1f04d70cbaa657d97eaf2b095c555a11414148461e7acbfa",
+          "observations": [
+            {
+              "component": "duty",
+              "unit": "W",
+              "measured": 1702.0,
+              "standard_deviation": 10.0
+            }
+          ],
+          "parameters": [
+            {
+              "component": "heat_transfer",
+              "unit": "W/K/m**2",
+              "initial_value": 85.0,
+              "lower": 10.0,
+              "upper": 200.0
+            }
+          ],
+          "checks": [
+            {
+              "component": "balance",
+              "side": "eq",
+              "unit": "W",
+              "tolerance": 1e-05
+            },
+            {
+              "component": "heat_transfer",
+              "side": "lower",
+              "unit": "W/K/m**2",
+              "tolerance": 0
+            },
+            {
+              "component": "heat_transfer",
+              "side": "upper",
+              "unit": "W/K/m**2",
+              "tolerance": 0
+            },
+            {
+              "component": "area",
+              "side": "lower",
+              "unit": "m**2",
+              "tolerance": 0
+            },
+            {
+              "component": "area",
+              "side": "upper",
+              "unit": "m**2",
+              "tolerance": 0
+            }
+          ]
+        },
+        {
+          "name": "training-1",
+          "source": {
+            "variables": [
+              {
+                "component": "heat_transfer",
+                "unit": "W/K/m**2",
+                "domain": "Reals",
+                "fixed": false,
+                "value": 85.0,
+                "lower": "10",
+                "upper": "200"
+              },
+              {
+                "component": "area",
+                "unit": "m**2",
+                "domain": "Reals",
+                "fixed": true,
+                "value": 1.0,
+                "lower": "0.5",
+                "upper": "2"
+              },
+              {
+                "component": "delta_temperature",
+                "unit": "K",
+                "domain": "Reals",
+                "fixed": true,
+                "value": 40.0,
+                "lower": "None",
+                "upper": "None"
+              },
+              {
+                "component": "duty",
+                "unit": "W",
+                "domain": "Reals",
+                "fixed": false,
+                "value": 3400.0,
+                "lower": "None",
+                "upper": "None"
+              }
+            ],
+            "parameters": [],
+            "suffixes": [
+              {
+                "component": "experiment_outputs",
+                "direction": 0,
+                "values": [
+                  {
+                    "component": "duty",
+                    "value": 3398
+                  }
+                ]
+              },
+              {
+                "component": "measurement_error",
+                "direction": 0,
+                "values": [
+                  {
+                    "component": "duty",
+                    "value": 10
+                  }
+                ]
+              },
+              {
+                "component": "unknown_parameters",
+                "direction": 0,
+                "values": [
+                  {
+                    "component": "heat_transfer",
+                    "value": {
+                      "component_uid": "heat_transfer"
+                    }
+                  }
+                ]
+              }
+            ],
+            "constraints": [
+              {
+                "component": "balance",
+                "expression": "duty  ==  heat_transfer*area*delta_temperature"
+              }
+            ],
+            "expressions": [],
+            "objectives": [],
+            "external_functions": []
+          },
+          "source_fingerprint": "4dfee2617a91595f8efab32f694a775888ed7502558e557473d05c0f3309f3fd",
+          "observations": [
+            {
+              "component": "duty",
+              "unit": "W",
+              "measured": 3398.0,
+              "standard_deviation": 10.0
+            }
+          ],
+          "parameters": [
+            {
+              "component": "heat_transfer",
+              "unit": "W/K/m**2",
+              "initial_value": 85.0,
+              "lower": 10.0,
+              "upper": 200.0
+            }
+          ],
+          "checks": [
+            {
+              "component": "balance",
+              "side": "eq",
+              "unit": "W",
+              "tolerance": 1e-05
+            },
+            {
+              "component": "heat_transfer",
+              "side": "lower",
+              "unit": "W/K/m**2",
+              "tolerance": 0
+            },
+            {
+              "component": "heat_transfer",
+              "side": "upper",
+              "unit": "W/K/m**2",
+              "tolerance": 0
+            },
+            {
+              "component": "area",
+              "side": "lower",
+              "unit": "m**2",
+              "tolerance": 0
+            },
+            {
+              "component": "area",
+              "side": "upper",
+              "unit": "m**2",
+              "tolerance": 0
+            }
+          ]
+        },
+        {
+          "name": "training-2",
+          "source": {
+            "variables": [
+              {
+                "component": "heat_transfer",
+                "unit": "W/K/m**2",
+                "domain": "Reals",
+                "fixed": false,
+                "value": 85.0,
+                "lower": "10",
+                "upper": "200"
+              },
+              {
+                "component": "area",
+                "unit": "m**2",
+                "domain": "Reals",
+                "fixed": true,
+                "value": 1.0,
+                "lower": "0.5",
+                "upper": "2"
+              },
+              {
+                "component": "delta_temperature",
+                "unit": "K",
+                "domain": "Reals",
+                "fixed": true,
+                "value": 60.0,
+                "lower": "None",
+                "upper": "None"
+              },
+              {
+                "component": "duty",
+                "unit": "W",
+                "domain": "Reals",
+                "fixed": false,
+                "value": 5100.0,
+                "lower": "None",
+                "upper": "None"
+              }
+            ],
+            "parameters": [],
+            "suffixes": [
+              {
+                "component": "experiment_outputs",
+                "direction": 0,
+                "values": [
+                  {
+                    "component": "duty",
+                    "value": 5101
+                  }
+                ]
+              },
+              {
+                "component": "measurement_error",
+                "direction": 0,
+                "values": [
+                  {
+                    "component": "duty",
+                    "value": 10
+                  }
+                ]
+              },
+              {
+                "component": "unknown_parameters",
+                "direction": 0,
+                "values": [
+                  {
+                    "component": "heat_transfer",
+                    "value": {
+                      "component_uid": "heat_transfer"
+                    }
+                  }
+                ]
+              }
+            ],
+            "constraints": [
+              {
+                "component": "balance",
+                "expression": "duty  ==  heat_transfer*area*delta_temperature"
+              }
+            ],
+            "expressions": [],
+            "objectives": [],
+            "external_functions": []
+          },
+          "source_fingerprint": "9eabc541046d45d6960a6d437df08bc979e53c03ebd49a82f102ff5344f09e19",
+          "observations": [
+            {
+              "component": "duty",
+              "unit": "W",
+              "measured": 5101.0,
+              "standard_deviation": 10.0
+            }
+          ],
+          "parameters": [
+            {
+              "component": "heat_transfer",
+              "unit": "W/K/m**2",
+              "initial_value": 85.0,
+              "lower": 10.0,
+              "upper": 200.0
+            }
+          ],
+          "checks": [
+            {
+              "component": "balance",
+              "side": "eq",
+              "unit": "W",
+              "tolerance": 1e-05
+            },
+            {
+              "component": "heat_transfer",
+              "side": "lower",
+              "unit": "W/K/m**2",
+              "tolerance": 0
+            },
+            {
+              "component": "heat_transfer",
+              "side": "upper",
+              "unit": "W/K/m**2",
+              "tolerance": 0
+            },
+            {
+              "component": "area",
+              "side": "lower",
+              "unit": "m**2",
+              "tolerance": 0
+            },
+            {
+              "component": "area",
+              "side": "upper",
+              "unit": "m**2",
+              "tolerance": 0
+            }
+          ]
+        }
+      ],
+      "provenance": {
+        "data": "Synthetic duty readings; temperature differences are treated as exact"
+      },
+      "scope": "Numerical fit and source residual checks; no global optimality, independent certificate, or physical accuracy guarantee.",
+      "identifiability": "not_assessed",
+      "parameter_uncertainty": "not_computed",
+      "fixed_conditions": "All fixed source variables remain fixed except explicitly labelled shared parameters.",
+      "constraints": "All active experiment constraints are retained; source objectives are replaced by the chosen least-squares objective."
+    },
+    "execution": "completed",
+    "estimates": [
+      {
+        "component": "heat_transfer",
+        "unit": "W/K/m**2",
+        "value": 85.00357142857143,
+        "lower": 10.0,
+        "upper": 200.0
+      }
+    ],
+    "experiments": [
+      {
+        "name": "training-0",
+        "observations": [
+          {
+            "component": "duty",
+            "unit": "W",
+            "measured": 1702.0,
+            "fitted": 1700.0714285714287,
+            "standard_deviation": 10.0
+          }
+        ],
+        "checks": [
+          {
+            "component": "balance",
+            "side": "eq",
+            "unit": "W",
+            "residual": 0.0,
+            "tolerance": 1e-05
+          },
+          {
+            "component": "heat_transfer",
+            "side": "lower",
+            "unit": "W/K/m**2",
+            "residual": -75.00357142857143,
+            "tolerance": 0.0
+          },
+          {
+            "component": "heat_transfer",
+            "side": "upper",
+            "unit": "W/K/m**2",
+            "residual": -114.99642857142857,
+            "tolerance": 0.0
+          },
+          {
+            "component": "area",
+            "side": "lower",
+            "unit": "m**2",
+            "residual": -0.5,
+            "tolerance": 0.0
+          },
+          {
+            "component": "area",
+            "side": "upper",
+            "unit": "m**2",
+            "residual": -1.0,
+            "tolerance": 0.0
+          }
+        ],
+        "values": {
+          "heat_transfer": 85.00357142857143,
+          "area": 1.0,
+          "delta_temperature": 20.0,
+          "duty": 1700.0714285714287
+        }
+      },
+      {
+        "name": "training-1",
+        "observations": [
+          {
+            "component": "duty",
+            "unit": "W",
+            "measured": 3398.0,
+            "fitted": 3400.1428571428573,
+            "standard_deviation": 10.0
+          }
+        ],
+        "checks": [
+          {
+            "component": "balance",
+            "side": "eq",
+            "unit": "W",
+            "residual": 0.0,
+            "tolerance": 1e-05
+          },
+          {
+            "component": "heat_transfer",
+            "side": "lower",
+            "unit": "W/K/m**2",
+            "residual": -75.00357142857143,
+            "tolerance": 0.0
+          },
+          {
+            "component": "heat_transfer",
+            "side": "upper",
+            "unit": "W/K/m**2",
+            "residual": -114.99642857142857,
+            "tolerance": 0.0
+          },
+          {
+            "component": "area",
+            "side": "lower",
+            "unit": "m**2",
+            "residual": -0.5,
+            "tolerance": 0.0
+          },
+          {
+            "component": "area",
+            "side": "upper",
+            "unit": "m**2",
+            "residual": -1.0,
+            "tolerance": 0.0
+          }
+        ],
+        "values": {
+          "heat_transfer": 85.00357142857143,
+          "area": 1.0,
+          "delta_temperature": 40.0,
+          "duty": 3400.1428571428573
+        }
+      },
+      {
+        "name": "training-2",
+        "observations": [
+          {
+            "component": "duty",
+            "unit": "W",
+            "measured": 5101.0,
+            "fitted": 5100.214285714286,
+            "standard_deviation": 10.0
+          }
+        ],
+        "checks": [
+          {
+            "component": "balance",
+            "side": "eq",
+            "unit": "W",
+            "residual": 0.0,
+            "tolerance": 1e-05
+          },
+          {
+            "component": "heat_transfer",
+            "side": "lower",
+            "unit": "W/K/m**2",
+            "residual": -75.00357142857143,
+            "tolerance": 0.0
+          },
+          {
+            "component": "heat_transfer",
+            "side": "upper",
+            "unit": "W/K/m**2",
+            "residual": -114.99642857142857,
+            "tolerance": 0.0
+          },
+          {
+            "component": "area",
+            "side": "lower",
+            "unit": "m**2",
+            "residual": -0.5,
+            "tolerance": 0.0
+          },
+          {
+            "component": "area",
+            "side": "upper",
+            "unit": "m**2",
+            "residual": -1.0,
+            "tolerance": 0.0
+          }
+        ],
+        "values": {
+          "heat_transfer": 85.00357142857143,
+          "area": 1.0,
+          "delta_temperature": 60.0,
+          "duty": 5100.214285714286
+        }
+      }
+    ],
+    "objective_value": 0.014880952380951787,
+    "solver": {
+      "name": "ipopt",
+      "interface": "parmest.Estimator.theta_est",
+      "termination": null,
+      "termination_scope": "The public theta_est return tuple does not expose raw solver termination; normal return and source candidate checks are recorded separately.",
+      "api_outcome": "returned",
+      "reported_objective": 0.014880952380951787,
+      "candidate_checks": "passed"
+    },
+    "diagnostics": []
+  },
+  "study": {
+    "name": "Synthetic heat-transfer measurements: held-out validation",
+    "objective": "SSE_weighted",
+    "objective_aggregation": "parmest mean of experiment objectives",
+    "solver": "ipopt",
+    "solver_interface": "ef_ipopt",
+    "solver_options": {
+      "tol": 1e-10,
+      "bound_relax_factor": 0
+    },
+    "constraint_tolerance": 1e-05,
+    "variable_bound_tolerance": 0,
+    "versions": {
+      "idaes": "2.12.0",
+      "pyomo": "6.10.1",
+      "pandas": "3.0.5"
+    },
+    "experiments": [
+      {
+        "name": "held-normal",
+        "source": {
+          "variables": [
+            {
+              "component": "heat_transfer",
+              "unit": "W/K/m**2",
+              "domain": "Reals",
+              "fixed": false,
+              "value": 85.0,
+              "lower": "10",
+              "upper": "200"
+            },
+            {
+              "component": "area",
+              "unit": "m**2",
+              "domain": "Reals",
+              "fixed": true,
+              "value": 1.0,
+              "lower": "0.5",
+              "upper": "2"
+            },
+            {
+              "component": "delta_temperature",
+              "unit": "K",
+              "domain": "Reals",
+              "fixed": true,
+              "value": 80.0,
+              "lower": "None",
+              "upper": "None"
+            },
+            {
+              "component": "duty",
+              "unit": "W",
+              "domain": "Reals",
+              "fixed": false,
+              "value": 6800.0,
+              "lower": "None",
+              "upper": "None"
+            }
+          ],
+          "parameters": [],
+          "suffixes": [
+            {
+              "component": "experiment_outputs",
+              "direction": 0,
+              "values": [
+                {
+                  "component": "duty",
+                  "value": 6800
+                }
+              ]
+            },
+            {
+              "component": "measurement_error",
+              "direction": 0,
+              "values": [
+                {
+                  "component": "duty",
+                  "value": 10
+                }
+              ]
+            },
+            {
+              "component": "unknown_parameters",
+              "direction": 0,
+              "values": [
+                {
+                  "component": "heat_transfer",
+                  "value": {
+                    "component_uid": "heat_transfer"
+                  }
+                }
+              ]
+            }
+          ],
+          "constraints": [
+            {
+              "component": "balance",
+              "expression": "duty  ==  heat_transfer*area*delta_temperature"
+            }
+          ],
+          "expressions": [],
+          "objectives": [],
+          "external_functions": []
+        },
+        "source_fingerprint": "54f57bf899dc320b9e77fd2e517ef91502c767d1d90b2c282d4c2fcbc85a30af",
+        "observations": [
+          {
+            "component": "duty",
+            "unit": "W",
+            "measured": 6800.0,
+            "standard_deviation": 10.0
+          }
+        ],
+        "parameters": [
+          {
+            "component": "heat_transfer",
+            "unit": "W/K/m**2",
+            "initial_value": 85.0,
+            "lower": 10.0,
+            "upper": 200.0
+          }
+        ],
+        "checks": [
+          {
+            "component": "balance",
+            "side": "eq",
+            "unit": "W",
+            "tolerance": 1e-05
+          },
+          {
+            "component": "heat_transfer",
+            "side": "lower",
+            "unit": "W/K/m**2",
+            "tolerance": 0
+          },
+          {
+            "component": "heat_transfer",
+            "side": "upper",
+            "unit": "W/K/m**2",
+            "tolerance": 0
+          },
+          {
+            "component": "area",
+            "side": "lower",
+            "unit": "m**2",
+            "tolerance": 0
+          },
+          {
+            "component": "area",
+            "side": "upper",
+            "unit": "m**2",
+            "tolerance": 0
+          }
+        ]
+      },
+      {
+        "name": "held-biased",
+        "source": {
+          "variables": [
+            {
+              "component": "heat_transfer",
+              "unit": "W/K/m**2",
+              "domain": "Reals",
+              "fixed": false,
+              "value": 85.0,
+              "lower": "10",
+              "upper": "200"
+            },
+            {
+              "component": "area",
+              "unit": "m**2",
+              "domain": "Reals",
+              "fixed": true,
+              "value": 1.0,
+              "lower": "0.5",
+              "upper": "2"
+            },
+            {
+              "component": "delta_temperature",
+              "unit": "K",
+              "domain": "Reals",
+              "fixed": true,
+              "value": 90.0,
+              "lower": "None",
+              "upper": "None"
+            },
+            {
+              "component": "duty",
+              "unit": "W",
+              "domain": "Reals",
+              "fixed": false,
+              "value": 7650.0,
+              "lower": "None",
+              "upper": "None"
+            }
+          ],
+          "parameters": [],
+          "suffixes": [
+            {
+              "component": "experiment_outputs",
+              "direction": 0,
+              "values": [
+                {
+                  "component": "duty",
+                  "value": 6900
+                }
+              ]
+            },
+            {
+              "component": "measurement_error",
+              "direction": 0,
+              "values": [
+                {
+                  "component": "duty",
+                  "value": 10
+                }
+              ]
+            },
+            {
+              "component": "unknown_parameters",
+              "direction": 0,
+              "values": [
+                {
+                  "component": "heat_transfer",
+                  "value": {
+                    "component_uid": "heat_transfer"
+                  }
+                }
+              ]
+            }
+          ],
+          "constraints": [
+            {
+              "component": "balance",
+              "expression": "duty  ==  heat_transfer*area*delta_temperature"
+            }
+          ],
+          "expressions": [],
+          "objectives": [],
+          "external_functions": []
+        },
+        "source_fingerprint": "3c873b62fd9ca486e4c1dfe94ec34cbf445d81f829dd2fb97f9a18babd0e8a8b",
+        "observations": [
+          {
+            "component": "duty",
+            "unit": "W",
+            "measured": 6900.0,
+            "standard_deviation": 10.0
+          }
+        ],
+        "parameters": [
+          {
+            "component": "heat_transfer",
+            "unit": "W/K/m**2",
+            "initial_value": 85.0,
+            "lower": 10.0,
+            "upper": 200.0
+          }
+        ],
+        "checks": [
+          {
+            "component": "balance",
+            "side": "eq",
+            "unit": "W",
+            "tolerance": 1e-05
+          },
+          {
+            "component": "heat_transfer",
+            "side": "lower",
+            "unit": "W/K/m**2",
+            "tolerance": 0
+          },
+          {
+            "component": "heat_transfer",
+            "side": "upper",
+            "unit": "W/K/m**2",
+            "tolerance": 0
+          },
+          {
+            "component": "area",
+            "side": "lower",
+            "unit": "m**2",
+            "tolerance": 0
+          },
+          {
+            "component": "area",
+            "side": "upper",
+            "unit": "m**2",
+            "tolerance": 0
+          }
+        ]
+      }
+    ],
+    "provenance": {
+      "calibration_ref": {
+        "artifact_id": "sha256:0198925d42d3744cd49365730c71aa4254b43052a0992e7503fbd4b63d531837",
+        "schema_version": "calibration_result/v1",
+        "digest": "0198925d42d3744cd49365730c71aa4254b43052a0992e7503fbd4b63d531837"
+      },
+      "role": "held_out_prediction"
+    },
+    "scope": "Numerical fit and source residual checks; no global optimality, independent certificate, or physical accuracy guarantee.",
+    "identifiability": "not_assessed",
+    "parameter_uncertainty": "not_computed",
+    "fixed_conditions": "All fixed source variables remain fixed except explicitly labelled shared parameters.",
+    "constraints": "All active experiment constraints are retained; source objectives are replaced by the chosen least-squares objective."
+  },
+  "residual_threshold": 3.0,
+  "execution": "completed",
+  "predictions": [
+    {
+      "name": "held-normal",
+      "execution": "completed",
+      "result": {
+        "name": "held-normal",
+        "observations": [
+          {
+            "component": "duty",
+            "unit": "W",
+            "measured": 6800.0,
+            "fitted": 6800.285714285715,
+            "standard_deviation": 10.0
+          }
+        ],
+        "checks": [
+          {
+            "component": "balance",
+            "side": "eq",
+            "unit": "W",
+            "residual": 0.0,
+            "tolerance": 1e-05
+          },
+          {
+            "component": "heat_transfer",
+            "side": "lower",
+            "unit": "W/K/m**2",
+            "residual": -75.00357142857143,
+            "tolerance": 0.0
+          },
+          {
+            "component": "heat_transfer",
+            "side": "upper",
+            "unit": "W/K/m**2",
+            "residual": -114.99642857142857,
+            "tolerance": 0.0
+          },
+          {
+            "component": "area",
+            "side": "lower",
+            "unit": "m**2",
+            "residual": -0.5,
+            "tolerance": 0.0
+          },
+          {
+            "component": "area",
+            "side": "upper",
+            "unit": "m**2",
+            "residual": -1.0,
+            "tolerance": 0.0
+          }
+        ],
+        "values": {
+          "heat_transfer": 85.00357142857143,
+          "area": 1.0,
+          "delta_temperature": 80.0,
+          "duty": 6800.285714285715
+        }
+      },
+      "solver": {
+        "solver": "ipopt",
+        "status": "ok",
+        "termination": "optimal",
+        "scope": "candidate generation only",
+        "source_state_condition": 1.0
+      },
+      "diagnostics": []
+    },
+    {
+      "name": "held-biased",
+      "execution": "completed",
+      "result": {
+        "name": "held-biased",
+        "observations": [
+          {
+            "component": "duty",
+            "unit": "W",
+            "measured": 6900.0,
+            "fitted": 7650.321428571429,
+            "standard_deviation": 10.0
+          }
+        ],
+        "checks": [
+          {
+            "component": "balance",
+            "side": "eq",
+            "unit": "W",
+            "residual": 0.0,
+            "tolerance": 1e-05
+          },
+          {
+            "component": "heat_transfer",
+            "side": "lower",
+            "unit": "W/K/m**2",
+            "residual": -75.00357142857143,
+            "tolerance": 0.0
+          },
+          {
+            "component": "heat_transfer",
+            "side": "upper",
+            "unit": "W/K/m**2",
+            "residual": -114.99642857142857,
+            "tolerance": 0.0
+          },
+          {
+            "component": "area",
+            "side": "lower",
+            "unit": "m**2",
+            "residual": -0.5,
+            "tolerance": 0.0
+          },
+          {
+            "component": "area",
+            "side": "upper",
+            "unit": "m**2",
+            "residual": -1.0,
+            "tolerance": 0.0
+          }
+        ],
+        "values": {
+          "heat_transfer": 85.00357142857143,
+          "area": 1.0,
+          "delta_temperature": 90.0,
+          "duty": 7650.321428571429
+        }
+      },
+      "solver": {
+        "solver": "ipopt",
+        "status": "ok",
+        "termination": "optimal",
+        "scope": "candidate generation only",
+        "source_state_condition": 1.0
+      },
+      "diagnostics": [
+        {
+          "code": "large_validation_residual",
+          "subject": "held-biased:duty",
+          "message": "Absolute standardized residual 75.0321 exceeds the declared diagnostic threshold 3; prediction was not refitted."
+        }
+      ]
+    }
+  ],
+  "diagnostics": [],
+  "scope": {
+    "prediction": "Fitted parameters and experimental conditions held fixed; measurement labels excluded from the solve objective.",
+    "completion": "Checked model predictions, not an accuracy acceptance verdict.",
+    "independence": "Caller declares held-out experiments; names must be disjoint from training. Statistical independence is not established.",
+    "uniqueness": "Regular local equality-state model required; global uniqueness is not proved.",
+    "state_regularity": "Square state Jacobian; row/column magnitude equilibration; numerical condition limit 1e10.",
+    "residual_threshold": "Diagnostic threshold in measurement standard deviations, not a confidence test."
+  }
+}

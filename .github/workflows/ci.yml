@@ -37,7 +37,7 @@ jobs:
       - name: Test optional IDAES support
         run: |
           uv sync --locked --group dev --extra cvxpy --extra idaes
-          uv run --locked --extra cvxpy --extra idaes pytest -q tests/test_idaes.py tests/test_idaes_workflow.py tests/test_idaes_optional.py tests/test_parmest.py tests/test_parmest_optional.py tests/test_parmest_uncertainty.py tests/test_idaes_shared_controls.py tests/test_idaes_shared_optional.py
+          uv run --locked --extra cvxpy --extra idaes pytest -q tests/test_idaes.py tests/test_idaes_workflow.py tests/test_idaes_optional.py tests/test_parmest.py tests/test_parmest_optional.py tests/test_parmest_uncertainty.py tests/test_idaes_shared_controls.py tests/test_idaes_shared_optional.py tests/test_calibration_diagnostics.py tests/test_calibration_quality_optional.py
       - name: Build distributions
         run: |
           uv build
@@ -93,7 +93,7 @@ jobs:
       - name: Require Ipopt and exercise upstream units, diagnostics and parmest
         run: |
           uv run --locked --extra idaes python -c "import pyomo.environ as p; raise SystemExit(not p.SolverFactory('ipopt').available(False))"
-          uv run --locked --extra idaes pytest -q tests/test_idaes.py tests/test_idaes_workflow.py tests/test_parmest.py tests/test_parmest_optional.py tests/test_parmest_uncertainty.py tests/test_idaes_shared_controls.py tests/test_idaes_shared_optional.py
+          uv run --locked --extra idaes pytest -q tests/test_idaes.py tests/test_idaes_workflow.py tests/test_parmest.py tests/test_parmest_optional.py tests/test_parmest_uncertainty.py tests/test_idaes_shared_controls.py tests/test_idaes_shared_optional.py tests/test_calibration_diagnostics.py tests/test_calibration_quality_optional.py
           uv run --locked --extra idaes python examples/idaes_flowsheet.py --reconcile
       - name: Exercise heat-exchanger calibration and re-audit from an installed wheel
         shell: bash
@@ -103,10 +103,11 @@ jobs:
           wheels=(dist/*.whl)
           uv pip install --python "$RUNNER_TEMP/idaes-wheel-venv/bin/python" "${wheels[0]}[idaes]"
           mkdir -p "$RUNNER_TEMP/idaes-wheel-consumer"
-          cp tests/acceptance/idaes_heat_exchanger_wheel.py examples/idaes_heat_exchanger.py tests/acceptance/idaes_uncertainty_wheel.py examples/idaes_uncertainty.py "$RUNNER_TEMP/idaes-wheel-consumer/"
+          cp tests/acceptance/idaes_heat_exchanger_wheel.py examples/idaes_heat_exchanger.py tests/acceptance/idaes_uncertainty_wheel.py examples/idaes_uncertainty.py tests/acceptance/calibration_credibility_wheel.py examples/calibration_credibility.py "$RUNNER_TEMP/idaes-wheel-consumer/"
           cd "$RUNNER_TEMP/idaes-wheel-consumer"
           "$RUNNER_TEMP/idaes-wheel-venv/bin/python" -I idaes_heat_exchanger_wheel.py
           "$RUNNER_TEMP/idaes-wheel-venv/bin/python" -I idaes_uncertainty_wheel.py
+          "$RUNNER_TEMP/idaes-wheel-venv/bin/python" -I calibration_credibility_wheel.py
   quality:
     runs-on: ubuntu-latest
     steps:

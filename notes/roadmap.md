@@ -19,6 +19,10 @@ Joint parmest bootstrap draws now feed finite IDAES operating studies and
 vector is chosen using the worst-case source objective, with all declared
 scenarios checked against separate source clones. Commands observe no inputs;
 partial-observation policies and continuous nonlinear coverage remain future work.
+Calibration credibility reports now expose scaled local measurement information,
+weak parameter combinations and fixed-parameter held-out predictions. They reuse
+Pyomo differentiation and source checks; structural identifiability proofs,
+correlated measurement errors and nonlinear confidence coverage remain future work.
 
 ## Package boundary before expansion
 

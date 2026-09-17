@@ -119,6 +119,18 @@ provides a joint finite domain, and builds finite IDAES claims through explicit
 parameter mapping and dispatch permissions. See [joint propagation](joint-calibration-uncertainty.md).
 Identifiability and statistical confidence coverage are not assessed.
 
+`ParmestCalibration.diagnose(fitted, parameter_scales=...)` returns
+`CalibrationDiagnostics` with local scaled measurement Jacobians and weak
+parameter combinations. `ParmestCalibration.validate(fitted, experiments=...)`
+returns `CalibrationValidation` with predictions for explicitly held-out
+experiments, without refitting their measurements. The accompanying
+`CalibrationSensitivity` and `CalibrationPrediction` records are exported from
+`operange.integrations.parmest`. Portable schemas are
+`calibration_diagnostics/v1` and `calibration_validation/v1`; summaries require
+only base dependencies. These reports do not establish structural
+identifiability or statistical confidence. See
+[calibration credibility](calibration-credibility.md).
+
 `IdaesAdapter.optimize_shared_controls(finite_domain)` chooses one command vector
 using the worst-case active source objective. The calibration convenience method
 `CalibrationBootstrap.optimize_shared_controls(adapter, operating_cases,

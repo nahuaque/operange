@@ -158,6 +158,7 @@ linear-dispatch
 equipment-networks
 idaes
 calibration
+calibration-credibility
 joint-calibration-uncertainty
 shared-idaes-controls
 continuous-dispatch

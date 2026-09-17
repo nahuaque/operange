@@ -165,5 +165,8 @@ The implementation follows the upstream
 [parmest Experiment interface](https://pyomo.readthedocs.io/en/stable/explanation/analysis/parmest/driver.html)
 and [data-reconciliation workflow](https://pyomo.readthedocs.io/en/stable/explanation/analysis/parmest/datarec.html).
 For joint empirical parameter uncertainty, use the
-[bootstrap and propagation guide](joint-calibration-uncertainty.md). Continuous
-confidence-region coverage and identifiability analysis remain future work.
+[bootstrap and propagation guide](joint-calibration-uncertainty.md). For local
+parameter information, weak combinations and held-out predictions, use the
+[calibration credibility guide](calibration-credibility.md). Structural
+identifiability proofs and continuous confidence-region coverage remain outside
+the supported scope.

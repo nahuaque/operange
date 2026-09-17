@@ -8,7 +8,7 @@ fit. Importing this module does not load Pyomo, IDAES, pandas or a solver.
 from collections.abc import Mapping
 from dataclasses import InitVar, dataclass, field
 import json
-from typing import Any, Literal
+from typing import Any, Literal, TYPE_CHECKING
 
 from ..contract_types import Diagnostic, Record, freeze, nonempty, reference, unique
 from ..primitives import finite
@@ -22,6 +22,10 @@ __all__ = [
     "CalibrationExperimentResult",
     "CalibrationDraw",
     "CalibrationBootstrap",
+    "CalibrationDiagnostics",
+    "CalibrationSensitivity",
+    "CalibrationValidation",
+    "CalibrationPrediction",
 ]
 
 
@@ -282,6 +286,45 @@ class ParmestCalibration:
         from ._parmest_bootstrap import bootstrap
 
         return bootstrap(self, samples=samples, seed=seed)
+
+    def diagnose(
+        self,
+        fitted=None,
+        *,
+        parameter_scales,
+        rank_tolerance=1e-8,
+        weak_threshold=1e-3,
+        bound_tolerance=1e-6,
+    ):
+        """Assess local measurement information in explicit parameter scales.
+
+        Uses Pyomo derivatives of the source equations at the checked fit.
+        Measurement standard deviations are required for every observation.
+        Full local rank is not a structural identifiability or accuracy proof.
+        """
+        from ._calibration_diagnostics import diagnose
+
+        return diagnose(
+            self,
+            fitted,
+            parameter_scales=parameter_scales,
+            rank_tolerance=rank_tolerance,
+            weak_threshold=weak_threshold,
+            bound_tolerance=bound_tolerance,
+        )
+
+    def validate(self, fitted, *, experiments, residual_threshold=3.0):
+        """Predict explicitly held-out experiments with fitted parameters fixed.
+
+        Observation labels never enter the prediction objective. The fixed-
+        parameter model must determine its states through regular equations.
+        Completion means predictions were checked, not that the fit is accurate.
+        """
+        from ._calibration_diagnostics import validate
+
+        return validate(
+            self, fitted, experiments=experiments, residual_threshold=residual_threshold
+        )
 
 
 @dataclass(frozen=True)
@@ -567,3 +610,27 @@ class CalibrationBootstrap(Record):
         if result.result_id != expected:
             raise ValueError("Calibration bootstrap integrity check failed")
         return result
+
+
+# The quality records use CalibrationResult. Lazy re-exports keep either module
+# independently importable and preserve optional-backend-free public imports.
+if TYPE_CHECKING:
+    from ._calibration_quality import (
+        CalibrationDiagnostics,
+        CalibrationSensitivity,
+        CalibrationValidation,
+        CalibrationPrediction,
+    )
+
+
+def __getattr__(name):
+    if name in {
+        "CalibrationDiagnostics",
+        "CalibrationSensitivity",
+        "CalibrationValidation",
+        "CalibrationPrediction",
+    }:
+        from . import _calibration_quality
+
+        return getattr(_calibration_quality, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
