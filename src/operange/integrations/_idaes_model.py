@@ -22,7 +22,7 @@ def component(model, path):
     from pyomo.core.base.componentuid import ComponentUID
 
     value = ComponentUID(path).find_component_on(model)
-    if value is None or value.is_indexed():
+    if value is None or not hasattr(value, "is_indexed") or value.is_indexed():
         raise ValueError(f"Binding must identify one scalar component: {path}")
     return value
 
@@ -271,6 +271,8 @@ def prepare_template(adapter, model):
 
 def model_manifest(model):
     pyo, _ = backend()
+    from pyomo.core.base.componentuid import ComponentUID
+
     return {
         "variables": [
             {
@@ -305,7 +307,12 @@ def model_manifest(model):
                 "component": uid(s),
                 "direction": int(s.direction),
                 "values": [
-                    {"component": None if key is None else uid(key), "value": value}
+                    {
+                        "component": None if key is None else uid(key),
+                        "value": {"component_uid": str(value)}
+                        if isinstance(value, ComponentUID)
+                        else value,
+                    }
                     for key, value in s.items()
                 ],
             }

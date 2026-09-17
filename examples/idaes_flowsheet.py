@@ -106,8 +106,8 @@ def reconcile_and_estimate():
     outputs are recorded as provenance, not turned into hard uncertainty bounds.
     """
     from pyomo.contrib.parmest.experiment import Experiment
-    from pyomo.contrib.parmest.parmest import Estimator
     from pyomo.core.base.componentuid import ComponentUID
+    from operange.integrations.parmest import ParmestCalibration
 
     if not pyo.SolverFactory("ipopt").available(exception_flag=False):
         raise RuntimeError(
@@ -141,43 +141,51 @@ def reconcile_and_estimate():
             model.experiment_outputs[boiler.fuel] = self.fuel
             model.experiment_outputs[boiler.steam] = self.steam
             model.unknown_parameters = pyo.Suffix(direction=pyo.Suffix.LOCAL)
+            model.measurement_error = pyo.Suffix(direction=pyo.Suffix.LOCAL)
+            model.measurement_error[boiler.fuel] = 0.2
+            model.measurement_error[boiler.steam] = 0.2
             if self.estimate:
                 model.unknown_parameters[boiler.efficiency] = ComponentUID(
                     boiler.efficiency
                 )
             return model
 
-    def weighted_error(model):
-        return sum(
-            ((variable - measured * pyo.units.MW) / (0.2 * pyo.units.MW)) ** 2
-            for variable, measured in model.experiment_outputs.items()
-        )
-
     options = {"tol": 1e-10, "bound_relax_factor": 0}
     reconciliation_data = [{"fuel": 10, "steam": 8.4}, {"fuel": 15, "steam": 11.6}]
     calibration_data = [{"fuel": 10, "steam": 7.4}, {"fuel": 15, "steam": 11.1}]
-    reconciliation = Estimator(
-        [BoilerExperiment(**row) for row in reconciliation_data],
-        obj_function=weighted_error,
+    reconciliation = ParmestCalibration(
+        name="Boiler measurement reconciliation",
+        experiments={
+            f"run-{i}": BoilerExperiment(**row)
+            for i, row in enumerate(reconciliation_data)
+        },
         solver_options=options,
-    )
-    objective, _, reconciled = reconciliation.theta_est(
-        return_values=["fs.boiler.fuel", "fs.boiler.steam"]
-    )
-    estimation = Estimator(
-        [BoilerExperiment(**row, estimate=True) for row in calibration_data],
-        obj_function=weighted_error,
+    ).fit()
+    estimation = ParmestCalibration(
+        name="Boiler efficiency calibration",
+        experiments={
+            f"run-{i}": BoilerExperiment(**row, estimate=True)
+            for i, row in enumerate(calibration_data)
+        },
         solver_options=options,
-    )
-    fit, parameters = estimation.theta_est()
-    efficiency = float(parameters["fs.boiler.efficiency"])
+    ).fit()
+    if any(r.execution != "completed" for r in (reconciliation, estimation)):
+        raise RuntimeError(
+            "Calibration unresolved; inspect solver configuration and experiment models"
+        )
+    efficiency = estimation.estimates[0].value
     return {
         "method": "pyomo.contrib.parmest.Estimator.theta_est",
         "reconciliation_measurements_MW": reconciliation_data,
         "calibration_measurements_MW": calibration_data,
-        "reconciliation_objective": float(objective),
-        "reconciled": reconciled.to_dict(orient="records"),
-        "estimation_objective": float(fit),
+        "reconciliation_objective": reconciliation.objective_value,
+        "reconciled": [
+            {name: e.values[name] for name in ("fs.boiler.fuel", "fs.boiler.steam")}
+            for e in reconciliation.experiments
+        ],
+        "estimation_objective": estimation.objective_value,
+        "reconciliation_result_ref": reconciliation.ref.to_dict(),
+        "calibration_result_ref": estimation.ref.to_dict(),
         "efficiency": efficiency,
         "measurement_standard_deviation_MW": 0.2,
         "scope": "Numerical least-squares estimates; no deterministic error bounds or independent certificate",

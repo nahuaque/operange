@@ -2039,6 +2039,8 @@ cvxpy = [
 idaes = [
     { name = "highspy" },
     { name = "idaes-pse" },
+    { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "pandas", version = "3.0.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "pyomo" },
 ]
 
@@ -2064,6 +2066,7 @@ requires-dist = [
     { name = "highspy", marker = "extra == 'idaes'", specifier = ">=1.9" },
     { name = "idaes-pse", marker = "extra == 'idaes'", specifier = ">=2.10,<3" },
     { name = "numpy", specifier = ">=2.2.6" },
+    { name = "pandas", marker = "extra == 'idaes'", specifier = ">=2" },
     { name = "pyomo", marker = "extra == 'idaes'", specifier = ">=6.10,<7" },
     { name = "scipy", specifier = ">=1.15.3" },
 ]

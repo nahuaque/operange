@@ -9,7 +9,7 @@ not reimplemented in Operange. The integration is optional:
 python -m pip install 'operange[idaes]'
 ```
 
-This installs IDAES, Pyomo and the HiGHS Python solver. HiGHS runs the affine
+This installs IDAES, Pyomo, pandas and the HiGHS Python solver. HiGHS runs the affine
 example; nonlinear models need a separately installed compatible solver, such
 as Ipopt, selected with `solver="ipopt"`. Importing `operange` or the binding
 declarations does not import either modelling package. Base installations can
@@ -218,8 +218,9 @@ This reference case uses IDAES's built-in counterflow `HeatExchanger` and
 `BTXParameterBlock`. IDAES supplies component material balances,
 temperature-dependent liquid enthalpies, energy balances, and logarithmic mean
 temperature-difference heat transfer. Operange binds four inputs: hot inlet
-temperature, cold process throughput, effective heat-transfer coefficient
-(including fouling), and demanded recovered duty. The actuator is hot-stream
+temperature, cold process throughput, fouling factor, and demanded recovered
+duty. The effective heat-transfer coefficient is the fixed clean coefficient
+multiplied by the scenario's fouling factor. The actuator is hot-stream
 flow, bounded between 2 and 8 mol/s. The source objective minimizes that flow;
 Operange does not certify its optimality.
 
@@ -300,8 +301,9 @@ uv run --extra idaes python examples/idaes_flowsheet.py
 uv run --extra idaes python examples/idaes_flowsheet.py --reconcile
 ```
 
-The second command calls Pyomo's public `Experiment` / `Estimator.theta_est`
-interfaces directly. It reconciles noisy fuel/steam measurements with a known
+The second command uses the public [ParmestCalibration API](calibration.md),
+which delegates to Pyomo's `Experiment` / `Estimator.theta_est` interfaces.
+It reconciles noisy fuel/steam measurements with a known
 boiler efficiency, then estimates efficiency from a separate calibration
 campaign. It builds a fresh flowsheet with the estimate and repeats the study.
 Operange introduces no replacement estimator or data-management framework.
@@ -312,6 +314,8 @@ calibration gives approximately 74% efficiency for boiler A: the 20 MW demand
 cannot be met under the 32 MW shared fuel limit. The native result is inconclusive;
 the affine path proves failure with an independently verified certificate.
 
+The [calibration guide](calibration.md) covers portable fit records, explicit
+application to a fresh adapter, and a heat-exchanger calibration and re-audit.
 Measurement weights, fit results and calibration provenance are preserved.
 Statistical estimation uncertainty is not automatically converted into a hard
 operating envelope, and fitted coefficients do not imply certified physical

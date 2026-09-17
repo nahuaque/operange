@@ -1,0 +1,469 @@
+{
+  "schema_version": "calibration_result/v1",
+  "result_id": "sha256:6d685c008aa9e0cc3b9851020f5b8ad9deb316d5d4ee2acf7a1fbd95d2a842a9",
+  "study": {
+    "name": "Portable boiler calibration",
+    "objective": "SSE_weighted",
+    "objective_aggregation": "parmest mean of experiment objectives",
+    "solver": "ipopt",
+    "solver_interface": "ef_ipopt",
+    "solver_options": {
+      "tol": 1e-10,
+      "bound_relax_factor": 0
+    },
+    "constraint_tolerance": 1e-05,
+    "variable_bound_tolerance": 0,
+    "versions": {
+      "idaes": "2.12.0",
+      "pyomo": "6.10.1",
+      "pandas": "3.0.5"
+    },
+    "experiments": [
+      {
+        "name": "a",
+        "source": {
+          "variables": [
+            {
+              "component": "eta",
+              "unit": "1",
+              "domain": "Reals",
+              "fixed": true,
+              "value": 0.8,
+              "lower": "0.1",
+              "upper": "1"
+            },
+            {
+              "component": "fuel",
+              "unit": "MW",
+              "domain": "Reals",
+              "fixed": true,
+              "value": 10.0,
+              "lower": "0",
+              "upper": "30"
+            },
+            {
+              "component": "steam",
+              "unit": "MW",
+              "domain": "Reals",
+              "fixed": false,
+              "value": 8.0,
+              "lower": "0",
+              "upper": "30"
+            }
+          ],
+          "parameters": [],
+          "suffixes": [
+            {
+              "component": "experiment_outputs",
+              "direction": 0,
+              "values": [
+                {
+                  "component": "steam",
+                  "value": 7.5
+                }
+              ]
+            },
+            {
+              "component": "measurement_error",
+              "direction": 0,
+              "values": [
+                {
+                  "component": "steam",
+                  "value": 0.1
+                }
+              ]
+            },
+            {
+              "component": "unknown_parameters",
+              "direction": 0,
+              "values": [
+                {
+                  "component": "eta",
+                  "value": {
+                    "component_uid": "eta"
+                  }
+                }
+              ]
+            }
+          ],
+          "constraints": [
+            {
+              "component": "balance",
+              "expression": "steam  ==  eta*fuel"
+            }
+          ],
+          "expressions": [],
+          "objectives": [],
+          "external_functions": []
+        },
+        "source_fingerprint": "e1867b97d0d6cc6c280ce76e3fd85193f5d3c27fdcf8fc83a3a05a19528256f0",
+        "observations": [
+          {
+            "component": "steam",
+            "unit": "MW",
+            "measured": 7.5,
+            "standard_deviation": 0.1
+          }
+        ],
+        "parameters": [
+          {
+            "component": "eta",
+            "unit": "1",
+            "initial_value": 0.8,
+            "lower": 0.1,
+            "upper": 1.0
+          }
+        ],
+        "checks": [
+          {
+            "component": "balance",
+            "side": "eq",
+            "unit": "MW",
+            "tolerance": 1e-05
+          },
+          {
+            "component": "eta",
+            "side": "lower",
+            "unit": "1",
+            "tolerance": 0
+          },
+          {
+            "component": "eta",
+            "side": "upper",
+            "unit": "1",
+            "tolerance": 0
+          },
+          {
+            "component": "fuel",
+            "side": "lower",
+            "unit": "MW",
+            "tolerance": 0
+          },
+          {
+            "component": "fuel",
+            "side": "upper",
+            "unit": "MW",
+            "tolerance": 0
+          },
+          {
+            "component": "steam",
+            "side": "lower",
+            "unit": "MW",
+            "tolerance": 0
+          },
+          {
+            "component": "steam",
+            "side": "upper",
+            "unit": "MW",
+            "tolerance": 0
+          }
+        ]
+      },
+      {
+        "name": "b",
+        "source": {
+          "variables": [
+            {
+              "component": "eta",
+              "unit": "1",
+              "domain": "Reals",
+              "fixed": true,
+              "value": 0.8,
+              "lower": "0.1",
+              "upper": "1"
+            },
+            {
+              "component": "fuel",
+              "unit": "MW",
+              "domain": "Reals",
+              "fixed": true,
+              "value": 20.0,
+              "lower": "0",
+              "upper": "30"
+            },
+            {
+              "component": "steam",
+              "unit": "MW",
+              "domain": "Reals",
+              "fixed": false,
+              "value": 16.0,
+              "lower": "0",
+              "upper": "30"
+            }
+          ],
+          "parameters": [],
+          "suffixes": [
+            {
+              "component": "experiment_outputs",
+              "direction": 0,
+              "values": [
+                {
+                  "component": "steam",
+                  "value": 14.7
+                }
+              ]
+            },
+            {
+              "component": "measurement_error",
+              "direction": 0,
+              "values": [
+                {
+                  "component": "steam",
+                  "value": 0.2
+                }
+              ]
+            },
+            {
+              "component": "unknown_parameters",
+              "direction": 0,
+              "values": [
+                {
+                  "component": "eta",
+                  "value": {
+                    "component_uid": "eta"
+                  }
+                }
+              ]
+            }
+          ],
+          "constraints": [
+            {
+              "component": "balance",
+              "expression": "steam  ==  eta*fuel"
+            }
+          ],
+          "expressions": [],
+          "objectives": [],
+          "external_functions": []
+        },
+        "source_fingerprint": "1124616997d8d41a49ccd26677ed980ed5051479caef9a42d87b4c3030d29f8e",
+        "observations": [
+          {
+            "component": "steam",
+            "unit": "MW",
+            "measured": 14.7,
+            "standard_deviation": 0.2
+          }
+        ],
+        "parameters": [
+          {
+            "component": "eta",
+            "unit": "1",
+            "initial_value": 0.8,
+            "lower": 0.1,
+            "upper": 1.0
+          }
+        ],
+        "checks": [
+          {
+            "component": "balance",
+            "side": "eq",
+            "unit": "MW",
+            "tolerance": 1e-05
+          },
+          {
+            "component": "eta",
+            "side": "lower",
+            "unit": "1",
+            "tolerance": 0
+          },
+          {
+            "component": "eta",
+            "side": "upper",
+            "unit": "1",
+            "tolerance": 0
+          },
+          {
+            "component": "fuel",
+            "side": "lower",
+            "unit": "MW",
+            "tolerance": 0
+          },
+          {
+            "component": "fuel",
+            "side": "upper",
+            "unit": "MW",
+            "tolerance": 0
+          },
+          {
+            "component": "steam",
+            "side": "lower",
+            "unit": "MW",
+            "tolerance": 0
+          },
+          {
+            "component": "steam",
+            "side": "upper",
+            "unit": "MW",
+            "tolerance": 0
+          }
+        ]
+      }
+    ],
+    "provenance": {},
+    "scope": "Numerical fit and source residual checks; no global optimality, independent certificate, or physical accuracy guarantee.",
+    "identifiability": "not_assessed",
+    "parameter_uncertainty": "not_computed",
+    "fixed_conditions": "All fixed source variables remain fixed except explicitly labelled shared parameters.",
+    "constraints": "All active experiment constraints are retained; source objectives are replaced by the chosen least-squares objective."
+  },
+  "execution": "completed",
+  "estimates": [
+    {
+      "component": "eta",
+      "unit": "1",
+      "value": 0.7424999999999966,
+      "lower": 0.1,
+      "upper": 1.0
+    }
+  ],
+  "experiments": [
+    {
+      "name": "a",
+      "observations": [
+        {
+          "component": "steam",
+          "unit": "MW",
+          "measured": 7.5,
+          "fitted": 7.424999999999966,
+          "standard_deviation": 0.1
+        }
+      ],
+      "checks": [
+        {
+          "component": "balance",
+          "side": "eq",
+          "unit": "MW",
+          "residual": 0.0,
+          "tolerance": 1e-05
+        },
+        {
+          "component": "eta",
+          "side": "lower",
+          "unit": "1",
+          "residual": -0.6424999999999966,
+          "tolerance": 0.0
+        },
+        {
+          "component": "eta",
+          "side": "upper",
+          "unit": "1",
+          "residual": -0.2575000000000034,
+          "tolerance": 0.0
+        },
+        {
+          "component": "fuel",
+          "side": "lower",
+          "unit": "MW",
+          "residual": -10.0,
+          "tolerance": 0.0
+        },
+        {
+          "component": "fuel",
+          "side": "upper",
+          "unit": "MW",
+          "residual": -20.0,
+          "tolerance": 0.0
+        },
+        {
+          "component": "steam",
+          "side": "lower",
+          "unit": "MW",
+          "residual": -7.424999999999966,
+          "tolerance": 0.0
+        },
+        {
+          "component": "steam",
+          "side": "upper",
+          "unit": "MW",
+          "residual": -22.575000000000035,
+          "tolerance": 0.0
+        }
+      ],
+      "values": {
+        "eta": 0.7424999999999966,
+        "fuel": 10.0,
+        "steam": 7.424999999999966
+      }
+    },
+    {
+      "name": "b",
+      "observations": [
+        {
+          "component": "steam",
+          "unit": "MW",
+          "measured": 14.7,
+          "fitted": 14.849999999999932,
+          "standard_deviation": 0.2
+        }
+      ],
+      "checks": [
+        {
+          "component": "balance",
+          "side": "eq",
+          "unit": "MW",
+          "residual": 0.0,
+          "tolerance": 1e-05
+        },
+        {
+          "component": "eta",
+          "side": "lower",
+          "unit": "1",
+          "residual": -0.6424999999999966,
+          "tolerance": 0.0
+        },
+        {
+          "component": "eta",
+          "side": "upper",
+          "unit": "1",
+          "residual": -0.2575000000000034,
+          "tolerance": 0.0
+        },
+        {
+          "component": "fuel",
+          "side": "lower",
+          "unit": "MW",
+          "residual": -20.0,
+          "tolerance": 0.0
+        },
+        {
+          "component": "fuel",
+          "side": "upper",
+          "unit": "MW",
+          "residual": -10.0,
+          "tolerance": 0.0
+        },
+        {
+          "component": "steam",
+          "side": "lower",
+          "unit": "MW",
+          "residual": -14.849999999999932,
+          "tolerance": 0.0
+        },
+        {
+          "component": "steam",
+          "side": "upper",
+          "unit": "MW",
+          "residual": -15.150000000000068,
+          "tolerance": 0.0
+        }
+      ],
+      "values": {
+        "eta": 0.7424999999999966,
+        "fuel": 20.0,
+        "steam": 14.849999999999932
+      }
+    }
+  ],
+  "objective_value": 0.28125000000000133,
+  "solver": {
+    "name": "ipopt",
+    "interface": "parmest.Estimator.theta_est",
+    "termination": null,
+    "termination_scope": "The public theta_est return tuple does not expose raw solver termination; normal return and source candidate checks are recorded separately.",
+    "api_outcome": "returned",
+    "reported_objective": 0.28125000000000133,
+    "candidate_checks": "passed"
+  },
+  "diagnostics": []
+}

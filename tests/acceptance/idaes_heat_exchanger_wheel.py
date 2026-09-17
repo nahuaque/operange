@@ -7,6 +7,7 @@ import sys
 
 import operange
 from operange.integrations.idaes import IdaesInitialization
+from operange.integrations.parmest import CalibrationResult
 
 
 def require(condition, message):
@@ -32,7 +33,31 @@ def main():
         pyo.SolverFactory("ipopt").available(False), "Ipopt is required for this check"
     )
     example = runpy.run_path(str(Path(__file__).with_name("idaes_heat_exchanger.py")))
-    audit = example["study"]()
+    fit, audit, calibrated = example["calibrated_study"]()
+    require(fit.execution == "completed", f"calibration failed: {fit.diagnostics}")
+    require(
+        abs(fit.estimates[0].value - 85.00986) < 0.001, "incorrect fitted coefficient"
+    )
+    require(
+        CalibrationResult.from_json(fit.to_json()) == fit,
+        "calibration record changed on loading",
+    )
+    require(calibrated is not None, "calibrated audit is missing")
+    after = example["summary"](calibrated)
+    require(
+        calibrated.payload.verdict == "inconclusive",
+        "failed solves must remain unresolved",
+    )
+    require(
+        calibrated.payload.witness is None, "calibration is not an infeasibility proof"
+    )
+    normal_after = next(
+        row for row in after["scenarios"] if row["scenario"] == "normal"
+    )
+    require(
+        normal_after["feasibility"] == "unknown",
+        "fit was overwritten by scenario inputs",
+    )
     summary = example["summary"](audit)
     require(audit.payload.verdict == "inconclusive", "unknown cases must be retained")
     require(audit.payload.witness is None, "numerical failures are not counterexamples")

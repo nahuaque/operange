@@ -4,7 +4,7 @@ Copy steam_header.py, linear_dispatch.py, failure_distance.py, engineering_chang
 frozen_controllers.py, storage_replay.py, startup.py, pinch.py,
 uncertainty_compositions.py, measurement_uncertainty.py, operating_limits.py,
 equipment_network.py, dispatch_sensitivity.py and
-prototype_result_v1.json here.
+prototype_result_v1.json and calibration_result_v1.json here.
 There are no pytest, repository, optional solver, or test-environment imports.
 """
 
@@ -794,6 +794,21 @@ def main():
     require(
         json.loads(frozen.to_json()) == corpus["frozen_heat"],
         "frozen reference contract changed",
+    )
+    from operange.integrations.parmest import CalibrationResult
+
+    fit = CalibrationResult.from_json(
+        (directory / "calibration_result_v1.json").read_text()
+    )
+    require(fit.execution == "completed", "calibration fixture did not load")
+    require(abs(fit.estimates[0].value - 0.7425) < 1e-8, "calibration estimate changed")
+    require(
+        CalibrationResult.from_json(fit.to_json()) == fit,
+        "calibration round trip changed",
+    )
+    require(
+        not any(name in sys.modules for name in ("idaes", "pyomo", "pandas")),
+        "calibration reader loaded optional backends",
     )
     print(
         "Installed Operange wheel: public consumer, evidence, and compatibility checks passed"

@@ -157,6 +157,7 @@ api
 linear-dispatch
 equipment-networks
 idaes
+calibration
 continuous-dispatch
 shared-relief
 dispatch-objectives

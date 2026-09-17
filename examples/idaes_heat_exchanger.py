@@ -2,6 +2,7 @@
 
 Run ``uv run --extra idaes python examples/idaes_heat_exchanger.py`` with Ipopt
 on PATH. Add ``--output study.json`` to save the complete portable audit.
+Use ``--calibrate --calibration-output fit.json`` to fit clean U and re-audit.
 All equipment and operating data are synthetic. The single-liquid property
 assumption is explicit; this example does not establish phase stability.
 """
@@ -55,7 +56,17 @@ def build_flowsheet():
     hx.hot_side_inlet.flow_mol[0].setlb(2)
     hx.hot_side_inlet.flow_mol[0].setub(8)
     hx.area.fix(1)  # m2; declared equipment size
-    hx.overall_heat_transfer_coefficient.fix(100)  # W/(m2 K); varies with fouling
+    m.fs.clean_heat_transfer = pyo.Var(
+        initialize=100,
+        bounds=(20, 200),
+        units=pyo.units.get_units(hx.overall_heat_transfer_coefficient[0]),
+    )
+    m.fs.clean_heat_transfer.fix()  # W/(m2 K); a calibratable equipment parameter
+    m.fs.fouling = pyo.Param(initialize=1, mutable=True, within=pyo.Reals)
+    hx.coefficient_law = pyo.Constraint(
+        expr=hx.overall_heat_transfer_coefficient[0]
+        == m.fs.clean_heat_transfer * m.fs.fouling
+    )
     # This study is restricted to positive counterflow temperature approaches.
     # These are physical operating limits, retained in every residual check.
     hx.delta_temperature_in[0].setlb(0.1)
@@ -109,11 +120,11 @@ def bind_flowsheet(model):
                     scale=0.5,
                 ),
                 Coordinate(
-                    "heat_transfer",
-                    "kg/K/s**3",
-                    "Effective coefficient including fouling",
-                    nominal=100,
-                    scale=40,
+                    "fouling",
+                    "1",
+                    "Fraction of clean heat-transfer coefficient",
+                    nominal=1,
+                    scale=0.4,
                 ),
                 Coordinate(
                     "demand", "kW", "Required recovered duty", nominal=4.5, scale=1
@@ -124,9 +135,9 @@ def bind_flowsheet(model):
             IdaesVariable("hot_inlet", "fs.hx.hot_side_inlet.temperature[0]", "K"),
             IdaesVariable("process_flow", "fs.hx.cold_side_inlet.flow_mol[0]", "mol/s"),
             IdaesVariable(
-                "heat_transfer",
-                "fs.hx.overall_heat_transfer_coefficient[0]",
-                "kg/K/s**3",
+                "fouling",
+                "fs.fouling",
+                "1",
             ),
             IdaesVariable("demand", "fs.demand", "kW"),
         ),
@@ -168,7 +179,7 @@ def bind_flowsheet(model):
 
 
 def scenarios(space):
-    normal = {"hot_inlet": 365, "process_flow": 1, "heat_transfer": 100, "demand": 4.5}
+    normal = {"hot_inlet": 365, "process_flow": 1, "fouling": 1, "demand": 4.5}
     return FiniteSet(
         space,
         tuple(
@@ -180,7 +191,7 @@ def scenarios(space):
                 ("higher_throughput", {"process_flow": 1.2}, "Higher process flow"),
                 (
                     "fouled",
-                    {"heat_transfer": 60},
+                    {"fouling": 0.6},
                     "Reduced heat transfer after fouling",
                 ),
                 ("peak_demand", {"demand": 6}, "Demand beyond the attempted dispatch"),
@@ -192,6 +203,85 @@ def scenarios(space):
 def study(adapter=None):
     adapter = bind_flowsheet(build_flowsheet()) if adapter is None else adapter
     return adapter.as_claim(scenarios(adapter.input_space)).audit_result()
+
+
+def calibration():
+    """Fit clean U with known area and fixed, measured experimental conditions.
+
+    Synthetic outlet readings are rounded, perturbed simulations with U=85.
+    Measurement sigma is 0.1 K. Neither area nor fouling is estimated.
+    """
+    from pyomo.contrib.parmest.experiment import Experiment
+    from pyomo.core.base.componentuid import ComponentUID
+    from operange.integrations.parmest import ParmestCalibration
+
+    # hot flow [mol/s], hot inlet [K], cold flow [mol/s], hot/cold outlets [K]
+    readings = (
+        (3, 355, 1, 348.04, 322.52),
+        (5, 365, 1.2, 359.79, 323.73),
+        (7, 375, 0.8, 371.21, 337.02),
+        (4, 370, 1.1, 363.24, 327.08),
+    )
+
+    class HeatExchangerExperiment(Experiment):
+        def __init__(self, reading):
+            self.reading = reading
+
+        def get_labeled_model(self):
+            hot_flow, hot_inlet, cold_flow, hot_outlet, cold_outlet = self.reading
+            model = build_flowsheet()
+            hx = model.fs.hx
+            hx.hot_side_inlet.flow_mol.fix(hot_flow)
+            hx.hot_side_inlet.temperature.fix(hot_inlet)
+            hx.cold_side_inlet.flow_mol.fix(cold_flow)
+            # Calibration explains observations at recorded conditions. Service
+            # commitments and the dispatch objective belong to the later audit.
+            model.fs.heat_service.deactivate()
+            model.fs.temperature_service.deactivate()
+            model.fs.objective.deactivate()
+            hx.initialize(solver="ipopt", optarg=SOLVER_OPTIONS, outlvl=40)
+            model.experiment_outputs = pyo.Suffix(direction=pyo.Suffix.LOCAL)
+            model.measurement_error = pyo.Suffix(direction=pyo.Suffix.LOCAL)
+            for var, measured in (
+                (hx.hot_side_outlet.temperature[0], hot_outlet),
+                (hx.cold_side_outlet.temperature[0], cold_outlet),
+            ):
+                model.experiment_outputs[var] = measured
+                model.measurement_error[var] = 0.1
+            model.unknown_parameters = pyo.Suffix(direction=pyo.Suffix.LOCAL)
+            model.unknown_parameters[model.fs.clean_heat_transfer] = ComponentUID(
+                model.fs.clean_heat_transfer
+            )
+            return model
+
+    return ParmestCalibration(
+        name="Heat-exchanger clean coefficient with known area",
+        experiments={
+            f"run-{i + 1}": HeatExchangerExperiment(row)
+            for i, row in enumerate(readings)
+        },
+        solver_options=SOLVER_OPTIONS,
+        provenance={
+            "data": "Synthetic perturbed outlet-temperature readings; generating U=85 W/(m2 K).",
+            "known_equipment": {"area_m2": 1, "fouling_factor": 1},
+            "measurement_standard_deviation_K": 0.1,
+            "assumptions": "Inlet flows, inlet temperatures, composition, area and fouling are treated as known.",
+        },
+    ).fit()
+
+
+def calibrated_study():
+    """Preserve the baseline; apply the checked fit and re-audit the same cases."""
+    baseline = bind_flowsheet(build_flowsheet())
+    before = study(baseline)
+    fit = calibration()
+    if fit.execution != "completed":
+        return fit, before, None
+    calibrated = fit.apply_to(
+        baseline,
+        parameter_map={"fs.clean_heat_transfer": "fs.clean_heat_transfer"},
+    )
+    return fit, before, study(calibrated)
 
 
 def summary(audit):
@@ -239,11 +329,42 @@ def main():
     parser.add_argument(
         "--output", type=Path, help="Save the complete portable audit JSON"
     )
+    parser.add_argument(
+        "--calibrate",
+        action="store_true",
+        help="Fit clean U, then repeat the operating study",
+    )
+    parser.add_argument(
+        "--calibration-output",
+        type=Path,
+        help="Save portable calibration JSON (requires --calibrate)",
+    )
     args = parser.parse_args()
+    if args.calibration_output and not args.calibrate:
+        parser.error("--calibration-output requires --calibrate")
     with LoggingIntercept(sys.stderr, "pyomo"), redirect_stdout(sys.stderr):
-        audit = study()
-    print(json.dumps(summary(audit), indent=2, allow_nan=False))
-    if args.output:
+        if args.calibrate:
+            fit, before, audit = calibrated_study()
+        else:
+            audit = study()
+    if args.calibrate:
+        report = {
+            "calibration": {
+                "execution": fit.execution,
+                "result_ref": fit.ref.to_dict(),
+                "estimates": [p.to_dict() for p in fit.estimates],
+                "objective": fit.objective_value,
+                "diagnostics": [d.to_dict() for d in fit.diagnostics],
+            },
+            "baseline": summary(before),
+            "calibrated": None if audit is None else summary(audit),
+        }
+        if args.calibration_output:
+            args.calibration_output.write_text(fit.to_json(), encoding="utf-8")
+    else:
+        report = summary(audit)
+    print(json.dumps(report, indent=2, allow_nan=False))
+    if args.output and audit is not None:
         args.output.write_text(audit.to_json(), encoding="utf-8")
 
 

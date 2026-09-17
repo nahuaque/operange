@@ -104,6 +104,16 @@ feasibility and finite-scenario coverage, with unresolved outcomes for failed
 solves. They carry no nonlinear infeasibility or independent certificate claim.
 Supported exact affine exports use the existing linear model capabilities below.
 
+The public [calibration integration](calibration.md) exports `ParmestCalibration`,
+`CalibrationResult`, `CalibrationEstimate`, `CalibrationObservation`,
+`CalibrationCheck` and `CalibrationExperimentResult` from
+`operange.integrations.parmest`. It delegates shared-parameter fits and
+reconciliation to upstream parmest, checks returned candidates, exports
+`calibration_result/v1` records and applies completed estimates to fresh
+`IdaesAdapter` snapshots through an explicit parameter map. Running fits needs
+the `idaes` extra and Ipopt; importing declarations and reading results does not.
+Parameter identifiability and statistical uncertainty are not assessed.
+
 | Adapter | Evaluation and sensitivity | Robustness |
 | --- | --- | --- |
 | `AffineProcessAdapter` | Fixed affine responses; analytical first derivatives in physical or normalized coordinates | Finite and supported linear-support audits; L∞ box/polytope distances by default, and optional convex-domain L∞/Euclidean distances; no adjustable recourse |

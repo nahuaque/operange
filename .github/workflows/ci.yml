@@ -37,7 +37,7 @@ jobs:
       - name: Test optional IDAES support
         run: |
           uv sync --locked --group dev --extra cvxpy --extra idaes
-          uv run --locked --extra cvxpy --extra idaes pytest -q tests/test_idaes.py tests/test_idaes_workflow.py tests/test_idaes_optional.py
+          uv run --locked --extra cvxpy --extra idaes pytest -q tests/test_idaes.py tests/test_idaes_workflow.py tests/test_idaes_optional.py tests/test_parmest.py tests/test_parmest_optional.py
       - name: Build distributions
         run: |
           uv build
@@ -49,6 +49,7 @@ jobs:
           uv pip install --python "$RUNNER_TEMP/operange-consumer-venv/bin/python" dist/*.whl
           mkdir -p "$RUNNER_TEMP/operange-consumer"
           cp examples/steam_header.py examples/linear_dispatch.py examples/failure_distance.py examples/engineering_changes.py examples/frozen_controllers.py examples/storage_replay.py examples/startup.py examples/pinch.py examples/uncertainty_compositions.py examples/measurement_uncertainty.py examples/operating_limits.py examples/equipment_network.py examples/dispatch_sensitivity.py tests/acceptance/wheel.py tests/fixtures/prototype_result_v1.json "$RUNNER_TEMP/operange-consumer/"
+          cp tests/fixtures/calibration_result_v1.json "$RUNNER_TEMP/operange-consumer/"
           cd "$RUNNER_TEMP/operange-consumer"
           "$RUNNER_TEMP/operange-consumer-venv/bin/python" -I wheel.py
       - name: Verify optional CVXPY support from the installed wheel
@@ -92,9 +93,9 @@ jobs:
       - name: Require Ipopt and exercise upstream units, diagnostics and parmest
         run: |
           uv run --locked --extra idaes python -c "import pyomo.environ as p; raise SystemExit(not p.SolverFactory('ipopt').available(False))"
-          uv run --locked --extra idaes pytest -q tests/test_idaes.py tests/test_idaes_workflow.py
+          uv run --locked --extra idaes pytest -q tests/test_idaes.py tests/test_idaes_workflow.py tests/test_parmest.py tests/test_parmest_optional.py
           uv run --locked --extra idaes python examples/idaes_flowsheet.py --reconcile
-      - name: Exercise the heat-exchanger study from an installed wheel
+      - name: Exercise heat-exchanger calibration and re-audit from an installed wheel
         shell: bash
         run: |
           uv build --wheel

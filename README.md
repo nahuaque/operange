@@ -51,6 +51,8 @@ for checkout and wheel installation.
   mixers and splitters to generate checked linear balances.
 - [Existing IDAES flowsheets](docs/idaes.md) — bind models, reuse upstream
   reconciliation, audit finite scenarios and export supported affine equations.
+- [Equipment calibration](docs/calibration.md) — fit with parmest, preserve
+  portable evidence and explicitly apply estimates before repeating a study.
 - [API and capabilities](docs/api.md) — supported
   models, uncertainty sets, queries and portable results.
 - [Methods and scope](docs/methods.md) — the
