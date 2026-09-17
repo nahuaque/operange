@@ -164,5 +164,6 @@ and [heat-exchanger study limits](idaes.md#heat-exchanger-operating-study) apply
 The implementation follows the upstream
 [parmest Experiment interface](https://pyomo.readthedocs.io/en/stable/explanation/analysis/parmest/driver.html)
 and [data-reconciliation workflow](https://pyomo.readthedocs.io/en/stable/explanation/analysis/parmest/datarec.html).
-Bootstrap, joint parameter uncertainty and identifiability analysis remain
-future integration work.
+For joint empirical parameter uncertainty, use the
+[bootstrap and propagation guide](joint-calibration-uncertainty.md). Continuous
+confidence-region coverage and identifiability analysis remain future work.

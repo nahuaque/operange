@@ -135,7 +135,7 @@ def prepare_template(adapter, model):
                 if item.ctype is pyo.Param:
                     if (
                         not item.parent_component().mutable
-                        or item.domain
+                        or item.parent_component().domain
                         not in (
                             pyo.Reals,
                             pyo.Any,

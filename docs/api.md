@@ -112,7 +112,12 @@ reconciliation to upstream parmest, checks returned candidates, exports
 `calibration_result/v1` records and applies completed estimates to fresh
 `IdaesAdapter` snapshots through an explicit parameter map. Running fits needs
 the `idaes` extra and Ipopt; importing declarations and reading results does not.
-Parameter identifiability and statistical uncertainty are not assessed.
+`ParmestCalibration.bootstrap(samples=..., seed=...)` additionally returns a
+`CalibrationBootstrap` containing joint `CalibrationDraw` records, checked
+physical replays and empirical covariance. It exports `calibration_bootstrap/v1`,
+provides a joint finite domain, and builds finite IDAES claims through explicit
+parameter mapping and dispatch permissions. See [joint propagation](joint-calibration-uncertainty.md).
+Identifiability and statistical confidence coverage are not assessed.
 
 | Adapter | Evaluation and sensitivity | Robustness |
 | --- | --- | --- |

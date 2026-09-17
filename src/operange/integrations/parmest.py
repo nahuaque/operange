@@ -20,6 +20,8 @@ __all__ = [
     "CalibrationObservation",
     "CalibrationCheck",
     "CalibrationExperimentResult",
+    "CalibrationDraw",
+    "CalibrationBootstrap",
 ]
 
 
@@ -269,3 +271,281 @@ class ParmestCalibration:
         from ._parmest_backend import fit
 
         return fit(self)
+
+    def bootstrap(self, *, samples, seed):
+        """Joint upstream bootstrap draws with fixed-parameter physical replays.
+
+        Resample whole experiments with replacement. An explicit seed is
+        required. The result is empirical numerical evidence, not a confidence
+        region or an identifiability assessment.
+        """
+        from ._parmest_bootstrap import bootstrap
+
+        return bootstrap(self, samples=samples, seed=seed)
+
+
+@dataclass(frozen=True)
+class CalibrationDraw(Record):
+    """One complete parameter vector and its resampled experiment replay."""
+
+    name: str
+    experiment_names: tuple[str, ...]
+    estimates: tuple[CalibrationEstimate, ...] = ()
+    replay: CalibrationResult | None = None
+    diagnostics: tuple[Diagnostic, ...] = ()
+
+    def _validate(self):
+        nonempty(self.name, "draw name")
+        unique(tuple(p.component for p in self.estimates), "draw parameters")
+        for name in self.experiment_names:
+            nonempty(name, "resampled experiment name")
+        if self.checked and (not self.estimates or not self.experiment_names):
+            raise ValueError("checked draws need estimates and resampled experiments")
+
+    @property
+    def checked(self):
+        return self.replay is not None and self.replay.execution == "completed"
+
+
+_BOOTSTRAP_SCOPE = {
+    "coverage": "finite_joint_parameter_draws",
+    "confidence_level": None,
+    "identifiability": "not_assessed",
+    "sampling": "Whole experiments with replacement, conditioned by parmest on more distinct experiments than estimated parameters.",
+    "assumptions": "Caller treats experiments as exchangeable sampling units; within-experiment measurements stay together.",
+    "replay": "Resampled models re-solved at each fixed parameter vector and source residuals checked; the original bootstrap state and objective are not exposed by the upstream API.",
+}
+
+
+@dataclass(frozen=True)
+class CalibrationBootstrap(Record):
+    """Portable joint empirical draws, retaining failures and multiplicity."""
+
+    calibration: CalibrationResult
+    requested_samples: int
+    seed: int
+    execution: Literal["completed", "unresolved"]
+    draws: tuple[CalibrationDraw, ...] = ()
+    diagnostics: tuple[Diagnostic, ...] = ()
+    method: Literal["parmest_experiment_bootstrap"] = "parmest_experiment_bootstrap"
+    scope: Mapping[str, Any] = field(default_factory=lambda: _BOOTSTRAP_SCOPE)
+
+    def _validate(self):
+        if dict(self.scope) != _BOOTSTRAP_SCOPE:
+            raise ValueError(
+                "Bootstrap scope must retain empirical finite-sample qualifications"
+            )
+        if self.requested_samples < 2 or not 0 <= self.seed < 2**32:
+            raise ValueError(
+                "bootstrap needs at least two samples and a seed in [0, 2**32)"
+            )
+        unique(tuple(d.name for d in self.draws), "bootstrap draws")
+        if len(self.draws) not in (0, self.requested_samples):
+            raise ValueError(
+                "bootstrap must retain every returned draw, including failures"
+            )
+        expected = {p.component: p.unit for p in self.calibration.estimates}
+        originals = self.calibration.study["experiments"]
+        names = {e["name"] for e in originals}
+        for draw in self.draws:
+            if (
+                draw.estimates
+                and {p.component: p.unit for p in draw.estimates} != expected
+            ):
+                raise ValueError(
+                    "bootstrap parameter coordinates differ from calibration"
+                )
+            if draw.experiment_names and (
+                len(draw.experiment_names) != len(originals)
+                or not set(draw.experiment_names) <= names
+            ):
+                raise ValueError(
+                    "bootstrap experiment identities differ from calibration"
+                )
+            if draw.checked:
+                if draw.replay.estimates or len(draw.replay.experiments) != len(
+                    originals
+                ):
+                    raise ValueError(
+                        "bootstrap replay must fix parameters and retain every resampled experiment"
+                    )
+                if (
+                    draw.replay.study["provenance"].get("bootstrap_calibration")
+                    != self.calibration.ref.to_dict()
+                ):
+                    raise ValueError("bootstrap replay refers to another calibration")
+                original_by_name = {e["name"]: e for e in originals}
+                for position, (name, replay_source) in enumerate(
+                    zip(draw.experiment_names, draw.replay.study["experiments"])
+                ):
+                    original = original_by_name[name]
+                    if (
+                        replay_source["name"] != f"{position}:{name}"
+                        or replay_source["observations"] != original["observations"]
+                        or replay_source["source"]["constraints"]
+                        != original["source"]["constraints"]
+                    ):
+                        raise ValueError(
+                            "bootstrap replay differs from its resampled experiment"
+                        )
+                    variables = {
+                        v["component"]: v for v in replay_source["source"]["variables"]
+                    }
+                    parameters = {
+                        p["component"]: p for p in replay_source["source"]["parameters"]
+                    }
+                    for p in draw.estimates:
+                        if p.component in variables:
+                            declared = variables[p.component]
+                            valid = declared["fixed"] and declared["value"] == p.value
+                        else:
+                            declared = parameters.get(p.component)
+                            valid = declared is not None and tuple(
+                                declared["values"]
+                            ) == ({"index": None, "value": p.value},)
+                        if not valid:
+                            raise ValueError(
+                                "bootstrap replay did not fix the declared parameter vector"
+                            )
+                for experiment in draw.replay.experiments:
+                    for p in draw.estimates:
+                        if (
+                            p.component in experiment.values
+                            and experiment.values[p.component] != p.value
+                        ):
+                            raise ValueError(
+                                "bootstrap replay changed a fitted parameter"
+                            )
+        complete = (
+            self.calibration.execution == "completed"
+            and bool(expected)
+            and len(self.draws) == self.requested_samples
+            and all(d.checked for d in self.draws)
+        )
+        if (self.execution == "completed") != complete:
+            raise ValueError(
+                "bootstrap execution disagrees with its coverage and replay checks"
+            )
+
+    @property
+    def ref(self):
+        return reference(self.to_dict(), "calibration_bootstrap/v1")
+
+    @property
+    def result_id(self):
+        return self.ref.artifact_id
+
+    def _require_complete(self):
+        if self.execution != "completed":
+            raise ValueError(
+                "Joint propagation requires every requested bootstrap draw to be checked; inspect unresolved draws"
+            )
+
+    def as_domain(self):
+        """A FiniteSet of whole vectors; duplicate draws retain their labels."""
+        from ..domains import Coordinate, ParameterSpace, FiniteSet, Scenario
+
+        self._require_complete()
+        result_id = self.result_id
+        space = ParameterSpace(
+            tuple(
+                Coordinate(
+                    p.component, p.unit, "Joint bootstrap parameter", nominal=p.value
+                )
+                for p in self.calibration.estimates
+            )
+        )
+        return FiniteSet(
+            space,
+            tuple(
+                Scenario(
+                    d.name,
+                    {p.component: p.value for p in d.estimates},
+                    f"Empirical joint draw from {result_id}; no confidence coverage asserted",
+                )
+                for d in self.draws
+            ),
+        )
+
+    @property
+    def statistics(self):
+        """Empirical mean and full sample covariance in declared parameter order."""
+        import numpy as np
+
+        self._require_complete()
+        names = tuple(p.component for p in self.calibration.estimates)
+        rows = np.asarray(
+            [
+                [
+                    next(p.value for p in d.estimates if p.component == name)
+                    for name in names
+                ]
+                for d in self.draws
+            ]
+        )
+        mean = rows.mean(axis=0)
+        centered = rows - mean
+        covariance = centered.T @ centered / (len(rows) - 1)
+        return freeze(
+            {
+                "parameters": names,
+                "units": tuple(p.unit for p in self.calibration.estimates),
+                "mean": mean.tolist(),
+                "covariance": covariance.tolist(),
+                "samples": len(rows),
+                "interpretation": "Empirical sample moments only; no Gaussian model or confidence region inferred.",
+            }
+        )
+
+    def as_claim(
+        self,
+        adapter,
+        operating_cases,
+        *,
+        parameter_map,
+        fixed_controls=None,
+        fully_observed=False,
+    ):
+        """Cross whole draws with finite cases on a fresh IDAES model snapshot.
+
+        Supply every fixed actuator command, or explicitly request ideal
+        dispatch observing every input including the actual parameter vector.
+        """
+        from ._calibration_propagation import as_claim
+
+        return as_claim(
+            self,
+            adapter,
+            operating_cases,
+            parameter_map=parameter_map,
+            fixed_controls=fixed_controls,
+            fully_observed=fully_observed,
+        )
+
+    def to_json(self):
+        return json.dumps(
+            {
+                "schema_version": "calibration_bootstrap/v1",
+                "result_id": self.result_id,
+                **self.to_dict(),
+            },
+            indent=2,
+            allow_nan=False,
+        )
+
+    @classmethod
+    def from_json(cls, text):
+        data = json.loads(text)
+        if (
+            not isinstance(data, dict)
+            or data.pop("schema_version", None) != "calibration_bootstrap/v1"
+        ):
+            raise ValueError("Unsupported calibration bootstrap schema")
+        expected = data.pop("result_id", None)
+        try:
+            result = cls(**data)
+        except (TypeError, KeyError) as exc:
+            raise ValueError("Invalid calibration bootstrap fields") from exc
+        if result.result_id != expected:
+            raise ValueError("Calibration bootstrap integrity check failed")
+        return result

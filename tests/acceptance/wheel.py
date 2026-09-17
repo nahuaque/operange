@@ -4,7 +4,7 @@ Copy steam_header.py, linear_dispatch.py, failure_distance.py, engineering_chang
 frozen_controllers.py, storage_replay.py, startup.py, pinch.py,
 uncertainty_compositions.py, measurement_uncertainty.py, operating_limits.py,
 equipment_network.py, dispatch_sensitivity.py and
-prototype_result_v1.json and calibration_result_v1.json here.
+prototype_result_v1.json, calibration_result_v1.json and calibration_bootstrap_v1.json here.
 There are no pytest, repository, optional solver, or test-environment imports.
 """
 
@@ -795,7 +795,7 @@ def main():
         json.loads(frozen.to_json()) == corpus["frozen_heat"],
         "frozen reference contract changed",
     )
-    from operange.integrations.parmest import CalibrationResult
+    from operange.integrations.parmest import CalibrationResult, CalibrationBootstrap
 
     fit = CalibrationResult.from_json(
         (directory / "calibration_result_v1.json").read_text()
@@ -805,6 +805,17 @@ def main():
     require(
         CalibrationResult.from_json(fit.to_json()) == fit,
         "calibration round trip changed",
+    )
+    joint = CalibrationBootstrap.from_json(
+        (directory / "calibration_bootstrap_v1.json").read_text()
+    )
+    require(
+        joint.execution == "completed" and len(joint.as_domain().scenarios) == 2,
+        "joint bootstrap evidence changed",
+    )
+    require(
+        len(joint.statistics["covariance"]) == 1,
+        "empirical covariance lost its parameter axes",
     )
     require(
         not any(name in sys.modules for name in ("idaes", "pyomo", "pandas")),

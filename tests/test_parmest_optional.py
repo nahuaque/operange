@@ -50,3 +50,40 @@ else:
         capture_output=True,
         text=True,
     )  # nosec B603
+
+
+def test_joint_bootstrap_reader_and_domain_need_no_optional_backend():
+    payload = (
+        Path(__file__)
+        .with_name("fixtures")
+        .joinpath("calibration_bootstrap_v1.json")
+        .read_text()
+    )
+    script = """
+import importlib.abc
+import sys
+class BlockOptional(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname.split('.')[0] in {'idaes', 'pyomo', 'pandas', 'highspy'}:
+            raise ImportError('optional backend deliberately unavailable')
+sys.meta_path.insert(0, BlockOptional())
+from operange.integrations.parmest import CalibrationBootstrap
+result = CalibrationBootstrap.from_json(sys.stdin.read())
+if result.execution != 'completed' or len(result.as_domain().scenarios) != 2:
+    raise RuntimeError('missing joint draws')
+if len(result.statistics['covariance']) != 1:
+    raise RuntimeError('one-parameter covariance lost its matrix shape')
+if result.scope['confidence_level'] is not None:
+    raise RuntimeError('unsupported confidence interpretation')
+if CalibrationBootstrap.from_json(result.to_json()) != result:
+    raise RuntimeError('round trip changed result')
+if any(name.split('.')[0] in {'idaes', 'pyomo', 'pandas', 'highspy'} for name in sys.modules):
+    raise RuntimeError('joint uncertainty reader loaded optional backends')
+"""
+    subprocess.run(
+        [sys.executable, "-I", "-c", script],
+        input=payload,
+        check=True,
+        capture_output=True,
+        text=True,
+    )  # nosec B603

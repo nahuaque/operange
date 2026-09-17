@@ -158,6 +158,7 @@ linear-dispatch
 equipment-networks
 idaes
 calibration
+joint-calibration-uncertainty
 continuous-dispatch
 shared-relief
 dispatch-objectives

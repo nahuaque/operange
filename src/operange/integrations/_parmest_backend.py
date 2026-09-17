@@ -215,8 +215,8 @@ def prepare_study(study, experiments):
     return tuple(snapshots), manifest
 
 
-def _estimate(study):
-    """Use only the public Experiment/Estimator API; never inspect its EF model."""
+def estimator(study):
+    """Construct an upstream estimator over frozen experiment clones."""
     pyo, Estimator, Experiment, _ = parmest_backend()
     if not pyo.SolverFactory("ipopt").available(exception_flag=False):
         raise FileNotFoundError(
@@ -229,11 +229,17 @@ def _estimate(study):
         def get_labeled_model(self):
             return self.model.clone()
 
-    estimator = Estimator(
+    return Estimator(
         [FrozenExperiment(s.model.clone()) for s in study._experiments],
         obj_function=study.objective,
         solver_options=plain(study.solver_options),
     )
+
+
+def _estimate(study):
+    """Use only the public Experiment/Estimator API; never inspect its EF model."""
+    pyo, _ = backend()
+    fitted = estimator(study)
     # theta_est's public return_values accepts component-level indexed Vars;
     # scalar VarData paths are not supported by its extraction code.
     names = list(
@@ -253,7 +259,7 @@ def _estimate(study):
             ]
         )
     )
-    result = estimator.theta_est(return_values=names)
+    result = fitted.theta_est(return_values=names)
     if names:
         objective, estimates, frame = result
         if len(frame) != len(study._experiments):
@@ -436,17 +442,33 @@ def fit(study):
 
 
 def apply_calibration(result, adapter, parameter_map):
-    from .idaes import IdaesAdapter
-
     if result.execution != "completed":
         raise ValueError("Only completed, checked calibration results can be applied")
+    model, updates = parameter_model(adapter, result.estimates, parameter_map)
+    provenance = {
+        **plain(adapter.provenance),
+        "calibration": {
+            "result_ref": result.ref.to_dict(),
+            "study_ref": reference_study(result.study),
+            "parent_contract_ref": adapter.base_contract.ref.to_dict(),
+            "updates": updates,
+            "scope": "Fitted point estimates only; parameter uncertainty has not been propagated.",
+        },
+    }
+    return replace(adapter, model=model, provenance=provenance)
+
+
+def parameter_model(adapter, estimates, parameter_map):
+    """Validate an explicit whole-vector update, shared by point and joint fits."""
+    from .idaes import IdaesAdapter
+
     if not isinstance(adapter, IdaesAdapter):
         raise ValueError("Apply calibration to an IdaesAdapter")
     if not isinstance(parameter_map, Mapping) or not parameter_map:
         raise ValueError(
             "Supply an explicit estimate-CUID to target-CUID parameter_map"
         )
-    estimates = {p.component: p for p in result.estimates}
+    estimates = {p.component: p for p in estimates}
     if set(parameter_map) != set(estimates):
         raise ValueError("parameter_map must cover exactly the fitted parameters")
     pyo, _ = backend()
@@ -481,10 +503,6 @@ def apply_calibration(result, adapter, parameter_map):
                 raise ValueError(
                     "Calibration target Vars must be fixed model parameters"
                 )
-            if (target.lb is not None and estimate.value < number(target.lb)) or (
-                target.ub is not None and estimate.value > number(target.ub)
-            ):
-                raise ValueError("Calibrated parameter violates target bounds")
         elif target.ctype is not pyo.Param or not target.parent_component().mutable:
             raise ValueError("Calibration targets must be fixed Vars or mutable Params")
         elif (
@@ -505,17 +523,16 @@ def apply_calibration(result, adapter, parameter_map):
                 "value": estimate.value,
             }
         )
-    provenance = {
-        **plain(adapter.provenance),
-        "calibration": {
-            "result_ref": result.ref.to_dict(),
-            "study_ref": reference_study(result.study),
-            "parent_contract_ref": adapter.base_contract.ref.to_dict(),
-            "updates": updates,
-            "scope": "Fitted point estimates only; parameter uncertainty has not been propagated.",
-        },
-    }
-    return replace(adapter, model=model, provenance=provenance)
+    # Bounds can depend on another updated parameter. Check the entire vector
+    # after all updates, independently of mapping insertion order.
+    for update in updates:
+        target = component(model, update["target"])
+        if target.ctype is pyo.Var and (
+            (target.lb is not None and update["value"] < number(target.lb))
+            or (target.ub is not None and update["value"] > number(target.ub))
+        ):
+            raise ValueError("Calibrated parameter violates target bounds")
+    return model, updates
 
 
 def reference_study(study):
