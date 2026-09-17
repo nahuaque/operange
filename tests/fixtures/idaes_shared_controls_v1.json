@@ -1,0 +1,1127 @@
+{
+  "schema_version": "idaes_shared_controls/v1",
+  "result_id": "sha256:b5ca5e5bbc23523826a5bd1bb9c3cfe62b72500e397fc2718657c1d280cdce31",
+  "contract": {
+    "model_id": "idaes_process/v1",
+    "model": {
+      "name": "Shared boiler",
+      "source_fingerprint": "60e1c83d5f9ba8de1276d534871fbf8643db68e083dd9f91cd4320c200bd99a2",
+      "source": {
+        "variables": [
+          {
+            "component": "loss",
+            "unit": "MW",
+            "domain": "Reals",
+            "fixed": true,
+            "value": 0.0,
+            "lower": "0",
+            "upper": "5"
+          },
+          {
+            "component": "fuel",
+            "unit": "MW",
+            "domain": "Reals",
+            "fixed": true,
+            "value": 10.0,
+            "lower": "0",
+            "upper": "20"
+          },
+          {
+            "component": "steam",
+            "unit": "MW",
+            "domain": "Reals",
+            "fixed": false,
+            "value": 8.0,
+            "lower": "0",
+            "upper": "20"
+          }
+        ],
+        "parameters": [
+          {
+            "component": "demand",
+            "values": [
+              {
+                "index": null,
+                "value": 8
+              }
+            ],
+            "unit": "MW",
+            "mutable": true
+          },
+          {
+            "component": "efficiency",
+            "values": [
+              {
+                "index": null,
+                "value": 0.8
+              }
+            ],
+            "unit": "1",
+            "mutable": true
+          }
+        ],
+        "suffixes": [],
+        "constraints": [
+          {
+            "component": "balance",
+            "expression": "steam  ==  efficiency*fuel - loss"
+          },
+          {
+            "component": "service",
+            "expression": "demand  <=  steam"
+          }
+        ],
+        "expressions": [],
+        "objectives": [
+          {
+            "component": "objective",
+            "expression": "fuel",
+            "sense": "minimize"
+          }
+        ],
+        "external_functions": []
+      },
+      "versions": {
+        "idaes": "2.12.0",
+        "pyomo": "6.10.1"
+      },
+      "inputs": [
+        {
+          "name": "demand",
+          "component": "demand",
+          "unit": "MW"
+        },
+        {
+          "name": "efficiency",
+          "component": "efficiency",
+          "unit": "1"
+        },
+        {
+          "name": "loss",
+          "component": "loss",
+          "unit": "MW"
+        }
+      ],
+      "controls": [
+        {
+          "name": "fuel",
+          "component": "fuel",
+          "unit": "MW"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "steam",
+          "component": "steam",
+          "unit": "MW"
+        }
+      ],
+      "requirements": [
+        {
+          "name": "service",
+          "component": "service",
+          "unit": "MW",
+          "tolerance": 1e-07
+        }
+      ],
+      "provenance": {}
+    },
+    "design": {},
+    "domain": {
+      "kind": "unbound"
+    },
+    "operating": {
+      "response": "external_numerical_dispatch",
+      "stage": "operation",
+      "states": "Unbound variables are algebraic states, not independent actuator commands; uniqueness is not established.",
+      "solver": "highs",
+      "solver_options": {},
+      "initialization": [],
+      "diagnostics": false
+    },
+    "quantities": [
+      {
+        "quantity_id": "demand",
+        "unit": "MW",
+        "physical_kind": "declared_process_quantity",
+        "role": "input",
+        "axes": []
+      },
+      {
+        "quantity_id": "efficiency",
+        "unit": "1",
+        "physical_kind": "declared_process_quantity",
+        "role": "input",
+        "axes": []
+      },
+      {
+        "quantity_id": "loss",
+        "unit": "MW",
+        "physical_kind": "declared_process_quantity",
+        "role": "input",
+        "axes": []
+      },
+      {
+        "quantity_id": "fuel",
+        "unit": "MW",
+        "physical_kind": "declared_process_quantity",
+        "role": "control",
+        "axes": []
+      },
+      {
+        "quantity_id": "steam",
+        "unit": "MW",
+        "physical_kind": "declared_process_quantity",
+        "role": "output",
+        "axes": []
+      },
+      {
+        "quantity_id": "state:steam",
+        "unit": "MW",
+        "physical_kind": "algebraic_state",
+        "role": "state",
+        "axes": []
+      },
+      {
+        "quantity_id": "residual:constraint:balance:eq",
+        "unit": "MW",
+        "physical_kind": "model_residual",
+        "role": "residual",
+        "axes": []
+      },
+      {
+        "quantity_id": "residual:service",
+        "unit": "MW",
+        "physical_kind": "model_residual",
+        "role": "residual",
+        "axes": []
+      },
+      {
+        "quantity_id": "residual:bound:loss:lower",
+        "unit": "MW",
+        "physical_kind": "model_residual",
+        "role": "residual",
+        "axes": []
+      },
+      {
+        "quantity_id": "residual:bound:loss:upper",
+        "unit": "MW",
+        "physical_kind": "model_residual",
+        "role": "residual",
+        "axes": []
+      },
+      {
+        "quantity_id": "residual:bound:fuel:lower",
+        "unit": "MW",
+        "physical_kind": "model_residual",
+        "role": "residual",
+        "axes": []
+      },
+      {
+        "quantity_id": "residual:bound:fuel:upper",
+        "unit": "MW",
+        "physical_kind": "model_residual",
+        "role": "residual",
+        "axes": []
+      },
+      {
+        "quantity_id": "residual:bound:steam:lower",
+        "unit": "MW",
+        "physical_kind": "model_residual",
+        "role": "residual",
+        "axes": []
+      },
+      {
+        "quantity_id": "residual:bound:steam:upper",
+        "unit": "MW",
+        "physical_kind": "model_residual",
+        "role": "residual",
+        "axes": []
+      }
+    ],
+    "constraints": [
+      {
+        "constraint_id": "constraint:balance:eq",
+        "residual_ref": "residual:constraint:balance:eq",
+        "kind": "equation",
+        "relation": "eq",
+        "expression": "steam - (efficiency*fuel - loss)",
+        "tolerance": 1e-06
+      },
+      {
+        "constraint_id": "service",
+        "residual_ref": "residual:service",
+        "kind": "requirement",
+        "relation": "le",
+        "expression": "demand - steam",
+        "tolerance": 1e-07
+      },
+      {
+        "constraint_id": "bound:loss:lower",
+        "residual_ref": "residual:bound:loss:lower",
+        "kind": "operating_limit",
+        "relation": "le",
+        "expression": "- loss",
+        "tolerance": 0.0
+      },
+      {
+        "constraint_id": "bound:loss:upper",
+        "residual_ref": "residual:bound:loss:upper",
+        "kind": "operating_limit",
+        "relation": "le",
+        "expression": "loss - 5",
+        "tolerance": 0.0
+      },
+      {
+        "constraint_id": "bound:fuel:lower",
+        "residual_ref": "residual:bound:fuel:lower",
+        "kind": "operating_limit",
+        "relation": "le",
+        "expression": "- fuel",
+        "tolerance": 0.0
+      },
+      {
+        "constraint_id": "bound:fuel:upper",
+        "residual_ref": "residual:bound:fuel:upper",
+        "kind": "operating_limit",
+        "relation": "le",
+        "expression": "fuel - 20",
+        "tolerance": 0.0
+      },
+      {
+        "constraint_id": "bound:steam:lower",
+        "residual_ref": "residual:bound:steam:lower",
+        "kind": "operating_limit",
+        "relation": "le",
+        "expression": "- steam",
+        "tolerance": 0.0
+      },
+      {
+        "constraint_id": "bound:steam:upper",
+        "residual_ref": "residual:bound:steam:upper",
+        "kind": "operating_limit",
+        "relation": "le",
+        "expression": "steam - 20",
+        "tolerance": 0.0
+      }
+    ],
+    "numerical_policy": {
+      "arithmetic": "floating_point_pyomo_residual_checks",
+      "absolute_tolerance": 1e-06,
+      "variable_bound_tolerance": 0,
+      "optimality": "not certified",
+      "infeasibility": "solver failure is unresolved",
+      "scope": "Numerical feasibility at declared points; no continuous-domain or independent nonlinear certificate."
+    }
+  },
+  "domain": {
+    "space": {
+      "coordinates": [
+        {
+          "name": "demand",
+          "unit": "MW",
+          "provenance": "Steam demand",
+          "nominal": 8.0,
+          "scale": null,
+          "parameter": null,
+          "axis": null,
+          "label": null
+        },
+        {
+          "name": "efficiency",
+          "unit": "1",
+          "provenance": "Unknown efficiency",
+          "nominal": 0.8,
+          "scale": null,
+          "parameter": null,
+          "axis": null,
+          "label": null
+        },
+        {
+          "name": "loss",
+          "unit": "MW",
+          "provenance": "Unknown heat loss",
+          "nominal": 0.0,
+          "scale": null,
+          "parameter": null,
+          "axis": null,
+          "label": null
+        }
+      ]
+    },
+    "scenarios": [
+      {
+        "name": "a",
+        "values": {
+          "demand": 8.0,
+          "efficiency": 0.8,
+          "loss": 0.0
+        },
+        "provenance": "First whole vector"
+      }
+    ]
+  },
+  "objective": {
+    "component": "objective",
+    "expression": "fuel",
+    "sense": "minimize",
+    "unit": "MW",
+    "aggregation": "worst_case"
+  },
+  "execution": "completed",
+  "commands": {
+    "fuel": 10.0
+  },
+  "objective_value": 10.0,
+  "scenario_objectives": {
+    "a": 10.0
+  },
+  "audit": {
+    "schema_version": "process_result_bundle/v1",
+    "result": {
+      "schema_version": "process_result/v1",
+      "kind": "robustness",
+      "contract_ref": {
+        "artifact_id": "sha256:80df75938f240430401c08e1874cbe6f372d0c9c67fb09dfef21d337243a5c4f",
+        "schema_version": "process_contract/v1",
+        "digest": "80df75938f240430401c08e1874cbe6f372d0c9c67fb09dfef21d337243a5c4f"
+      },
+      "request": {
+        "query": "audit"
+      },
+      "execution": "completed",
+      "payload": {
+        "verdict": "pass",
+        "coverage": {
+          "method": "complete_finite",
+          "domain_ref": "domain",
+          "evaluated_support": {
+            "scenarios": [
+              {
+                "name": "a",
+                "evaluation_ref": {
+                  "artifact_id": "sha256:8409984e200888048a21ec65037c4ffd815683f36b8d0ee4af0df51b6f6d5892",
+                  "schema_version": "process_result/v1",
+                  "digest": "8409984e200888048a21ec65037c4ffd815683f36b8d0ee4af0df51b6f6d5892"
+                }
+              }
+            ],
+            "coverage": "declared finite realizations only",
+            "evidence": "source residual checks; not independently certified",
+            "controls": "one shared command vector with no observations"
+          },
+          "unexplored_support": {
+            "unresolved_scenarios": []
+          },
+          "evidence_refs": [
+            "coverage"
+          ]
+        },
+        "evaluation_refs": [
+          {
+            "artifact_id": "sha256:8409984e200888048a21ec65037c4ffd815683f36b8d0ee4af0df51b6f6d5892",
+            "schema_version": "process_result/v1",
+            "digest": "8409984e200888048a21ec65037c4ffd815683f36b8d0ee4af0df51b6f6d5892"
+          }
+        ],
+        "witness": null,
+        "search": null
+      },
+      "evidence": [
+        {
+          "evidence_id": "coverage",
+          "subject": "domain_coverage",
+          "method": "complete_finite_shared_idaes_numerical_checks",
+          "outcome": "verified",
+          "measurements": [
+            {
+              "name": "scenario_count",
+              "value": 1.0,
+              "unit": "count"
+            }
+          ],
+          "tolerances": [],
+          "assumptions": [],
+          "backend": null,
+          "details": {
+            "coverage": "declared finite realizations only",
+            "evidence": "source residual checks; not independently certified",
+            "controls": "one shared command vector with no observations"
+          }
+        }
+      ],
+      "diagnostics": [],
+      "result_id": "sha256:e2680224b11b67211d4108f3190ee4ddb016f936706f27c0bb2a81c10088a69e",
+      "artifacts": {
+        "contract": "sha256:80df75938f240430401c08e1874cbe6f372d0c9c67fb09dfef21d337243a5c4f",
+        "evaluations": [
+          "sha256:8409984e200888048a21ec65037c4ffd815683f36b8d0ee4af0df51b6f6d5892"
+        ]
+      }
+    },
+    "contracts": {
+      "sha256:80df75938f240430401c08e1874cbe6f372d0c9c67fb09dfef21d337243a5c4f": {
+        "model_id": "idaes_process/v1",
+        "model": {
+          "name": "Shared boiler",
+          "source_fingerprint": "60e1c83d5f9ba8de1276d534871fbf8643db68e083dd9f91cd4320c200bd99a2",
+          "source": {
+            "variables": [
+              {
+                "component": "loss",
+                "unit": "MW",
+                "domain": "Reals",
+                "fixed": true,
+                "value": 0.0,
+                "lower": "0",
+                "upper": "5"
+              },
+              {
+                "component": "fuel",
+                "unit": "MW",
+                "domain": "Reals",
+                "fixed": true,
+                "value": 10.0,
+                "lower": "0",
+                "upper": "20"
+              },
+              {
+                "component": "steam",
+                "unit": "MW",
+                "domain": "Reals",
+                "fixed": false,
+                "value": 8.0,
+                "lower": "0",
+                "upper": "20"
+              }
+            ],
+            "parameters": [
+              {
+                "component": "demand",
+                "values": [
+                  {
+                    "index": null,
+                    "value": 8
+                  }
+                ],
+                "unit": "MW",
+                "mutable": true
+              },
+              {
+                "component": "efficiency",
+                "values": [
+                  {
+                    "index": null,
+                    "value": 0.8
+                  }
+                ],
+                "unit": "1",
+                "mutable": true
+              }
+            ],
+            "suffixes": [],
+            "constraints": [
+              {
+                "component": "balance",
+                "expression": "steam  ==  efficiency*fuel - loss"
+              },
+              {
+                "component": "service",
+                "expression": "demand  <=  steam"
+              }
+            ],
+            "expressions": [],
+            "objectives": [
+              {
+                "component": "objective",
+                "expression": "fuel",
+                "sense": "minimize"
+              }
+            ],
+            "external_functions": []
+          },
+          "versions": {
+            "idaes": "2.12.0",
+            "pyomo": "6.10.1"
+          },
+          "inputs": [
+            {
+              "name": "demand",
+              "component": "demand",
+              "unit": "MW"
+            },
+            {
+              "name": "efficiency",
+              "component": "efficiency",
+              "unit": "1"
+            },
+            {
+              "name": "loss",
+              "component": "loss",
+              "unit": "MW"
+            }
+          ],
+          "controls": [
+            {
+              "name": "fuel",
+              "component": "fuel",
+              "unit": "MW"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "steam",
+              "component": "steam",
+              "unit": "MW"
+            }
+          ],
+          "requirements": [
+            {
+              "name": "service",
+              "component": "service",
+              "unit": "MW",
+              "tolerance": 1e-07
+            }
+          ],
+          "provenance": {}
+        },
+        "design": {},
+        "domain": {
+          "kind": "finite_set",
+          "space": {
+            "coordinates": [
+              {
+                "name": "demand",
+                "unit": "MW",
+                "provenance": "Steam demand",
+                "nominal": 8.0,
+                "scale": null,
+                "parameter": null,
+                "axis": null,
+                "label": null
+              },
+              {
+                "name": "efficiency",
+                "unit": "1",
+                "provenance": "Unknown efficiency",
+                "nominal": 0.8,
+                "scale": null,
+                "parameter": null,
+                "axis": null,
+                "label": null
+              },
+              {
+                "name": "loss",
+                "unit": "MW",
+                "provenance": "Unknown heat loss",
+                "nominal": 0.0,
+                "scale": null,
+                "parameter": null,
+                "axis": null,
+                "label": null
+              }
+            ]
+          },
+          "scenarios": [
+            {
+              "name": "a",
+              "values": {
+                "demand": 8.0,
+                "efficiency": 0.8,
+                "loss": 0.0
+              },
+              "provenance": "First whole vector"
+            }
+          ]
+        },
+        "operating": {
+          "response": "external_numerical_dispatch",
+          "stage": "operation",
+          "states": "Unbound variables are algebraic states, not independent actuator commands; uniqueness is not established.",
+          "solver": "highs",
+          "solver_options": {},
+          "initialization": [],
+          "diagnostics": false,
+          "recourse_policy": {
+            "mode": "fixed",
+            "rules": [
+              {
+                "control": "fuel",
+                "unit": "MW",
+                "stage": "operation",
+                "observes": [],
+                "fixed_value": 10.0
+              }
+            ]
+          },
+          "requirement_refs": [
+            "service"
+          ]
+        },
+        "quantities": [
+          {
+            "quantity_id": "demand",
+            "unit": "MW",
+            "physical_kind": "declared_process_quantity",
+            "role": "input",
+            "axes": []
+          },
+          {
+            "quantity_id": "efficiency",
+            "unit": "1",
+            "physical_kind": "declared_process_quantity",
+            "role": "input",
+            "axes": []
+          },
+          {
+            "quantity_id": "loss",
+            "unit": "MW",
+            "physical_kind": "declared_process_quantity",
+            "role": "input",
+            "axes": []
+          },
+          {
+            "quantity_id": "fuel",
+            "unit": "MW",
+            "physical_kind": "declared_process_quantity",
+            "role": "control",
+            "axes": []
+          },
+          {
+            "quantity_id": "steam",
+            "unit": "MW",
+            "physical_kind": "declared_process_quantity",
+            "role": "output",
+            "axes": []
+          },
+          {
+            "quantity_id": "state:steam",
+            "unit": "MW",
+            "physical_kind": "algebraic_state",
+            "role": "state",
+            "axes": []
+          },
+          {
+            "quantity_id": "residual:constraint:balance:eq",
+            "unit": "MW",
+            "physical_kind": "model_residual",
+            "role": "residual",
+            "axes": []
+          },
+          {
+            "quantity_id": "residual:service",
+            "unit": "MW",
+            "physical_kind": "model_residual",
+            "role": "residual",
+            "axes": []
+          },
+          {
+            "quantity_id": "residual:bound:loss:lower",
+            "unit": "MW",
+            "physical_kind": "model_residual",
+            "role": "residual",
+            "axes": []
+          },
+          {
+            "quantity_id": "residual:bound:loss:upper",
+            "unit": "MW",
+            "physical_kind": "model_residual",
+            "role": "residual",
+            "axes": []
+          },
+          {
+            "quantity_id": "residual:bound:fuel:lower",
+            "unit": "MW",
+            "physical_kind": "model_residual",
+            "role": "residual",
+            "axes": []
+          },
+          {
+            "quantity_id": "residual:bound:fuel:upper",
+            "unit": "MW",
+            "physical_kind": "model_residual",
+            "role": "residual",
+            "axes": []
+          },
+          {
+            "quantity_id": "residual:bound:steam:lower",
+            "unit": "MW",
+            "physical_kind": "model_residual",
+            "role": "residual",
+            "axes": []
+          },
+          {
+            "quantity_id": "residual:bound:steam:upper",
+            "unit": "MW",
+            "physical_kind": "model_residual",
+            "role": "residual",
+            "axes": []
+          }
+        ],
+        "constraints": [
+          {
+            "constraint_id": "constraint:balance:eq",
+            "residual_ref": "residual:constraint:balance:eq",
+            "kind": "equation",
+            "relation": "eq",
+            "expression": "steam - (efficiency*fuel - loss)",
+            "tolerance": 1e-06
+          },
+          {
+            "constraint_id": "service",
+            "residual_ref": "residual:service",
+            "kind": "requirement",
+            "relation": "le",
+            "expression": "demand - steam",
+            "tolerance": 1e-07
+          },
+          {
+            "constraint_id": "bound:loss:lower",
+            "residual_ref": "residual:bound:loss:lower",
+            "kind": "operating_limit",
+            "relation": "le",
+            "expression": "- loss",
+            "tolerance": 0.0
+          },
+          {
+            "constraint_id": "bound:loss:upper",
+            "residual_ref": "residual:bound:loss:upper",
+            "kind": "operating_limit",
+            "relation": "le",
+            "expression": "loss - 5",
+            "tolerance": 0.0
+          },
+          {
+            "constraint_id": "bound:fuel:lower",
+            "residual_ref": "residual:bound:fuel:lower",
+            "kind": "operating_limit",
+            "relation": "le",
+            "expression": "- fuel",
+            "tolerance": 0.0
+          },
+          {
+            "constraint_id": "bound:fuel:upper",
+            "residual_ref": "residual:bound:fuel:upper",
+            "kind": "operating_limit",
+            "relation": "le",
+            "expression": "fuel - 20",
+            "tolerance": 0.0
+          },
+          {
+            "constraint_id": "bound:steam:lower",
+            "residual_ref": "residual:bound:steam:lower",
+            "kind": "operating_limit",
+            "relation": "le",
+            "expression": "- steam",
+            "tolerance": 0.0
+          },
+          {
+            "constraint_id": "bound:steam:upper",
+            "residual_ref": "residual:bound:steam:upper",
+            "kind": "operating_limit",
+            "relation": "le",
+            "expression": "steam - 20",
+            "tolerance": 0.0
+          }
+        ],
+        "numerical_policy": {
+          "arithmetic": "floating_point_pyomo_residual_checks",
+          "absolute_tolerance": 1e-06,
+          "variable_bound_tolerance": 0,
+          "optimality": "not certified",
+          "infeasibility": "solver failure is unresolved",
+          "scope": "Numerical feasibility at declared points; no continuous-domain or independent nonlinear certificate."
+        }
+      }
+    },
+    "evaluations": {
+      "sha256:8409984e200888048a21ec65037c4ffd815683f36b8d0ee4af0df51b6f6d5892": {
+        "schema_version": "process_result/v1",
+        "kind": "evaluation",
+        "contract_ref": {
+          "artifact_id": "sha256:80df75938f240430401c08e1874cbe6f372d0c9c67fb09dfef21d337243a5c4f",
+          "schema_version": "process_contract/v1",
+          "digest": "80df75938f240430401c08e1874cbe6f372d0c9c67fb09dfef21d337243a5c4f"
+        },
+        "request": {
+          "query": "evaluation",
+          "realization": {
+            "demand": 8.0,
+            "efficiency": 0.8,
+            "loss": 0.0
+          }
+        },
+        "execution": "completed",
+        "payload": {
+          "feasibility": "feasible",
+          "membership": {
+            "status": "inside",
+            "domain_ref": "domain",
+            "evidence_refs": [
+              "membership"
+            ]
+          },
+          "values": [
+            {
+              "quantity_ref": "demand",
+              "value": 8.0
+            },
+            {
+              "quantity_ref": "efficiency",
+              "value": 0.8
+            },
+            {
+              "quantity_ref": "loss",
+              "value": 0.0
+            },
+            {
+              "quantity_ref": "fuel",
+              "value": 10.0
+            },
+            {
+              "quantity_ref": "steam",
+              "value": 8.0
+            },
+            {
+              "quantity_ref": "state:steam",
+              "value": 8.0
+            }
+          ],
+          "constraint_checks": [
+            {
+              "constraint_ref": "constraint:balance:eq",
+              "assessment": "satisfied",
+              "residual": {
+                "quantity_ref": "residual:constraint:balance:eq",
+                "value": 0.0
+              },
+              "evidence_refs": [
+                "residuals"
+              ]
+            },
+            {
+              "constraint_ref": "service",
+              "assessment": "satisfied",
+              "residual": {
+                "quantity_ref": "residual:service",
+                "value": 0.0
+              },
+              "evidence_refs": [
+                "residuals"
+              ]
+            },
+            {
+              "constraint_ref": "bound:loss:lower",
+              "assessment": "satisfied",
+              "residual": {
+                "quantity_ref": "residual:bound:loss:lower",
+                "value": -0.0
+              },
+              "evidence_refs": [
+                "residuals"
+              ]
+            },
+            {
+              "constraint_ref": "bound:loss:upper",
+              "assessment": "satisfied",
+              "residual": {
+                "quantity_ref": "residual:bound:loss:upper",
+                "value": -5.0
+              },
+              "evidence_refs": [
+                "residuals"
+              ]
+            },
+            {
+              "constraint_ref": "bound:fuel:lower",
+              "assessment": "satisfied",
+              "residual": {
+                "quantity_ref": "residual:bound:fuel:lower",
+                "value": -10.0
+              },
+              "evidence_refs": [
+                "residuals"
+              ]
+            },
+            {
+              "constraint_ref": "bound:fuel:upper",
+              "assessment": "satisfied",
+              "residual": {
+                "quantity_ref": "residual:bound:fuel:upper",
+                "value": -10.0
+              },
+              "evidence_refs": [
+                "residuals"
+              ]
+            },
+            {
+              "constraint_ref": "bound:steam:lower",
+              "assessment": "satisfied",
+              "residual": {
+                "quantity_ref": "residual:bound:steam:lower",
+                "value": -8.0
+              },
+              "evidence_refs": [
+                "residuals"
+              ]
+            },
+            {
+              "constraint_ref": "bound:steam:upper",
+              "assessment": "satisfied",
+              "residual": {
+                "quantity_ref": "residual:bound:steam:upper",
+                "value": -12.0
+              },
+              "evidence_refs": [
+                "residuals"
+              ]
+            }
+          ],
+          "objective": null,
+          "included_constraints": [
+            "constraint:balance:eq",
+            "service",
+            "bound:loss:lower",
+            "bound:loss:upper",
+            "bound:fuel:lower",
+            "bound:fuel:upper",
+            "bound:steam:lower",
+            "bound:steam:upper"
+          ]
+        },
+        "evidence": [
+          {
+            "evidence_id": "membership",
+            "subject": "domain_membership",
+            "method": "declared_domain_membership",
+            "outcome": "verified",
+            "measurements": [],
+            "tolerances": [],
+            "assumptions": [],
+            "backend": null,
+            "details": {
+              "check": {
+                "status": "inside",
+                "domain_ref": {
+                  "artifact_id": "sha256:c3f6de87d553c66a941be647e99e2c9a79d688e4e56986deacc66bd0085db397",
+                  "schema_version": "uncertainty_set/v1",
+                  "digest": "c3f6de87d553c66a941be647e99e2c9a79d688e4e56986deacc66bd0085db397"
+                },
+                "realization": {
+                  "demand": 8.0,
+                  "efficiency": 0.8,
+                  "loss": 0.0
+                },
+                "evidence": [
+                  {
+                    "evidence_id": "membership",
+                    "subject": "domain_membership",
+                    "method": "finite_enumeration",
+                    "outcome": "verified",
+                    "measurements": [],
+                    "tolerances": [],
+                    "assumptions": [],
+                    "backend": null,
+                    "details": {
+                      "matching_scenarios": [
+                        "a"
+                      ],
+                      "comparison": "exact declared coordinate values"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "evidence_id": "solver",
+            "subject": "solver_termination",
+            "method": "pyomo_solver",
+            "outcome": "verified",
+            "measurements": [],
+            "tolerances": [],
+            "assumptions": [],
+            "backend": "highs",
+            "details": {
+              "solver": "highs",
+              "status": "ok",
+              "termination": "optimal",
+              "scope": "Candidate from the joint optimization; checked against a separate source-model clone."
+            }
+          },
+          {
+            "evidence_id": "residuals",
+            "subject": "numerical_feasibility",
+            "method": "pyomo_expression_and_bound_checks",
+            "outcome": "verified",
+            "measurements": [],
+            "tolerances": [],
+            "assumptions": [],
+            "backend": null,
+            "details": {
+              "source_fingerprint": "60e1c83d5f9ba8de1276d534871fbf8643db68e083dd9f91cd4320c200bd99a2",
+              "scope": "Floating-point substitution in all included source constraints and bounds; no global optimality or independent certificate.",
+              "residuals": {
+                "constraint:balance:eq": 0.0,
+                "service": 0.0,
+                "bound:loss:lower": -0.0,
+                "bound:loss:upper": -5.0,
+                "bound:fuel:lower": -10.0,
+                "bound:fuel:upper": -10.0,
+                "bound:steam:lower": -8.0,
+                "bound:steam:upper": -12.0
+              }
+            }
+          },
+          {
+            "evidence_id": "source_objective",
+            "subject": "numerical_objective_value",
+            "method": "pyomo_source_expression",
+            "outcome": "verified",
+            "measurements": [],
+            "tolerances": [],
+            "assumptions": [],
+            "backend": null,
+            "details": {
+              "component": "objective",
+              "sense": "minimize",
+              "unit": "MW",
+              "value": 10.0,
+              "scope": "Value at the checked shared-command candidate; no optimality certificate."
+            }
+          }
+        ],
+        "diagnostics": [],
+        "result_id": "sha256:8409984e200888048a21ec65037c4ffd815683f36b8d0ee4af0df51b6f6d5892",
+        "artifacts": {
+          "contract": "sha256:80df75938f240430401c08e1874cbe6f372d0c9c67fb09dfef21d337243a5c4f",
+          "evaluations": []
+        }
+      }
+    }
+  },
+  "solver": {
+    "solver": "highs",
+    "status": "ok",
+    "termination": "optimal",
+    "scope": "candidate generation only",
+    "shared_command_residuals": {
+      "a": {
+        "fuel": 0.0
+      }
+    }
+  },
+  "preparation": {
+    "a": []
+  },
+  "diagnostics": [],
+  "scope": {
+    "coverage": "declared_finite_scenarios_only",
+    "controls": "One common command vector; no observed inputs or parameters.",
+    "objective": "Worst-case source objective; no probabilities or expected cost inferred.",
+    "checks": "Numerical substitution of scenario states and exact shared commands in separate source-model clones.",
+    "optimality": "not_certified",
+    "infeasibility": "not_certified",
+    "confidence_level": null
+  }
+}

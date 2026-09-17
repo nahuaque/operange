@@ -522,6 +522,24 @@ class CalibrationBootstrap(Record):
             fully_observed=fully_observed,
         )
 
+    def optimize_shared_controls(self, adapter, operating_cases, *, parameter_map):
+        """Choose common commands using the worst-case source objective.
+
+        All checked joint draws are crossed with all operating cases. Commands
+        observe neither the operating case nor the latent parameter vector.
+        The result retains numerical source checks, not an optimality proof.
+        """
+        from ._calibration_propagation import prepare_joint
+
+        propagated, domain = prepare_joint(
+            self,
+            adapter,
+            operating_cases,
+            parameter_map=parameter_map,
+            dispatch="optimized_shared_actuator_commands",
+        )
+        return propagated.optimize_shared_controls(domain)
+
     def to_json(self):
         return json.dumps(
             {

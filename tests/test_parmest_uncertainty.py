@@ -432,3 +432,40 @@ def test_fixed_commands_cannot_hide_unspecified_actuators(joint):
             parameter_map=example.PARAMETER_MAP,
             fixed_controls={"fuel": None},
         )
+
+
+def test_joint_draws_choose_one_minimum_fuel_command_and_can_be_reaudited(joint):
+    adapter = example.operating_model()
+    before = model_manifest(adapter._template)
+    result = joint.optimize_shared_controls(
+        adapter, cases(adapter), parameter_map=example.PARAMETER_MAP
+    )
+    expected = max(
+        (9.8 + dict((p.component, p.value) for p in d.estimates)["fs.boiler.heat_loss"])
+        / dict((p.component, p.value) for p in d.estimates)["fs.boiler.efficiency"]
+        for d in joint.draws
+    )
+    assert result.execution == "completed", result.diagnostics  # nosec B101
+    assert result.commands["fuel"] == pytest.approx(expected, abs=1e-6)  # nosec B101
+    assert len(result.scenario_objectives) == 16  # nosec B101
+    assert model_manifest(adapter._template) == before  # nosec B101
+    provenance = result.contract.model["provenance"]["joint_calibration"]
+    assert provenance["uncertainty_ref"] == joint.ref.to_dict()  # nosec B101
+    assert provenance["dispatch"] == "optimized_shared_actuator_commands"  # nosec B101
+    assert len(provenance["scenario_index"]) == 16  # nosec B101
+    replay = joint.as_claim(
+        adapter,
+        cases(adapter),
+        parameter_map=example.PARAMETER_MAP,
+        fixed_controls=result.commands,
+    ).audit_result()
+    assert replay.payload.verdict == "pass", replay.diagnostics  # nosec B101
+
+
+@ipopt
+def test_shared_command_example_compares_nominal_and_joint_decisions():
+    uncertainty, nominal, nominal_audit, shared = example.run_shared_example()
+    assert uncertainty.execution == "completed"  # nosec B101
+    assert shared.commands["fuel"] > nominal.commands["fuel"]  # nosec B101
+    assert nominal_audit.payload.verdict == "inconclusive"  # nosec B101
+    assert shared.audit.payload.verdict == "pass"  # nosec B101

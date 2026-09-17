@@ -119,6 +119,16 @@ provides a joint finite domain, and builds finite IDAES claims through explicit
 parameter mapping and dispatch permissions. See [joint propagation](joint-calibration-uncertainty.md).
 Identifiability and statistical confidence coverage are not assessed.
 
+`IdaesAdapter.optimize_shared_controls(finite_domain)` chooses one command vector
+using the worst-case active source objective. The calibration convenience method
+`CalibrationBootstrap.optimize_shared_controls(adapter, operating_cases,
+parameter_map=...)` preserves whole draws and crosses them with operating cases.
+Both return `IdaesSharedControlResult` (exported by `operange.integrations.idaes`),
+with source-checked scenario evidence and portable `idaes_shared_controls/v1`
+serialization. Completion establishes finite numerical feasibility; global
+optimality and infeasibility remain uncertified. See
+[shared IDAES commands](shared-idaes-controls.md).
+
 | Adapter | Evaluation and sensitivity | Robustness |
 | --- | --- | --- |
 | `AffineProcessAdapter` | Fixed affine responses; analytical first derivatives in physical or normalized coordinates | Finite and supported linear-support audits; L∞ box/polytope distances by default, and optional convex-domain L∞/Euclidean distances; no adjustable recourse |

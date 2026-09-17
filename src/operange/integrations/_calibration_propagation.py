@@ -25,7 +25,6 @@ def as_claim(
         raise ValueError(
             "Joint propagation requires an IdaesAdapter and a FiniteSet of operating cases"
         )
-    adapter.input_space.check_alignment(operating_cases.space)
     if type(fully_observed) is not bool:
         raise ValueError("fully_observed must be a bool")
     if fully_observed and fixed_controls is not None:
@@ -44,6 +43,39 @@ def as_claim(
             for name, value in fixed_controls.items()
         }
 
+    propagated, domain = prepare_joint(
+        uncertainty,
+        adapter,
+        operating_cases,
+        parameter_map=parameter_map,
+        dispatch="ideal_fully_observed_parameters"
+        if fully_observed
+        else "fixed_actuator_commands",
+    )
+    policy = (
+        None
+        if fully_observed
+        else RecoursePolicy(
+            "fixed",
+            tuple(
+                DecisionRule(
+                    v.name, v.unit, "operation", fixed_value=fixed_controls[v.name]
+                )
+                for v in adapter.controls
+            ),
+        )
+    )
+    return propagated.as_claim(domain, recourse=policy)
+
+
+def prepare_joint(uncertainty, adapter, operating_cases, *, parameter_map, dispatch):
+    """Share vector mapping, bounds validation and provenance across studies."""
+    uncertainty._require_complete()
+    if not isinstance(adapter, IdaesAdapter) or type(operating_cases) is not FiniteSet:
+        raise ValueError(
+            "Joint propagation requires an IdaesAdapter and a FiniteSet of operating cases"
+        )
+    adapter.input_space.check_alignment(operating_cases.space)
     model, updates = parameter_model(
         adapter, uncertainty.calibration.estimates, parameter_map
     )
@@ -96,9 +128,7 @@ def as_claim(
             "parameter_map": dict(parameter_map),
             "scope": dict(uncertainty.scope),
             "combination": "Cartesian stress test of whole parameter vectors and declared operating cases; no case probabilities or statistical independence asserted.",
-            "dispatch": "ideal_fully_observed_parameters"
-            if fully_observed
-            else "fixed_actuator_commands",
+            "dispatch": dispatch,
             "scenario_index": case_index,
         },
     }
@@ -109,17 +139,4 @@ def as_claim(
         inputs=adapter.inputs + bindings,
         provenance=provenance,
     )
-    policy = (
-        None
-        if fully_observed
-        else RecoursePolicy(
-            "fixed",
-            tuple(
-                DecisionRule(
-                    v.name, v.unit, "operation", fixed_value=fixed_controls[v.name]
-                )
-                for v in adapter.controls
-            ),
-        )
-    )
-    return propagated.as_claim(FiniteSet(space, tuple(scenarios)), recourse=policy)
+    return propagated, FiniteSet(space, tuple(scenarios))

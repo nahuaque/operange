@@ -6,6 +6,7 @@ import sys
 
 import operange
 from operange.integrations.parmest import CalibrationBootstrap
+from operange.integrations.idaes import IdaesSharedControlResult
 
 
 def require(condition, message):
@@ -46,8 +47,26 @@ def main():
         == audit.result_id,
         "audit changed on loading",
     )
+    _, nominal, nominal_audit, shared = example["run_shared_example"]()
+    require(shared.execution == "completed", "shared-command optimization unresolved")
+    require(
+        shared.audit.payload.verdict == "pass", "shared commands lack finite coverage"
+    )
+    require(
+        shared.commands["fuel"] > nominal.commands["fuel"],
+        "joint equipment uncertainty did not affect the command",
+    )
+    require(
+        nominal_audit.payload.verdict == "inconclusive",
+        "nominal comparison changed scope",
+    )
+    require(len(shared.scenario_objectives) == 24, "shared study lost scenario labels")
+    require(
+        IdaesSharedControlResult.from_json(shared.to_json()) == shared,
+        "shared-command evidence changed on loading",
+    )
     print(
-        "Installed wheel: joint parameter bootstrap, physical replays and finite operating propagation passed"
+        "Installed wheel: joint bootstrap, finite propagation and shared-command optimization passed"
     )
 
 

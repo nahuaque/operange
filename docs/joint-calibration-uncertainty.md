@@ -101,6 +101,13 @@ knows the actual parameter vector, use `fully_observed=True` instead of
 controller for latent parameters, or a common robust dispatch chosen before
 those parameters are known.
 
+To choose common commands automatically, use
+`uncertainty.optimize_shared_controls(adapter, operating_cases, parameter_map=...)`.
+It minimizes the worst-case source cost (or maximizes the worst-case source
+benefit) with one actuator vector across every draw/case combination. See
+[shared IDAES commands](shared-idaes-controls.md) for evidence scope and a
+comparison with nominal dispatch.
+
 The resulting claim uses the existing IDAES checks and result format. A `pass`
 covers only the listed combinations. Failed nonlinear solves remain `unknown`,
 and an incomplete operating audit remains `inconclusive`. Neither the proportion

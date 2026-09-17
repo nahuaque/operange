@@ -88,7 +88,7 @@ def operating_model():
     )
 
 
-def run_example(samples=12, seed=7):
+def _study(samples, seed):
     uncertainty = campaign().bootstrap(samples=samples, seed=seed)
     if uncertainty.execution != "completed":
         raise RuntimeError(uncertainty.diagnostics)
@@ -100,11 +100,36 @@ def run_example(samples=12, seed=7):
             Scenario("near_limit", {"demand": 9.8}, "Near nominal available steam"),
         ),
     )
+    return uncertainty, adapter, cases
+
+
+def run_example(samples=12, seed=7):
+    uncertainty, adapter, cases = _study(samples, seed)
     claim = uncertainty.as_claim(
         adapter, cases, parameter_map=PARAMETER_MAP, fixed_controls={"fuel": 13.5}
     )
     audit = claim.audit_result()
     return uncertainty, audit
+
+
+def run_shared_example(samples=12, seed=7):
+    """Compare nominal commands with one command checked across all joint draws."""
+    uncertainty, adapter, cases = _study(samples, seed)
+    nominal_adapter = uncertainty.calibration.apply_to(
+        adapter, parameter_map=PARAMETER_MAP
+    )
+    nominal = nominal_adapter.optimize_shared_controls(cases)
+    if nominal.execution != "completed":
+        raise RuntimeError(nominal.diagnostics)
+    nominal_audit = uncertainty.as_claim(
+        adapter, cases, parameter_map=PARAMETER_MAP, fixed_controls=nominal.commands
+    ).audit_result()
+    shared = uncertainty.optimize_shared_controls(
+        adapter, cases, parameter_map=PARAMETER_MAP
+    )
+    if shared.execution != "completed":
+        raise RuntimeError(shared.diagnostics)
+    return uncertainty, nominal, nominal_audit, shared
 
 
 def main():
@@ -113,8 +138,28 @@ def main():
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--uncertainty-output", type=Path)
     parser.add_argument("--audit-output", type=Path)
+    parser.add_argument("--optimize-shared", action="store_true")
+    parser.add_argument("--shared-output", type=Path)
     args = parser.parse_args()
-    uncertainty, audit = run_example(args.samples, args.seed)
+    if args.shared_output and not args.optimize_shared:
+        parser.error("--shared-output requires --optimize-shared")
+    comparison = {}
+    if args.optimize_shared:
+        uncertainty, nominal, nominal_audit, shared = run_shared_example(
+            args.samples, args.seed
+        )
+        audit = shared.audit
+        comparison = {
+            "nominal_fuel_MW": nominal.commands["fuel"],
+            "nominal_command_joint_verdict": nominal_audit.payload.verdict,
+            "shared_fuel_MW": shared.commands["fuel"],
+            "shared_objective_MW": shared.objective_value,
+            "optimality": shared.scope["optimality"],
+        }
+        if args.shared_output:
+            args.shared_output.write_text(shared.to_json(), encoding="utf-8")
+    else:
+        uncertainty, audit = run_example(args.samples, args.seed)
     from operange.contract_types import plain
 
     # The audit may store one evaluation once for duplicate parameter vectors;
@@ -134,6 +179,7 @@ def main():
                     for s in scenarios
                 ),
                 "scenarios": len(scenarios),
+                **comparison,
             },
             indent=2,
         )

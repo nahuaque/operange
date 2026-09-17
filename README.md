@@ -55,6 +55,8 @@ for checkout and wheel installation.
   portable evidence and explicitly apply estimates before repeating a study.
 - [Joint calibration uncertainty](docs/joint-calibration-uncertainty.md) — preserve
   bootstrap parameter dependence and propagate whole vectors through operating cases.
+- [Shared operating commands](docs/shared-idaes-controls.md) — choose one actuator
+  vector across equipment draws and operating cases using the worst-case objective.
 - [API and capabilities](docs/api.md) — supported
   models, uncertainty sets, queries and portable results.
 - [Methods and scope](docs/methods.md) — the

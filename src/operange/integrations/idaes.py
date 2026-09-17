@@ -19,6 +19,7 @@ from ..contract_types import Record, freeze, nonempty, unique
 from ..domains import FiniteSet, ParameterSpace
 from ..recourse import DecisionRule, RecoursePolicy
 from ._idaes_affine import IdaesLinearExport
+from ._idaes_shared_result import IdaesSharedControlResult
 
 __all__ = [
     "IdaesAdapter",
@@ -26,6 +27,7 @@ __all__ = [
     "IdaesRequirement",
     "IdaesInitialization",
     "IdaesLinearExport",
+    "IdaesSharedControlResult",
 ]
 
 
@@ -236,3 +238,15 @@ class IdaesAdapter:
         from ._idaes_affine import export_linear
 
         return export_linear(self)
+
+    def optimize_shared_controls(self, domain):
+        """Optimize one command vector over a FiniteSet of input realizations.
+
+        Uses the source model's active objective and sense, aggregated as the
+        worst case. All active requirements apply in every scenario. A returned
+        command is checked against the original equations at every declared
+        point; nonlinear global optimality and infeasibility are not certified.
+        """
+        from ._idaes_shared_controls import optimize_shared_controls
+
+        return optimize_shared_controls(self, domain)

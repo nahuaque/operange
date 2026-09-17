@@ -159,6 +159,7 @@ equipment-networks
 idaes
 calibration
 joint-calibration-uncertainty
+shared-idaes-controls
 continuous-dispatch
 shared-relief
 dispatch-objectives

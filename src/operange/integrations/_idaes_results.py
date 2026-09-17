@@ -12,7 +12,7 @@ from ..contract_types import (
     snapshot,
 )
 from ..engineering_results import EvaluationResult
-from ._idaes_model import backend, component, number
+from ._idaes_model import backend, component, number, uid, unit
 from ._idaes_workflow import InitializationFailure, diagnostics, initialize
 
 
@@ -60,7 +60,7 @@ def _solve(model, adapter):
     return True, details
 
 
-def evaluate_result(claim, realization=None, *, contract=None):
+def evaluate_result(claim, realization=None, *, contract=None, _candidate=None):
     adapter = claim.adapter
     contract = claim.contract if contract is None else contract
     request = {"query": "evaluation", "realization": snapshot(realization)}
@@ -147,14 +147,19 @@ def evaluate_result(claim, realization=None, *, contract=None):
             iterate_origin=iterate_origin,
         )
         stage = "initialization"
-        initialize(model, adapter, evidence)
+        if _candidate is None:
+            initialize(model, adapter, evidence)
         # Solver plugins may transform their model. Check the returned variables
         # against a separate, unmodified copy of the requested source equations.
         checker = model.clone()
         diagnostic_model = checker
         iterate_origin = "prepared_start_without_solver_solution"
         stage = "solve"
-        solved, details = _solve(model, adapter)
+        if _candidate is None:
+            solved, details = _solve(model, adapter)
+        else:
+            model, details = _candidate
+            solved = True
         evidence.append(
             Evidence(
                 "solver",
@@ -167,8 +172,6 @@ def evaluate_result(claim, realization=None, *, contract=None):
         )
         if solved:
             stage = "candidate_check"
-            from ._idaes_model import uid
-
             candidates = []
             for var in checker.component_data_objects(
                 pyo.Var, active=True, descend_into=True
@@ -219,6 +222,27 @@ def evaluate_result(claim, realization=None, *, contract=None):
             )
             values = tuple(candidate_values)
             feasible = all(check.assessment == "satisfied" for check in checks)
+            if feasible and _candidate is not None:
+                objective = next(
+                    model.component_data_objects(
+                        pyo.Objective, active=True, descend_into=True
+                    )
+                )
+                evidence.append(
+                    Evidence(
+                        "source_objective",
+                        "numerical_objective_value",
+                        "pyomo_source_expression",
+                        "verified",
+                        details={
+                            "component": uid(objective),
+                            "sense": str(objective.sense),
+                            "unit": unit(objective.expr),
+                            "value": number(objective.expr),
+                            "scope": "Value at the checked shared-command candidate; no optimality certificate.",
+                        },
+                    )
+                )
             code = "idaes_residual_violation"
             message = "Returned candidate violates a source constraint or bound; no infeasibility conclusion follows."
         else:
@@ -227,6 +251,7 @@ def evaluate_result(claim, realization=None, *, contract=None):
     except Exception as exc:
         # External models and solver plugins can fail in many backend-specific ways.
         # Keep an unresolved scenario so a finite audit cannot silently pass.
+        feasible = False
         message = f"{type(exc).__name__}: {exc}"
         if isinstance(exc, InitializationFailure):
             code = exc.code

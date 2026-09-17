@@ -14,6 +14,12 @@ storage controllers support ordered held-out paths. The legacy frozen heat
 contract remains a separate static-recourse format. An experimental
 [DWSIM connection](../docs/dwsim.md) now exercises a real installed simulator.
 
+Joint parmest bootstrap draws now feed finite IDAES operating studies and
+[shared-command optimization](../docs/shared-idaes-controls.md). One actuator
+vector is chosen using the worst-case source objective, with all declared
+scenarios checked against separate source clones. Commands observe no inputs;
+partial-observation policies and continuous nonlinear coverage remain future work.
+
 ## Package boundary before expansion
 
 Further thermodynamics, reconciliation, estimation and dynamic modelling should
