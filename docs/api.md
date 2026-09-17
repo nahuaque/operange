@@ -153,6 +153,14 @@ summaries need only base dependencies. This separate local diagnostic does not
 upgrade generic claim sensitivity or certify robustness. See
 [local operating uncertainty](local-uncertainty.md).
 
+`ParameterPoint`, `ParameterBinding`, `ParameterCovariance` and `ParameterSamples`
+are provider-independent records exported from `operange.parameters` and
+`operange`. `CalibrationResult.parameter_point` and
+`CalibrationBootstrap.parameter_samples` expose checked data in this form.
+`IdaesAdapter.with_parameters(point, parameter_map=...)` binds external values
+on a fresh snapshot; local propagation also accepts named covariance records.
+See [parameter data and execution](parameter-data-and-execution.md).
+
 | Adapter | Evaluation and sensitivity | Robustness |
 | --- | --- | --- |
 | `AffineProcessAdapter` | Fixed affine responses; analytical first derivatives in physical or normalized coordinates | Finite and supported linear-support audits; L∞ box/polytope distances by default, and optional convex-domain L∞/Euclidean distances; no adjustable recourse |

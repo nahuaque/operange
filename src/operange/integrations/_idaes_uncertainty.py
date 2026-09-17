@@ -6,20 +6,20 @@ from dataclasses import replace
 import numpy as np
 
 from ..contract_types import Diagnostic, unique
-from ..domains import FiniteSet, Scenario
+from ..domains import Coordinate, ParameterSpace, FiniteSet, Scenario
+from ..parameters import ParameterPoint, ParameterCovariance, covariance_matrix
 from ..primitives import finite
 from ._idaes_derivatives import _regular_system
-from ._idaes_model import backend, component, number
+from ._idaes_model import component, number
+from ._idaes_results import evaluate_point
 from ._idaes_shared_result import fixed_policy
 from ._idaes_uncertainty_result import (
     IdaesUncertainParameter,
     IdaesResponse,
     IdaesPerturbation,
     IdaesUncertaintyResult,
-    covariance_matrix,
 )
-from ._parmest_backend import parameter_model
-from .parmest import CalibrationEstimate
+from ._idaes_parameters import parameter_model
 
 
 def _evaluate(adapter, point, commands):
@@ -31,32 +31,7 @@ def _evaluate(adapter, point, commands):
         if commands is None
         else fixed_policy(adapter.base_contract.model["controls"], commands)
     )
-    return adapter.as_claim(domain, recourse=policy).evaluate_result(point)
-
-
-def _source_point(adapter, evaluation, commands):
-    """Restore only checked values on the original equations, never solver edits."""
-    if evaluation.payload.feasibility != "feasible":
-        raise ValueError("Operating point has no checked feasible source solution")
-    pyo, _ = backend()
-    model = adapter._template.clone()
-    values = {v.quantity_ref: v.value for v in evaluation.payload.values}
-    for binding in adapter.inputs:
-        target = component(model, binding.component)
-        if target.ctype is pyo.Var:
-            target.fix(values[binding.name])
-        else:
-            target.set_value(values[binding.name])
-    for binding in adapter.controls:
-        target = component(model, binding.component)
-        target.set_value(values[binding.name], skip_validation=True)
-        if commands is None:
-            target.unfix()
-        else:
-            target.fix(commands[binding.name])
-    for name, path, _ in adapter._states:
-        component(model, path).set_value(values[name], skip_validation=True)
-    return model
+    return evaluate_point(adapter.as_claim(domain, recourse=policy), point)
 
 
 def _expressions(model, responses, rows):
@@ -98,20 +73,29 @@ def propagate_uncertainty(
     if not parameters or not all(isinstance(p, IdaesVariable) for p in parameters):
         raise ValueError("Supply a nonempty ordered tuple of IdaesVariable parameters")
     unique(tuple(p.name for p in parameters), "parameter names")
+    space = ParameterSpace(
+        tuple(
+            Coordinate(p.name, p.unit, "Uncertain model parameter") for p in parameters
+        )
+    )
+    if isinstance(covariance, ParameterCovariance):
+        provenance = {
+            **(provenance or {}),
+            "parameter_covariance": covariance.to_dict(),
+        }
+        covariance = covariance.in_space(space)
     covariance = covariance_matrix(covariance, len(parameters))
     point = adapter.input_space.validate(
         adapter.input_space.nominal if realization is None else realization
     )
-    theta = tuple(
-        CalibrationEstimate(
-            p.name, p.unit, number(component(adapter._template, p.component))
-        )
-        for p in parameters
+    theta = ParameterPoint(
+        space,
+        {p.name: number(component(adapter._template, p.component)) for p in parameters},
     )
     mapping = {p.name: p.component for p in parameters}
     _, updates = parameter_model(adapter, theta, mapping)
     parameters = tuple(
-        IdaesUncertainParameter(u["estimate"], u["target"], u["unit"], u["value"])
+        IdaesUncertainParameter(u.parameter, u.component, u.unit, u.value)
         for u in updates
     )
     if type(reoptimize) is not bool:
@@ -185,10 +169,10 @@ def propagate_uncertainty(
     if not responses:
         raise ValueError("Select at least one output or margin")
     unique(tuple(r.name for r in responses), "response names")
-    baseline = _evaluate(adapter, point, commands)
+    baseline, operating = _evaluate(adapter, point, commands)
     values, jacobian, probes, diagnostics, numerical = (), (), [], [], {}
     try:
-        model = _source_point(adapter, baseline, commands)
+        model = operating.require_checked().model
         exprs = _expressions(model, responses, rows)
         values = tuple(number(expr) for expr in exprs)
         active = _active(model, rows, adapter.tolerance)
@@ -292,7 +276,7 @@ def _finite_differences(
     numerical,
 ):
     columns, failures, comparisons = [], [], []
-    for index, parameter in enumerate(parameters):
+    for parameter in parameters:
         samples = []
         h = steps[parameter.name]
         for factor in (-1, 1, -0.5, 0.5):
@@ -300,14 +284,17 @@ def _finite_differences(
             evaluation = None
             errors = ()
             try:
-                perturbed = list(theta)
-                perturbed[index] = replace(
-                    perturbed[index], value=parameter.value + offset
+                perturbed = replace(
+                    theta,
+                    values={
+                        **dict(theta.values),
+                        parameter.name: parameter.value + offset,
+                    },
                 )
                 model, _ = parameter_model(adapter, perturbed, mapping)
                 candidate = replace(adapter, model=model)
-                evaluation = _evaluate(candidate, point, None)
-                source = _source_point(candidate, evaluation, None)
+                evaluation, operating = _evaluate(candidate, point, None)
+                source = operating.require_checked().model
                 termination = next(
                     e.details.get("termination")
                     for e in evaluation.evidence

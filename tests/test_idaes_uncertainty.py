@@ -19,7 +19,7 @@ from operange.integrations.idaes import (
     IdaesUncertaintyResult,
 )
 from operange.contract_types import Diagnostic
-from operange.integrations import _idaes_results
+from operange.integrations import _idaes_execution
 from operange.integrations._idaes_model import model_manifest
 
 
@@ -131,7 +131,7 @@ def test_reoptimization_moves_commands_and_preserves_service_margin(param):
 def test_invalid_covariances_fail_before_solver(covariance, monkeypatch):
     _, adapter = boiler()
     monkeypatch.setattr(
-        _idaes_results, "_solve", lambda *a: pytest.fail("must not solve")
+        _idaes_execution, "solve", lambda *a: pytest.fail("must not solve")
     )
     with pytest.raises(ValueError, match="[Cc]ovariance|variance"):
         adapter.propagate_uncertainty(
@@ -179,7 +179,7 @@ def test_zero_and_singular_covariances_are_valid(covariance):
 def test_invalid_requests_fail_before_solver(options, monkeypatch):
     _, adapter = boiler()
     monkeypatch.setattr(
-        _idaes_results, "_solve", lambda *a: pytest.fail("must not solve")
+        _idaes_execution, "solve", lambda *a: pytest.fail("must not solve")
     )
     with pytest.raises(ValueError):
         adapter.propagate_uncertainty(
@@ -230,7 +230,7 @@ def test_parameter_bounds_and_solver_failures_remain_visible(monkeypatch):
     assert result.execution == "unresolved" and len(result.perturbations) == 8  # nosec B101
     assert any(p.evaluation is None for p in result.perturbations)  # nosec B101
     monkeypatch.setattr(
-        _idaes_results, "_solve", lambda *a: (False, {"termination": "infeasible"})
+        _idaes_execution, "solve", lambda *a: (False, {"termination": "infeasible"})
     )
     result = propagate(adapter, fixed_controls={"fuel": 15})
     assert (
@@ -242,7 +242,7 @@ def test_parameter_bounds_and_solver_failures_remain_visible(monkeypatch):
 
 def test_solver_mutation_is_checked_on_original_equations(monkeypatch):
     _, adapter = boiler()
-    solve = _idaes_results._solve
+    solve = _idaes_execution.solve
 
     def mutate(model, adapter):
         solved, details = solve(model, adapter)
@@ -250,14 +250,14 @@ def test_solver_mutation_is_checked_on_original_equations(monkeypatch):
         model.steam.set_value(19)
         return solved, details
 
-    monkeypatch.setattr(_idaes_results, "_solve", mutate)
+    monkeypatch.setattr(_idaes_execution, "solve", mutate)
     result = propagate(adapter, fixed_controls={"fuel": 15})
     assert result.execution == "unresolved"  # nosec B101
 
 
 def test_failed_perturbation_retains_other_checks(monkeypatch):
     _, adapter = boiler()
-    solve = _idaes_results._solve
+    solve = _idaes_execution.solve
     calls = 0
 
     def fail_one(model, adapter):
@@ -267,7 +267,7 @@ def test_failed_perturbation_retains_other_checks(monkeypatch):
             return False, {"termination": "maxIterations"}
         return solve(model, adapter)
 
-    monkeypatch.setattr(_idaes_results, "_solve", fail_one)
+    monkeypatch.setattr(_idaes_execution, "solve", fail_one)
     result = propagate(adapter, reoptimize=True, steps={"eta": 1e-4, "loss": 1e-3})
     assert result.execution == "unresolved" and len(result.perturbations) == 8  # nosec B101
     assert sum(p.checked for p in result.perturbations) == 7  # nosec B101
@@ -277,13 +277,13 @@ def test_failed_perturbation_retains_other_checks(monkeypatch):
 
 def test_feasibility_only_termination_is_not_reoptimization(monkeypatch):
     _, adapter = boiler()
-    solve = _idaes_results._solve
+    solve = _idaes_execution.solve
 
     def feasible(model, adapter):
         solved, details = solve(model, adapter)
         return solved, {**details, "termination": "feasible"}
 
-    monkeypatch.setattr(_idaes_results, "_solve", feasible)
+    monkeypatch.setattr(_idaes_execution, "solve", feasible)
     result = propagate(adapter, reoptimize=True, steps={"eta": 1e-4, "loss": 1e-3})
     assert result.execution == "unresolved" and not result.perturbations  # nosec B101
     assert "termination" in result.diagnostics[-1].message  # nosec B101

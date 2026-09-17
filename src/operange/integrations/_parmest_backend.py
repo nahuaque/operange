@@ -7,6 +7,8 @@ from types import SimpleNamespace
 
 from ..contract_types import Diagnostic, digest, nonempty, plain
 from ..primitives import finite
+from ._idaes_parameters import parameter_model
+from ._calibration_parameters import calibration_updates
 from ._idaes_model import (
     backend,
     component,
@@ -444,7 +446,8 @@ def fit(study):
 def apply_calibration(result, adapter, parameter_map):
     if result.execution != "completed":
         raise ValueError("Only completed, checked calibration results can be applied")
-    model, updates = parameter_model(adapter, result.estimates, parameter_map)
+    model, assignments = parameter_model(adapter, result.parameter_point, parameter_map)
+    updates = calibration_updates(assignments)
     provenance = {
         **plain(adapter.provenance),
         "calibration": {
@@ -456,83 +459,6 @@ def apply_calibration(result, adapter, parameter_map):
         },
     }
     return replace(adapter, model=model, provenance=provenance)
-
-
-def parameter_model(adapter, estimates, parameter_map):
-    """Validate an explicit whole-vector update, shared by point and joint fits."""
-    from .idaes import IdaesAdapter
-
-    if not isinstance(adapter, IdaesAdapter):
-        raise ValueError("Apply calibration to an IdaesAdapter")
-    if not isinstance(parameter_map, Mapping) or not parameter_map:
-        raise ValueError(
-            "Supply an explicit estimate-CUID to target-CUID parameter_map"
-        )
-    estimates = {p.component: p for p in estimates}
-    if set(parameter_map) != set(estimates):
-        raise ValueError("parameter_map must cover exactly the fitted parameters")
-    pyo, _ = backend()
-    model = adapter._template.clone()
-    forbidden = {
-        id(component(model, b.component)) for b in adapter.inputs + adapter.controls
-    }
-    active = {
-        id(obj)
-        for kind in (pyo.Var, pyo.Param)
-        for obj in model.component_data_objects(kind, active=True)
-    }
-    updates, targets = [], set()
-    for source, path in parameter_map.items():
-        if not isinstance(path, str):
-            raise ValueError("Target component paths must be strings")
-        target = component(model, path)
-        if id(target) not in active:
-            raise ValueError("Calibration targets must belong to active model blocks")
-        if id(target) in forbidden:
-            raise ValueError(
-                "Calibration targets cannot be scenario inputs or actuator controls"
-            )
-        if id(target) in targets:
-            raise ValueError("Calibration parameter targets cannot alias each other")
-        targets.add(id(target))
-        estimate = estimates[source]
-        if unit(target) != estimate.unit:
-            raise ValueError("Calibration target native units must match the estimate")
-        if target.ctype is pyo.Var:
-            if not target.fixed:
-                raise ValueError(
-                    "Calibration target Vars must be fixed model parameters"
-                )
-        elif target.ctype is not pyo.Param or not target.parent_component().mutable:
-            raise ValueError("Calibration targets must be fixed Vars or mutable Params")
-        elif (
-            target.parent_component().domain not in (pyo.Reals, pyo.Any)
-            or target.parent_component()._validate is not None
-        ):
-            raise ValueError(
-                "Target Params must use Reals/Any without validation callbacks"
-            )
-        previous = number(target)
-        target.set_value(estimate.value)
-        updates.append(
-            {
-                "estimate": source,
-                "target": uid(target),
-                "unit": estimate.unit,
-                "previous": previous,
-                "value": estimate.value,
-            }
-        )
-    # Bounds can depend on another updated parameter. Check the entire vector
-    # after all updates, independently of mapping insertion order.
-    for update in updates:
-        target = component(model, update["target"])
-        if target.ctype is pyo.Var and (
-            (target.lb is not None and update["value"] < number(target.lb))
-            or (target.ub is not None and update["value"] > number(target.ub))
-        ):
-            raise ValueError("Calibrated parameter violates target bounds")
-    return model, updates
 
 
 def reference_study(study):

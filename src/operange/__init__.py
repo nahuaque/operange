@@ -32,6 +32,12 @@ from .certificate_verification import (
     verify_result,
 )
 from .vector import VectorParameter
+from .parameters import (
+    ParameterPoint,
+    ParameterBinding,
+    ParameterCovariance,
+    ParameterSamples,
+)
 from .profiles import PiecewiseLinearProfile
 from .geometries import BudgetSet, EllipsoidSet, SimplexSet
 from .polytope import LinearConstraint, PolytopeSet
@@ -93,6 +99,10 @@ from .convex_hull import ConvexHullSet
 from .claim import bind_contract, rejected_result
 
 __all__ = [
+    "ParameterPoint",
+    "ParameterBinding",
+    "ParameterCovariance",
+    "ParameterSamples",
     "AffineOutput",
     "AffineProcessAdapter",
     "AffineRequirement",

@@ -33,7 +33,7 @@ from operange.integrations.idaes import (
     IdaesRequirement,
     IdaesVariable,
 )
-from operange.integrations import _idaes_results
+from operange.integrations import _idaes_execution
 
 
 def domain(adapter, loads=(16, 20)):
@@ -265,7 +265,7 @@ def test_solver_failure_and_stale_initial_values_do_not_pass(monkeypatch):
     adapter = bind_flowsheet(build_flowsheet())
     cases = domain(adapter, (16,))
     monkeypatch.setattr(
-        _idaes_results, "_solve", lambda *args: (False, {"termination": "infeasible"})
+        _idaes_execution, "solve", lambda *args: (False, {"termination": "infeasible"})
     )
     result = adapter.as_claim(cases).evaluate_result({"load": 16})
     assert result.payload.feasibility == "unknown"  # nosec B101
@@ -276,7 +276,7 @@ def test_solver_failure_and_stale_initial_values_do_not_pass(monkeypatch):
 def test_reported_solver_success_still_checks_original_rows(monkeypatch):
     adapter = bind_flowsheet(build_flowsheet())
     monkeypatch.setattr(
-        _idaes_results, "_solve", lambda *args: (True, {"termination": "optimal"})
+        _idaes_execution, "solve", lambda *args: (True, {"termination": "optimal"})
     )
     result = adapter.as_claim(domain(adapter)).evaluate_result({"load": 16})
     assert result.payload.feasibility == "unknown"  # nosec B101
@@ -377,7 +377,7 @@ def test_solver_model_transformations_cannot_change_checked_physics(monkeypatch)
             b.balance.set_value(b.steam == 10 * pyo.units.MW)
         return True, {"termination": "optimal"}
 
-    monkeypatch.setattr(_idaes_results, "_solve", altered)
+    monkeypatch.setattr(_idaes_execution, "solve", altered)
     result = adapter.as_claim(domain(adapter)).evaluate_result({"load": 16})
     assert result.payload.feasibility == "unknown"  # nosec B101
     assert any(
@@ -401,7 +401,7 @@ def test_solver_cannot_change_a_fixed_command(monkeypatch):
         model.fs.boiler["a"].fuel.set_value(15)
         return True, {"termination": "optimal"}
 
-    monkeypatch.setattr(_idaes_results, "_solve", changed)
+    monkeypatch.setattr(_idaes_execution, "solve", changed)
     result = adapter.as_claim(domain(adapter), recourse=policy).evaluate_result(
         {"load": 16}
     )

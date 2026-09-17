@@ -18,6 +18,10 @@ and cannot alias each other, scenario inputs, or actuator controls. Their
 current values define the linearization point. Supply the covariance in that
 same order, with entry `[i,j]` in `parameter_unit[i] * parameter_unit[j]`.
 
+Alternatively, supply a named `ParameterCovariance`; it is aligned by parameter
+identity and units. [Provider-independent parameter data](parameter-data-and-execution.md)
+also supports external point estimates and joint samples without a parmest fit.
+
 ```python
 from operange.integrations.idaes import IdaesVariable
 from examples.local_uncertainty import operating_model

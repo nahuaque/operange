@@ -3,10 +3,10 @@
 from .._finite_audit import audit_finite
 from ..contract_types import Diagnostic
 from ..domains import FiniteSet
-from . import _idaes_results
+from . import _idaes_results, _idaes_execution
 from ._idaes_model import backend, component, number, uid, unit
 from ._idaes_shared_result import IdaesSharedControlResult, fixed_policy
-from ._idaes_workflow import diagnostics, initialize
+from ._idaes_execution import Candidate, OperatingPointRequest, PointExecution
 
 
 def optimize_shared_controls(adapter, domain):
@@ -50,29 +50,19 @@ def optimize_shared_controls(adapter, domain):
         scenarios = []
         for index, scenario in enumerate(domain.scenarios):
             stage = f"scenario_setup:{scenario.name}"
-            child = adapter._template.clone()
-            for binding in adapter.inputs:
-                item = component(child, binding.component)
-                if item.ctype is pyo.Var:
-                    item.fix(scenario.values[binding.name])
-                else:
-                    item.set_value(scenario.values[binding.name])
-            for binding in adapter.controls:
-                component(child, binding.component).unfix()
-            evidence = []
+            prepared = PointExecution(
+                adapter,
+                OperatingPointRequest(
+                    scenario.values,
+                    {b.name: None for b in adapter.controls},
+                    tuple(r.name for r in adapter.requirements),
+                ),
+            )
             try:
-                diagnostics(
-                    child,
-                    adapter,
-                    evidence,
-                    stage="before_initialization",
-                    rows=adapter._rows,
-                    iterate_origin="source_start",
-                )
                 stage = f"initialization:{scenario.name}"
-                initialize(child, adapter, evidence)
+                child = prepared.prepare()
             finally:
-                preparation[scenario.name] = [e.to_dict() for e in evidence]
+                preparation[scenario.name] = [e.to_dict() for e in prepared.before]
             scenario_objective = component(child, objective_spec["component"])
             scenario_objective.deactivate()
             model.add_component(f"scenario_{index}", child)
@@ -90,7 +80,7 @@ def optimize_shared_controls(adapter, domain):
             )
         model.objective = pyo.Objective(expr=model.worst, sense=objective.sense)
         stage = "shared_solve"
-        solved, solver = _idaes_results._solve(model, adapter)
+        solved, solver = _idaes_execution.solve(model, adapter)
         if not solved:
             raise ValueError(
                 f"Solver termination {solver['termination']}; no checked shared command or infeasibility proof"
@@ -124,17 +114,18 @@ def optimize_shared_controls(adapter, domain):
         candidates = iter(scenarios)
 
         def evaluate(claim, realization, *, contract):
-            return _idaes_results.evaluate_result(
+            return _idaes_results.evaluate_candidate(
                 claim,
                 realization,
-                contract=contract,
-                _candidate=(
+                Candidate(
                     next(candidates),
+                    True,
                     {
                         **candidate_solver,
                         "scope": "Candidate from the joint optimization; checked against a separate source-model clone.",
                     },
                 ),
+                contract=contract,
             )
 
         def no_failure(*args):

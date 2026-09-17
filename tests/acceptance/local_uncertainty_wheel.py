@@ -5,6 +5,14 @@ import runpy
 import sys
 
 import operange
+from operange import (
+    Coordinate,
+    ParameterSpace,
+    ParameterPoint,
+    ParameterCovariance,
+    ParameterSamples,
+    Scenario,
+)
 from operange.integrations.idaes import IdaesUncertaintyResult
 
 
@@ -25,6 +33,33 @@ def main():
         "keep public imports lazy",
     )
     example = runpy.run_path(str(Path(__file__).with_name("local_uncertainty.py")))
+    space = ParameterSpace((Coordinate("eta", "1", "external"),))
+    point = ParameterPoint(space, {"eta": 0.8})
+    supplied = example["operating_model"]().with_parameters(
+        point, parameter_map={"eta": "fs.boiler.efficiency"}
+    )
+    from operange.integrations.idaes import IdaesVariable
+
+    local = supplied.propagate_uncertainty(
+        parameters=(IdaesVariable("eta", "fs.boiler.efficiency", "1"),),
+        covariance=ParameterCovariance(space, ((0.01,),)),
+        fixed_controls={"fuel": 15},
+    )
+    require(
+        local.execution == "completed" and abs(local.jacobian[0][0] - 15) < 1e-10,
+        "use provider-independent parameter data",
+    )
+    samples = ParameterSamples(
+        space,
+        (
+            Scenario("a", {"eta": 0.8}, "external"),
+            Scenario("b", {"eta": 0.6}, "external"),
+        ),
+    )
+    require(
+        abs(samples.covariance.covariance[0][0] - 0.02) < 1e-10,
+        "preserve joint sample moments",
+    )
     fixed, optimized = example["run_example"]()
     require(
         abs(fixed.statistics["responses"][0]["variance"] - 1.3) < 1e-10,

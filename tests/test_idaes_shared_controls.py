@@ -25,7 +25,7 @@ from operange.integrations.idaes import (
     IdaesRequirement,
     IdaesSharedControlResult,
 )
-from operange.integrations import _idaes_results
+from operange.integrations import _idaes_execution
 from operange.integrations._idaes_model import model_manifest
 
 
@@ -157,13 +157,13 @@ def test_multiple_actuators_keep_native_units_and_all_scenario_bounds(monkeypatc
         model=m,
         controls=adapter.controls + (IdaesVariable("flow", "flow", "kg/s"),),
     )
-    solve = _idaes_results._solve
+    solve = _idaes_execution.solve
 
     def checked_solve(model, adapter):
         assert_units_consistent(model)
         return solve(model, adapter)
 
-    monkeypatch.setattr(_idaes_results, "_solve", checked_solve)
+    monkeypatch.setattr(_idaes_execution, "solve", checked_solve)
     result = adapter.optimize_shared_controls(domain)
     assert result.execution == "completed", result.diagnostics  # nosec B101
     assert result.commands == pytest.approx({"fuel": 8.75, "flow": 1})  # nosec B101
@@ -172,7 +172,7 @@ def test_multiple_actuators_keep_native_units_and_all_scenario_bounds(monkeypatc
 
 def test_initialization_failure_keeps_scenario_diagnostics(monkeypatch):
     from operange.contract_types import Evidence
-    from operange.integrations import _idaes_shared_controls as shared
+    from operange.integrations import _idaes_execution as shared
 
     _, adapter, domain = boiler()
 
@@ -190,7 +190,7 @@ def test_initialization_failure_keeps_scenario_diagnostics(monkeypatch):
 
     monkeypatch.setattr(shared, "initialize", fail)
     monkeypatch.setattr(
-        _idaes_results, "_solve", lambda *args: pytest.fail("must not solve")
+        _idaes_execution, "solve", lambda *args: pytest.fail("must not solve")
     )
     result = adapter.optimize_shared_controls(domain)
     assert result.execution == "unresolved"  # nosec B101
@@ -218,11 +218,11 @@ def test_search_failures_stay_unresolved_and_never_report_an_optimum(
         def fail(*args):
             raise RuntimeError("backend failed")
 
-        monkeypatch.setattr(_idaes_results, "_solve", fail)
+        monkeypatch.setattr(_idaes_execution, "solve", fail)
     else:
         monkeypatch.setattr(
-            _idaes_results,
-            "_solve",
+            _idaes_execution,
+            "solve",
             lambda *args: (
                 False,
                 {"termination": "optimal", "reason": "No fresh solution"},
@@ -241,7 +241,7 @@ def test_search_failures_stay_unresolved_and_never_report_an_optimum(
 )
 def test_solver_mutations_cannot_replace_source_checks(monkeypatch, damage):
     _, adapter, domain = boiler()
-    solve = _idaes_results._solve
+    solve = _idaes_execution.solve
 
     def altered(model, adapter):
         solved, details = solve(model, adapter)
@@ -258,7 +258,7 @@ def test_solver_mutations_cannot_replace_source_checks(monkeypatch, damage):
             model.scenario_0.objective.set_value(999)
         return solved, details
 
-    monkeypatch.setattr(_idaes_results, "_solve", altered)
+    monkeypatch.setattr(_idaes_execution, "solve", altered)
     result = adapter.optimize_shared_controls(domain)
     if damage == "objective":
         assert (
@@ -278,14 +278,14 @@ def test_solver_mutations_cannot_replace_source_checks(monkeypatch, damage):
 
 def test_exact_shared_command_substitution_checks_even_small_link_errors(monkeypatch):
     _, adapter, domain = boiler()
-    solve = _idaes_results._solve
+    solve = _idaes_execution.solve
 
     def altered(model, adapter):
         solved, details = solve(model, adapter)
         model.commands[0].value.set_value(pyo.value(model.commands[0].value) - 5e-7)
         return solved, details
 
-    monkeypatch.setattr(_idaes_results, "_solve", altered)
+    monkeypatch.setattr(_idaes_execution, "solve", altered)
     result = adapter.optimize_shared_controls(domain)
     # Equations allow 1e-6 but the service row uses 1e-7. The exact command
     # leaves the provided states within equation tolerance, as declared.
@@ -301,7 +301,7 @@ def test_exact_shared_command_substitution_checks_even_small_link_errors(monkeyp
 def test_invalid_requests_fail_before_solving(monkeypatch):
     _, adapter, domain = boiler()
     monkeypatch.setattr(
-        _idaes_results, "_solve", lambda *args: pytest.fail("must not solve")
+        _idaes_execution, "solve", lambda *args: pytest.fail("must not solve")
     )
     with pytest.raises(ValueError, match="FiniteSet"):
         adapter.optimize_shared_controls(

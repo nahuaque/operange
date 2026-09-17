@@ -11,28 +11,7 @@ import numpy as np
 from ..contract_types import Diagnostic, Record, freeze, nonempty, reference, unique
 from ..engineering_results import EvaluationResult
 from ..primitives import finite
-
-
-def covariance_matrix(covariance, size):
-    """Validate in correlation coordinates so units cannot hide indefiniteness."""
-    matrix = np.asarray(covariance, dtype=float)
-    if matrix.shape != (size, size) or not np.all(np.isfinite(matrix)):
-        raise ValueError("Covariance must be a finite square matrix in parameter order")
-    diagonal = np.diag(matrix)
-    if np.any(diagonal < 0):
-        raise ValueError("Covariance variances must be nonnegative")
-    zero = diagonal == 0
-    if np.any(matrix[zero, :] != 0) or np.any(matrix[:, zero] != 0):
-        raise ValueError("Zero variance requires zero cross-covariances")
-    positive = ~zero
-    if np.any(positive):
-        scales = np.sqrt(diagonal[positive])
-        correlation = matrix[np.ix_(positive, positive)] / scales[:, None] / scales
-        if not np.allclose(correlation, correlation.T, rtol=0, atol=1e-12):
-            raise ValueError("Covariance must be symmetric")
-        if np.linalg.eigvalsh((correlation + correlation.T) / 2).min() < -1e-12:
-            raise ValueError("Covariance must be positive semidefinite")
-    return (matrix + matrix.T) / 2
+from ..parameters import covariance_matrix
 
 
 @dataclass(frozen=True)

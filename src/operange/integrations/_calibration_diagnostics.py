@@ -8,8 +8,11 @@ import numpy as np
 
 from ..contract_types import Diagnostic
 from ..primitives import finite
+from ..domains import Coordinate, ParameterSpace
+from ..parameters import ParameterPoint, ParameterBinding
+from ._idaes_parameters import assign_parameters
 from ._idaes_model import backend, component, number, uid
-from . import _idaes_results
+from . import _idaes_execution
 from ._idaes_derivatives import _regular_system
 from ._parmest_backend import _check_experiment
 from ._calibration_quality import (
@@ -30,22 +33,20 @@ def _fit_matches(study, fitted):
 
 
 def _fixed_parameters(snapshot, estimates):
-    pyo, _ = backend()
-    model = snapshot.model.clone()
-    for name, value in estimates.items():
-        target = component(model, name)
-        if target.ctype is pyo.Var:
-            target.set_value(value, skip_validation=True)
-            target.fix()
-        else:
-            target.set_value(value)
-    for name in estimates:
-        target = component(model, name)
-        if target.ctype is pyo.Var and (
-            (target.lower is not None and number(target) < number(target.lower))
-            or (target.upper is not None and number(target) > number(target.upper))
-        ):
-            raise ValueError(f"Fitted parameter violates experiment bounds: {name}")
+    parameters = snapshot.parameters
+    point = ParameterPoint(
+        ParameterSpace(
+            tuple(
+                Coordinate(p["component"], p["unit"], "Fitted experimental parameter")
+                for p in parameters
+            )
+        ),
+        estimates,
+    )
+    bindings = tuple(
+        ParameterBinding(p["component"], p["component"], p["unit"]) for p in parameters
+    )
+    model, _ = assign_parameters(snapshot.model, point, bindings, require_fixed=False)
     return model
 
 
@@ -227,7 +228,7 @@ def _predict(study, snapshot, estimates, residual_threshold):
                 raise ValueError(
                     "Held-out prediction requires states determined by a square equality model; free reconciliation variables are unsupported"
                 )
-            solved, solver = _idaes_results._solve(
+            solved, solver = _idaes_execution.solve(
                 model,
                 SimpleNamespace(solver="ipopt", solver_options=study.solver_options),
             )

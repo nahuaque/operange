@@ -4,10 +4,11 @@ from collections.abc import Mapping
 from dataclasses import replace
 
 from ..contract_types import plain
-from ..domains import Coordinate, ParameterSpace, FiniteSet, Scenario
+from ..domains import FiniteSet
 from ..recourse import DecisionRule, RecoursePolicy
 from ..primitives import finite
-from ._parmest_backend import parameter_model
+from ._idaes_parameters import parameter_model
+from ._idaes_parameter_studies import prepare_joint_samples
 from .idaes import IdaesAdapter, IdaesVariable
 
 
@@ -16,9 +17,9 @@ def propagate_local(uncertainty, adapter, *, parameter_map, **options):
 
     uncertainty._require_complete()
     model, updates = parameter_model(
-        adapter, uncertainty.calibration.estimates, parameter_map
+        adapter, uncertainty.calibration.parameter_point, parameter_map
     )
-    targets = {u["estimate"]: u["target"] for u in updates}
+    targets = {u.parameter: u.component for u in updates}
     # Covariance follows the estimate tuple, never mapping insertion order.
     parameters = tuple(
         IdaesVariable(p.component, targets[p.component], p.unit)
@@ -106,49 +107,22 @@ def prepare_joint(uncertainty, adapter, operating_cases, *, parameter_map, dispa
         raise ValueError(
             "Joint propagation requires an IdaesAdapter and a FiniteSet of operating cases"
         )
-    adapter.input_space.check_alignment(operating_cases.space)
-    model, updates = parameter_model(
-        adapter, uncertainty.calibration.estimates, parameter_map
+    prepared = prepare_joint_samples(
+        adapter,
+        uncertainty.calibration.parameter_point,
+        uncertainty.parameter_samples,
+        operating_cases,
+        parameter_map=parameter_map,
+        coordinate_provenance="Latent calibrated parameter; joint bootstrap draw",
     )
-    # Reject an incompatible mapping for any draw before running an audit.
-    # Keep vectors intact, including bounds depending on another parameter.
-    for draw in uncertainty.draws:
-        parameter_model(adapter, draw.estimates, parameter_map)
-    target_paths = {u["estimate"]: u["target"] for u in updates}
-    coordinates = tuple(
-        Coordinate(
-            f"parameter:{p.component}",
-            p.unit,
-            "Latent calibrated parameter; joint bootstrap draw",
-            nominal=p.value,
-        )
-        for p in uncertainty.calibration.estimates
-    )
-    reserved = {v.name for v in adapter.inputs + adapter.controls + adapter.outputs}
-    if any(c.name in reserved for c in coordinates):
-        raise ValueError(
-            "Generated calibration coordinate names collide with model quantities"
-        )
-    bindings = tuple(
-        IdaesVariable(c.name, target_paths[p.component], c.unit)
-        for c, p in zip(coordinates, uncertainty.calibration.estimates)
-    )
-    space = ParameterSpace(adapter.input_space.coordinates + coordinates)
-    case_index, scenarios = [], []
-    for i, draw in enumerate(uncertainty.draws):
-        values = {f"parameter:{p.component}": p.value for p in draw.estimates}
-        for j, case in enumerate(operating_cases.scenarios):
-            name = f"draw-{i:06d}/case-{j:06d}"
-            scenarios.append(
-                Scenario(
-                    name,
-                    {**dict(case.values), **values},
-                    f"{draw.name} at operating case {case.name}",
-                )
-            )
-            case_index.append(
-                {"scenario": name, "draw": draw.name, "operating_case": case.name}
-            )
+    case_index = [
+        {
+            "scenario": row["scenario"],
+            "draw": row["sample"],
+            "operating_case": row["operating_case"],
+        }
+        for row in prepared.scenario_index
+    ]
     provenance = {
         **plain(adapter.provenance),
         "joint_calibration": {
@@ -165,9 +139,9 @@ def prepare_joint(uncertainty, adapter, operating_cases, *, parameter_map, dispa
     }
     propagated = replace(
         adapter,
-        model=model,
-        input_space=space,
-        inputs=adapter.inputs + bindings,
+        model=prepared.model,
+        input_space=prepared.domain.space,
+        inputs=prepared.inputs,
         provenance=provenance,
     )
-    return propagated, FiniteSet(space, tuple(scenarios))
+    return propagated, prepared.domain

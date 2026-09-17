@@ -20,7 +20,7 @@ from idaes.models.unit_models.skeleton_model import SkeletonUnitModelData
 from examples.idaes_flowsheet import build_flowsheet, bind_flowsheet
 from examples import idaes_heat_exchanger as hx
 from operange import FiniteSet, Scenario, result_from_json, verify_result
-from operange.integrations import _idaes_results
+from operange.integrations import _idaes_execution
 from operange.integrations._idaes_model import model_manifest
 from operange.integrations.idaes import IdaesInitialization
 
@@ -140,7 +140,7 @@ def test_missing_equipment_specification_is_diagnosed_before_solving(monkeypatch
     def unexpected(*args):
         raise AssertionError("final solver must not run after failed initialization")
 
-    monkeypatch.setattr(_idaes_results, "_solve", unexpected)
+    monkeypatch.setattr(_idaes_execution, "solve", unexpected)
     result = claim_for(adapter).evaluate_result()
     assert result.payload.feasibility == "unknown"  # nosec B101
     assert result.diagnostics[0].code == "idaes_initialization_specification"  # nosec B101
@@ -260,7 +260,7 @@ def test_diagnostics_remain_advisory_without_asl_and_show_poor_scaling(monkeypat
 def test_invalid_solver_candidate_has_specific_residual_diagnostics(monkeypatch):
     adapter = boiler_adapter(diagnostics=True)
     monkeypatch.setattr(
-        _idaes_results, "_solve", lambda *args: (True, {"termination": "optimal"})
+        _idaes_execution, "solve", lambda *args: (True, {"termination": "optimal"})
     )
     result = claim_for(adapter).evaluate_result()
     assert result.diagnostics[0].code == "idaes_residual_violation"  # nosec B101

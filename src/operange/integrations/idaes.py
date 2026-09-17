@@ -5,7 +5,7 @@ contain declarations and numerical evidence, never executable Pyomo objects.
 """
 
 from collections.abc import Mapping
-from dataclasses import InitVar, dataclass, field
+from dataclasses import InitVar, dataclass, field, replace
 from typing import Any, Literal
 
 from ..claim import (
@@ -260,6 +260,26 @@ class IdaesAdapter:
         from ._idaes_shared_controls import optimize_shared_controls
 
         return optimize_shared_controls(self, domain)
+
+    def with_parameters(self, point, *, parameter_map):
+        """Bind provider-independent parameter values on a fresh model snapshot."""
+        from ..contract_types import plain
+        from ._idaes_parameters import parameter_model
+
+        model, assignments = parameter_model(self, point, parameter_map)
+        return replace(
+            self,
+            model=model,
+            provenance={
+                **plain(self.provenance),
+                "parameters": {
+                    "point": point.to_dict(),
+                    "parameter_map": dict(parameter_map),
+                    "parent_contract_ref": self.base_contract.ref.to_dict(),
+                    "updates": [plain(a) for a in assignments],
+                },
+            },
+        )
 
     def propagate_uncertainty(
         self,

@@ -216,7 +216,7 @@ def test_singular_state_equations_are_not_parameter_identifiability():
 def test_validation_checks_original_source_after_solver_mutation(monkeypatch, damage):
     study = campaign()
     fit = study.fit()
-    solve = backend._idaes_results._solve
+    solve = backend._idaes_execution.solve
 
     def damaged(model, adapter):
         if damage == "solver":
@@ -230,7 +230,7 @@ def test_validation_checks_original_source_after_solver_mutation(monkeypatch, da
                 model.balance.deactivate()
         return solved, details
 
-    monkeypatch.setattr(backend._idaes_results, "_solve", damaged)
+    monkeypatch.setattr(backend._idaes_execution, "solve", damaged)
     result = study.validate(fit, experiments={"held": experiment(15)})
     assert result.execution == "unresolved"  # nosec B101
     assert len(result.predictions) == 1  # nosec B101

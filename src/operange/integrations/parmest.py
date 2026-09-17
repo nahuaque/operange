@@ -7,6 +7,7 @@ fit. Importing this module does not load Pyomo, IDAES, pandas or a solver.
 
 from collections.abc import Mapping
 from dataclasses import InitVar, dataclass, field
+from functools import cached_property
 import json
 from typing import Any, Literal, TYPE_CHECKING
 
@@ -214,6 +215,17 @@ class CalibrationResult(Record):
         if result.result_id != expected:
             raise ValueError("Calibration result integrity check failed")
         return result
+
+    @cached_property
+    def parameter_point(self):
+        """Checked point estimates as provider-independent parameter data."""
+        from ._calibration_parameters import estimate_point
+
+        if self.execution != "completed" or not self.estimates:
+            raise ValueError("A parameter point requires completed parameter estimates")
+        return estimate_point(
+            self.estimates, provenance={"calibration_ref": self.ref.to_dict()}
+        )
 
     def apply_to(self, adapter, *, parameter_map):
         """Apply explicitly mapped estimates to a fresh IdaesAdapter snapshot.
@@ -484,61 +496,21 @@ class CalibrationBootstrap(Record):
                 "Joint propagation requires every requested bootstrap draw to be checked; inspect unresolved draws"
             )
 
+    @cached_property
+    def parameter_samples(self):
+        """Checked joint draws as provider-independent parameter data."""
+        from ._calibration_parameters import bootstrap_samples
+
+        return bootstrap_samples(self)
+
     def as_domain(self):
         """A FiniteSet of whole vectors; duplicate draws retain their labels."""
-        from ..domains import Coordinate, ParameterSpace, FiniteSet, Scenario
-
-        self._require_complete()
-        result_id = self.result_id
-        space = ParameterSpace(
-            tuple(
-                Coordinate(
-                    p.component, p.unit, "Joint bootstrap parameter", nominal=p.value
-                )
-                for p in self.calibration.estimates
-            )
-        )
-        return FiniteSet(
-            space,
-            tuple(
-                Scenario(
-                    d.name,
-                    {p.component: p.value for p in d.estimates},
-                    f"Empirical joint draw from {result_id}; no confidence coverage asserted",
-                )
-                for d in self.draws
-            ),
-        )
+        return self.parameter_samples.as_domain()
 
     @property
     def statistics(self):
         """Empirical mean and full sample covariance in declared parameter order."""
-        import numpy as np
-
-        self._require_complete()
-        names = tuple(p.component for p in self.calibration.estimates)
-        rows = np.asarray(
-            [
-                [
-                    next(p.value for p in d.estimates if p.component == name)
-                    for name in names
-                ]
-                for d in self.draws
-            ]
-        )
-        mean = rows.mean(axis=0)
-        centered = rows - mean
-        covariance = centered.T @ centered / (len(rows) - 1)
-        return freeze(
-            {
-                "parameters": names,
-                "units": tuple(p.unit for p in self.calibration.estimates),
-                "mean": mean.tolist(),
-                "covariance": covariance.tolist(),
-                "samples": len(rows),
-                "interpretation": "Empirical sample moments only; no Gaussian model or confidence region inferred.",
-            }
-        )
+        return self.parameter_samples.statistics
 
     def as_claim(
         self,
