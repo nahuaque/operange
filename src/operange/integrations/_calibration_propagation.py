@@ -11,6 +11,37 @@ from ._parmest_backend import parameter_model
 from .idaes import IdaesAdapter, IdaesVariable
 
 
+def propagate_local(uncertainty, adapter, *, parameter_map, **options):
+    from ._idaes_uncertainty import propagate_uncertainty
+
+    uncertainty._require_complete()
+    model, updates = parameter_model(
+        adapter, uncertainty.calibration.estimates, parameter_map
+    )
+    targets = {u["estimate"]: u["target"] for u in updates}
+    # Covariance follows the estimate tuple, never mapping insertion order.
+    parameters = tuple(
+        IdaesVariable(p.component, targets[p.component], p.unit)
+        for p in uncertainty.calibration.estimates
+    )
+    provenance = {
+        "uncertainty_ref": uncertainty.ref.to_dict(),
+        "calibration_ref": uncertainty.calibration.ref.to_dict(),
+        "parent_contract_ref": adapter.base_contract.ref.to_dict(),
+        "parameter_map": dict(parameter_map),
+        "linearization_point": "checked_calibration_estimate",
+        "covariance": "full_empirical_bootstrap_sample_covariance",
+        "samples": uncertainty.requested_samples,
+    }
+    return propagate_uncertainty(
+        replace(adapter, model=model),
+        parameters=parameters,
+        covariance=uncertainty.statistics["covariance"],
+        provenance=provenance,
+        **options,
+    )
+
+
 def as_claim(
     uncertainty,
     adapter,

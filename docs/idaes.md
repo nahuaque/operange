@@ -317,6 +317,11 @@ the affine path proves failure with an independently verified certificate.
 The [calibration guide](calibration.md) covers portable fit records, explicit
 application to a fresh adapter, and a heat-exchanger calibration and re-audit.
 Measurement weights, fit results and calibration provenance are preserved.
+
+For a fast local diagnostic, [propagate parameter covariance](local-uncertainty.md)
+to selected outputs and operating margins. Fixed-command derivatives and checked
+reoptimization perturbations have explicit, separate semantics; they complement
+whole-vector bootstrap audits.
 Statistical estimation uncertainty is not automatically converted into a hard
 operating envelope, and fitted coefficients do not imply certified physical
 accuracy. Supply a justified uncertainty set separately.

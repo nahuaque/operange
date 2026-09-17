@@ -20,6 +20,12 @@ from ..domains import FiniteSet, ParameterSpace
 from ..recourse import DecisionRule, RecoursePolicy
 from ._idaes_affine import IdaesLinearExport
 from ._idaes_shared_result import IdaesSharedControlResult
+from ._idaes_uncertainty_result import (
+    IdaesUncertaintyResult,
+    IdaesUncertainParameter,
+    IdaesResponse,
+    IdaesPerturbation,
+)
 
 __all__ = [
     "IdaesAdapter",
@@ -28,6 +34,10 @@ __all__ = [
     "IdaesInitialization",
     "IdaesLinearExport",
     "IdaesSharedControlResult",
+    "IdaesUncertaintyResult",
+    "IdaesUncertainParameter",
+    "IdaesResponse",
+    "IdaesPerturbation",
 ]
 
 
@@ -250,3 +260,42 @@ class IdaesAdapter:
         from ._idaes_shared_controls import optimize_shared_controls
 
         return optimize_shared_controls(self, domain)
+
+    def propagate_uncertainty(
+        self,
+        *,
+        parameters,
+        covariance,
+        realization=None,
+        outputs=None,
+        margins=(),
+        fixed_controls=None,
+        reoptimize=False,
+        steps=None,
+        relative_tolerance=1e-3,
+        absolute_tolerance=1e-6,
+    ):
+        """Local output/margin covariance in explicit parameter and response order.
+
+        Parameters bind fixed Vars or mutable Params outside the input/control
+        bindings. Their current values define the linearization point. Supply
+        all fixed commands, or opt into ideal reoptimization with explicit
+        native-unit finite-difference steps. Fixed commands use Pyomo automatic
+        differentiation of a regular, square equality-state model. Reoptimized
+        responses require checked symmetric solves at steps h and h/2.
+        """
+        from ._idaes_uncertainty import propagate_uncertainty
+
+        return propagate_uncertainty(
+            self,
+            parameters=parameters,
+            covariance=covariance,
+            realization=realization,
+            outputs=outputs,
+            margins=margins,
+            fixed_controls=fixed_controls,
+            reoptimize=reoptimize,
+            steps=steps,
+            relative_tolerance=relative_tolerance,
+            absolute_tolerance=absolute_tolerance,
+        )

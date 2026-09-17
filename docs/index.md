@@ -161,6 +161,7 @@ calibration
 calibration-credibility
 joint-calibration-uncertainty
 shared-idaes-controls
+local-uncertainty
 continuous-dispatch
 shared-relief
 dispatch-objectives

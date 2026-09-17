@@ -141,6 +141,18 @@ serialization. Completion establishes finite numerical feasibility; global
 optimality and infeasibility remain uncertified. See
 [shared IDAES commands](shared-idaes-controls.md).
 
+`IdaesAdapter.propagate_uncertainty(parameters=..., covariance=..., ...)` computes
+local output and signed-margin Jacobians and covariance. Supply every fixed
+actuator command, or explicitly request `reoptimize=True` with native-unit
+perturbation steps. `CalibrationBootstrap.propagate_uncertainty(adapter,
+parameter_map=..., ...)` supplies the full empirical covariance at the checked
+fit. Both return `IdaesUncertaintyResult`, exported alongside
+`IdaesUncertainParameter`, `IdaesResponse` and `IdaesPerturbation` from
+`operange.integrations.idaes`. The `idaes_local_uncertainty/v1` reader and
+summaries need only base dependencies. This separate local diagnostic does not
+upgrade generic claim sensitivity or certify robustness. See
+[local operating uncertainty](local-uncertainty.md).
+
 | Adapter | Evaluation and sensitivity | Robustness |
 | --- | --- | --- |
 | `AffineProcessAdapter` | Fixed affine responses; analytical first derivatives in physical or normalized coordinates | Finite and supported linear-support audits; L∞ box/polytope distances by default, and optional convex-domain L∞/Euclidean distances; no adjustable recourse |

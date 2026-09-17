@@ -1,0 +1,667 @@
+{
+  "schema_version": "idaes_local_uncertainty/v1",
+  "result_id": "sha256:8d532252dc24ab32cdea48bc4637945cf3616de424c4fe2b6dc34afeb47b12b1",
+  "parameters": [
+    {
+      "name": "efficiency",
+      "component": "fs.boiler.efficiency",
+      "unit": "1",
+      "value": 0.8
+    },
+    {
+      "name": "loss",
+      "component": "fs.boiler.loss",
+      "unit": "MW",
+      "value": 1.0
+    }
+  ],
+  "covariance": [
+    [
+      0.01,
+      0.04
+    ],
+    [
+      0.04,
+      0.25
+    ]
+  ],
+  "responses": [
+    {
+      "name": "steam",
+      "component": "fs.boiler.steam",
+      "unit": "MW",
+      "kind": "output",
+      "side": null
+    },
+    {
+      "name": "fuel",
+      "component": "fs.boiler.fuel",
+      "unit": "MW",
+      "kind": "control",
+      "side": null
+    },
+    {
+      "name": "margin:service",
+      "component": "fs.service",
+      "unit": "MW",
+      "kind": "margin",
+      "side": "lower"
+    },
+    {
+      "name": "margin:bound:fs.boiler.fuel:upper",
+      "component": "fs.boiler.fuel",
+      "unit": "MW",
+      "kind": "margin",
+      "side": "upper"
+    }
+  ],
+  "mode": "fixed",
+  "method": "implicit",
+  "execution": "completed",
+  "baseline": {
+    "contract": {
+      "model_id": "idaes_process/v1",
+      "model": {
+        "name": "Local correlated boiler uncertainty",
+        "source_fingerprint": "f7ab228cd930e738aa478c4fcf6fa0a5216b278ace7ec779b554ef85935a0066",
+        "source": {
+          "variables": [
+            {
+              "component": "fs.boiler.efficiency",
+              "unit": "1",
+              "domain": "Reals",
+              "fixed": true,
+              "value": 0.8,
+              "lower": "0.1",
+              "upper": "1"
+            },
+            {
+              "component": "fs.boiler.fuel",
+              "unit": "MW",
+              "domain": "Reals",
+              "fixed": true,
+              "value": 15.0,
+              "lower": "0",
+              "upper": "20"
+            },
+            {
+              "component": "fs.boiler.steam",
+              "unit": "MW",
+              "domain": "Reals",
+              "fixed": false,
+              "value": 11.0,
+              "lower": "0",
+              "upper": "20"
+            }
+          ],
+          "parameters": [
+            {
+              "component": "fs.demand",
+              "values": [
+                {
+                  "index": null,
+                  "value": 8
+                }
+              ],
+              "unit": "MW",
+              "mutable": true
+            },
+            {
+              "component": "fs.boiler.loss",
+              "values": [
+                {
+                  "index": null,
+                  "value": 1
+                }
+              ],
+              "unit": "MW",
+              "mutable": true
+            }
+          ],
+          "suffixes": [],
+          "constraints": [
+            {
+              "component": "fs.service",
+              "expression": "fs.demand  <=  fs.boiler.steam"
+            },
+            {
+              "component": "fs.boiler.balance",
+              "expression": "fs.boiler.steam  ==  fs.boiler.efficiency*fs.boiler.fuel - fs.boiler.loss"
+            }
+          ],
+          "expressions": [],
+          "objectives": [
+            {
+              "component": "fs.objective",
+              "expression": "fs.boiler.fuel",
+              "sense": "minimize"
+            }
+          ],
+          "external_functions": []
+        },
+        "versions": {
+          "idaes": "2.12.0",
+          "pyomo": "6.10.1"
+        },
+        "inputs": [
+          {
+            "name": "demand",
+            "component": "fs.demand",
+            "unit": "MW"
+          }
+        ],
+        "controls": [
+          {
+            "name": "fuel",
+            "component": "fs.boiler.fuel",
+            "unit": "MW"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "steam",
+            "component": "fs.boiler.steam",
+            "unit": "MW"
+          }
+        ],
+        "requirements": [
+          {
+            "name": "service",
+            "component": "fs.service",
+            "unit": "MW",
+            "tolerance": 1e-07
+          }
+        ],
+        "provenance": {}
+      },
+      "design": {},
+      "domain": {
+        "kind": "finite_set",
+        "space": {
+          "coordinates": [
+            {
+              "name": "demand",
+              "unit": "MW",
+              "provenance": "Steam commitment",
+              "nominal": 8.0,
+              "scale": null,
+              "parameter": null,
+              "axis": null,
+              "label": null
+            }
+          ]
+        },
+        "scenarios": [
+          {
+            "name": "local",
+            "values": {
+              "demand": 8.0
+            },
+            "provenance": "Local operating point"
+          }
+        ]
+      },
+      "operating": {
+        "response": "external_numerical_dispatch",
+        "stage": "operation",
+        "states": "Unbound variables are algebraic states, not independent actuator commands; uniqueness is not established.",
+        "solver": "highs",
+        "solver_options": {},
+        "initialization": [],
+        "diagnostics": false,
+        "recourse_policy": {
+          "mode": "fixed",
+          "rules": [
+            {
+              "control": "fuel",
+              "unit": "MW",
+              "stage": "operation",
+              "observes": [],
+              "fixed_value": 15.0
+            }
+          ]
+        },
+        "requirement_refs": [
+          "service"
+        ]
+      },
+      "quantities": [
+        {
+          "quantity_id": "demand",
+          "unit": "MW",
+          "physical_kind": "declared_process_quantity",
+          "role": "input",
+          "axes": []
+        },
+        {
+          "quantity_id": "fuel",
+          "unit": "MW",
+          "physical_kind": "declared_process_quantity",
+          "role": "control",
+          "axes": []
+        },
+        {
+          "quantity_id": "steam",
+          "unit": "MW",
+          "physical_kind": "declared_process_quantity",
+          "role": "output",
+          "axes": []
+        },
+        {
+          "quantity_id": "state:fs.boiler.efficiency",
+          "unit": "1",
+          "physical_kind": "algebraic_state",
+          "role": "state",
+          "axes": []
+        },
+        {
+          "quantity_id": "state:fs.boiler.steam",
+          "unit": "MW",
+          "physical_kind": "algebraic_state",
+          "role": "state",
+          "axes": []
+        },
+        {
+          "quantity_id": "residual:service",
+          "unit": "MW",
+          "physical_kind": "model_residual",
+          "role": "residual",
+          "axes": []
+        },
+        {
+          "quantity_id": "residual:constraint:fs.boiler.balance:eq",
+          "unit": "MW",
+          "physical_kind": "model_residual",
+          "role": "residual",
+          "axes": []
+        },
+        {
+          "quantity_id": "residual:bound:fs.boiler.efficiency:lower",
+          "unit": "1",
+          "physical_kind": "model_residual",
+          "role": "residual",
+          "axes": []
+        },
+        {
+          "quantity_id": "residual:bound:fs.boiler.efficiency:upper",
+          "unit": "1",
+          "physical_kind": "model_residual",
+          "role": "residual",
+          "axes": []
+        },
+        {
+          "quantity_id": "residual:bound:fs.boiler.fuel:lower",
+          "unit": "MW",
+          "physical_kind": "model_residual",
+          "role": "residual",
+          "axes": []
+        },
+        {
+          "quantity_id": "residual:bound:fs.boiler.fuel:upper",
+          "unit": "MW",
+          "physical_kind": "model_residual",
+          "role": "residual",
+          "axes": []
+        },
+        {
+          "quantity_id": "residual:bound:fs.boiler.steam:lower",
+          "unit": "MW",
+          "physical_kind": "model_residual",
+          "role": "residual",
+          "axes": []
+        },
+        {
+          "quantity_id": "residual:bound:fs.boiler.steam:upper",
+          "unit": "MW",
+          "physical_kind": "model_residual",
+          "role": "residual",
+          "axes": []
+        }
+      ],
+      "constraints": [
+        {
+          "constraint_id": "service",
+          "residual_ref": "residual:service",
+          "kind": "requirement",
+          "relation": "le",
+          "expression": "fs.demand - fs.boiler.steam",
+          "tolerance": 1e-07
+        },
+        {
+          "constraint_id": "constraint:fs.boiler.balance:eq",
+          "residual_ref": "residual:constraint:fs.boiler.balance:eq",
+          "kind": "equation",
+          "relation": "eq",
+          "expression": "fs.boiler.steam - (fs.boiler.efficiency*fs.boiler.fuel - fs.boiler.loss)",
+          "tolerance": 1e-08
+        },
+        {
+          "constraint_id": "bound:fs.boiler.efficiency:lower",
+          "residual_ref": "residual:bound:fs.boiler.efficiency:lower",
+          "kind": "operating_limit",
+          "relation": "le",
+          "expression": "0.1 - fs.boiler.efficiency",
+          "tolerance": 0.0
+        },
+        {
+          "constraint_id": "bound:fs.boiler.efficiency:upper",
+          "residual_ref": "residual:bound:fs.boiler.efficiency:upper",
+          "kind": "operating_limit",
+          "relation": "le",
+          "expression": "fs.boiler.efficiency - 1",
+          "tolerance": 0.0
+        },
+        {
+          "constraint_id": "bound:fs.boiler.fuel:lower",
+          "residual_ref": "residual:bound:fs.boiler.fuel:lower",
+          "kind": "operating_limit",
+          "relation": "le",
+          "expression": "- fs.boiler.fuel",
+          "tolerance": 0.0
+        },
+        {
+          "constraint_id": "bound:fs.boiler.fuel:upper",
+          "residual_ref": "residual:bound:fs.boiler.fuel:upper",
+          "kind": "operating_limit",
+          "relation": "le",
+          "expression": "fs.boiler.fuel - 20",
+          "tolerance": 0.0
+        },
+        {
+          "constraint_id": "bound:fs.boiler.steam:lower",
+          "residual_ref": "residual:bound:fs.boiler.steam:lower",
+          "kind": "operating_limit",
+          "relation": "le",
+          "expression": "- fs.boiler.steam",
+          "tolerance": 0.0
+        },
+        {
+          "constraint_id": "bound:fs.boiler.steam:upper",
+          "residual_ref": "residual:bound:fs.boiler.steam:upper",
+          "kind": "operating_limit",
+          "relation": "le",
+          "expression": "fs.boiler.steam - 20",
+          "tolerance": 0.0
+        }
+      ],
+      "numerical_policy": {
+        "arithmetic": "floating_point_pyomo_residual_checks",
+        "absolute_tolerance": 1e-08,
+        "variable_bound_tolerance": 0,
+        "optimality": "not certified",
+        "infeasibility": "solver failure is unresolved",
+        "scope": "Numerical feasibility at declared points; no continuous-domain or independent nonlinear certificate."
+      }
+    },
+    "request": {
+      "query": "evaluation",
+      "realization": {
+        "demand": 8.0
+      }
+    },
+    "execution": "completed",
+    "payload": {
+      "feasibility": "feasible",
+      "membership": {
+        "status": "inside",
+        "domain_ref": "domain",
+        "evidence_refs": [
+          "membership"
+        ]
+      },
+      "values": [
+        {
+          "quantity_ref": "demand",
+          "value": 8.0
+        },
+        {
+          "quantity_ref": "fuel",
+          "value": 15.0
+        },
+        {
+          "quantity_ref": "steam",
+          "value": 11.0
+        },
+        {
+          "quantity_ref": "state:fs.boiler.efficiency",
+          "value": 0.8
+        },
+        {
+          "quantity_ref": "state:fs.boiler.steam",
+          "value": 11.0
+        }
+      ],
+      "constraint_checks": [
+        {
+          "constraint_ref": "service",
+          "assessment": "satisfied",
+          "residual": {
+            "quantity_ref": "residual:service",
+            "value": -3.0
+          },
+          "evidence_refs": [
+            "residuals"
+          ]
+        },
+        {
+          "constraint_ref": "constraint:fs.boiler.balance:eq",
+          "assessment": "satisfied",
+          "residual": {
+            "quantity_ref": "residual:constraint:fs.boiler.balance:eq",
+            "value": 0.0
+          },
+          "evidence_refs": [
+            "residuals"
+          ]
+        },
+        {
+          "constraint_ref": "bound:fs.boiler.efficiency:lower",
+          "assessment": "satisfied",
+          "residual": {
+            "quantity_ref": "residual:bound:fs.boiler.efficiency:lower",
+            "value": -0.7000000000000001
+          },
+          "evidence_refs": [
+            "residuals"
+          ]
+        },
+        {
+          "constraint_ref": "bound:fs.boiler.efficiency:upper",
+          "assessment": "satisfied",
+          "residual": {
+            "quantity_ref": "residual:bound:fs.boiler.efficiency:upper",
+            "value": -0.19999999999999996
+          },
+          "evidence_refs": [
+            "residuals"
+          ]
+        },
+        {
+          "constraint_ref": "bound:fs.boiler.fuel:lower",
+          "assessment": "satisfied",
+          "residual": {
+            "quantity_ref": "residual:bound:fs.boiler.fuel:lower",
+            "value": -15.0
+          },
+          "evidence_refs": [
+            "residuals"
+          ]
+        },
+        {
+          "constraint_ref": "bound:fs.boiler.fuel:upper",
+          "assessment": "satisfied",
+          "residual": {
+            "quantity_ref": "residual:bound:fs.boiler.fuel:upper",
+            "value": -5.0
+          },
+          "evidence_refs": [
+            "residuals"
+          ]
+        },
+        {
+          "constraint_ref": "bound:fs.boiler.steam:lower",
+          "assessment": "satisfied",
+          "residual": {
+            "quantity_ref": "residual:bound:fs.boiler.steam:lower",
+            "value": -11.0
+          },
+          "evidence_refs": [
+            "residuals"
+          ]
+        },
+        {
+          "constraint_ref": "bound:fs.boiler.steam:upper",
+          "assessment": "satisfied",
+          "residual": {
+            "quantity_ref": "residual:bound:fs.boiler.steam:upper",
+            "value": -9.0
+          },
+          "evidence_refs": [
+            "residuals"
+          ]
+        }
+      ],
+      "objective": null,
+      "included_constraints": [
+        "service",
+        "constraint:fs.boiler.balance:eq",
+        "bound:fs.boiler.efficiency:lower",
+        "bound:fs.boiler.efficiency:upper",
+        "bound:fs.boiler.fuel:lower",
+        "bound:fs.boiler.fuel:upper",
+        "bound:fs.boiler.steam:lower",
+        "bound:fs.boiler.steam:upper"
+      ]
+    },
+    "evidence": [
+      {
+        "evidence_id": "membership",
+        "subject": "domain_membership",
+        "method": "declared_domain_membership",
+        "outcome": "verified",
+        "measurements": [],
+        "tolerances": [],
+        "assumptions": [],
+        "backend": null,
+        "details": {
+          "check": {
+            "status": "inside",
+            "domain_ref": {
+              "artifact_id": "sha256:06bbf24ffc0025811548407313df29559ad7cbdf2fc98e6b27a79c8039416ef5",
+              "schema_version": "uncertainty_set/v1",
+              "digest": "06bbf24ffc0025811548407313df29559ad7cbdf2fc98e6b27a79c8039416ef5"
+            },
+            "realization": {
+              "demand": 8.0
+            },
+            "evidence": [
+              {
+                "evidence_id": "membership",
+                "subject": "domain_membership",
+                "method": "finite_enumeration",
+                "outcome": "verified",
+                "measurements": [],
+                "tolerances": [],
+                "assumptions": [],
+                "backend": null,
+                "details": {
+                  "matching_scenarios": [
+                    "local"
+                  ],
+                  "comparison": "exact declared coordinate values"
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "evidence_id": "solver",
+        "subject": "solver_termination",
+        "method": "pyomo_solver",
+        "outcome": "verified",
+        "measurements": [],
+        "tolerances": [],
+        "assumptions": [],
+        "backend": "highs",
+        "details": {
+          "solver": "highs",
+          "status": "ok",
+          "termination": "optimal",
+          "scope": "candidate generation only"
+        }
+      },
+      {
+        "evidence_id": "residuals",
+        "subject": "numerical_feasibility",
+        "method": "pyomo_expression_and_bound_checks",
+        "outcome": "verified",
+        "measurements": [],
+        "tolerances": [],
+        "assumptions": [],
+        "backend": null,
+        "details": {
+          "source_fingerprint": "f7ab228cd930e738aa478c4fcf6fa0a5216b278ace7ec779b554ef85935a0066",
+          "scope": "Floating-point substitution in all included source constraints and bounds; no global optimality or independent certificate.",
+          "residuals": {
+            "service": -3.0,
+            "constraint:fs.boiler.balance:eq": 0.0,
+            "bound:fs.boiler.efficiency:lower": -0.7000000000000001,
+            "bound:fs.boiler.efficiency:upper": -0.19999999999999996,
+            "bound:fs.boiler.fuel:lower": -15.0,
+            "bound:fs.boiler.fuel:upper": -5.0,
+            "bound:fs.boiler.steam:lower": -11.0,
+            "bound:fs.boiler.steam:upper": -9.0
+          }
+        }
+      }
+    ],
+    "diagnostics": [],
+    "supporting_evaluations": []
+  },
+  "values": [
+    11.0,
+    15.0,
+    3.0,
+    5.0
+  ],
+  "jacobian": [
+    [
+      15.0,
+      -1.0
+    ],
+    [
+      0.0,
+      0.0
+    ],
+    [
+      15.0,
+      -1.0
+    ],
+    [
+      0.0,
+      0.0
+    ]
+  ],
+  "steps": {},
+  "relative_tolerance": 0.001,
+  "absolute_tolerance": 1e-06,
+  "perturbations": [],
+  "numerical": {
+    "active_limits": [],
+    "state_condition": 1.0,
+    "state_regularity": "Square equality-state Jacobian, magnitude equilibrated; condition <= 1e10."
+  },
+  "provenance": {},
+  "diagnostics": [],
+  "scope": {
+    "coverage": "First-order local response at one checked operating point; no uncertainty-region audit.",
+    "covariance": "Full supplied parameter covariance; no Gaussian distribution or confidence coverage inferred.",
+    "fixed_controls": "Ambient equality-state response with every actuator command fixed; inequalities are reported, not imposed on derivatives.",
+    "reoptimized_controls": "Ideal reoptimization observing the actual parameter vector at each perturbation; not a deployable controller for latent parameters.",
+    "validity": "Nonlinear curvature, branch changes and changing active constraints can invalidate the local approximation; successful numerical checks do not prove differentiability.",
+    "margins": "Signed native-unit slack, positive inside a limit; not a distance in parameter space or a failure probability.",
+    "optimality": "not_certified",
+    "certificate": "not_independently_verified"
+  }
+}

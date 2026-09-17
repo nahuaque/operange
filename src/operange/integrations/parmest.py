@@ -583,6 +583,42 @@ class CalibrationBootstrap(Record):
         )
         return propagated.optimize_shared_controls(domain)
 
+    def propagate_uncertainty(
+        self,
+        adapter,
+        *,
+        parameter_map,
+        realization=None,
+        outputs=None,
+        margins=(),
+        fixed_controls=None,
+        reoptimize=False,
+        steps=None,
+        relative_tolerance=1e-3,
+        absolute_tolerance=1e-6,
+    ):
+        """Propagate the full empirical covariance at the checked fitted vector.
+
+        All bootstrap draws must be checked. Parameter/step names are estimate
+        CUIDs, in ``statistics['parameters']`` order. This local diagnostic does
+        not replace the whole-vector finite audit or assign confidence coverage.
+        """
+        from ._calibration_propagation import propagate_local
+
+        return propagate_local(
+            self,
+            adapter,
+            parameter_map=parameter_map,
+            realization=realization,
+            outputs=outputs,
+            margins=margins,
+            fixed_controls=fixed_controls,
+            reoptimize=reoptimize,
+            steps=steps,
+            relative_tolerance=relative_tolerance,
+            absolute_tolerance=absolute_tolerance,
+        )
+
     def to_json(self):
         return json.dumps(
             {

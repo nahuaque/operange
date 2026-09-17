@@ -59,6 +59,8 @@ for checkout and wheel installation.
   bootstrap parameter dependence and propagate whole vectors through operating cases.
 - [Shared operating commands](docs/shared-idaes-controls.md) — choose one actuator
   vector across equipment draws and operating cases using the worst-case objective.
+- [Local operating uncertainty](docs/local-uncertainty.md) — propagate correlated
+  parameter covariance to outputs and margins, with fixed or reoptimized commands.
 - [API and capabilities](docs/api.md) — supported
   models, uncertainty sets, queries and portable results.
 - [Methods and scope](docs/methods.md) — the

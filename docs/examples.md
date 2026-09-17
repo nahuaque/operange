@@ -14,6 +14,7 @@ All examples use synthetic engineering data and state the scope of their claims.
 | Calibration credibility | Detect confounded heat-transfer coefficient/area estimates and predict held-out heat-duty measurements without refitting. | [Calibration credibility](calibration-credibility.md) |
 | Joint parameter uncertainty | Bootstrap boiler efficiency and heat loss together, preserve their dependence, and propagate whole vectors at explicit fixed actuator commands. | [Joint calibration uncertainty](joint-calibration-uncertainty.md) |
 | Shared commands under uncertainty | Choose one fuel command across all joint equipment draws and demand cases, and compare it with nominal dispatch. | [Shared IDAES commands](shared-idaes-controls.md) |
+| Local operating uncertainty | Rank parameter contributions to steam and margin variance, preserving correlation and distinguishing fixed fuel from ideal reoptimization. | [Local uncertainty](local-uncertainty.md) |
 | Continuous adjustable dispatch | Check every load in a box or declared hull, replay an infeasible corner, and re-audit larger fuel capacity. | [Continuous dispatch](continuous-dispatch.md) |
 | Shared equipment relief | Choose one boiler/fuel plan that restores both low-production and peak-demand modes, with a full-domain re-audit. | [Shared relief](shared-relief.md) |
 | Combined uncertainty domains | Audit alternative operating modes with auxiliary demand, and convex intersections of physical bounds, scheduling restrictions and feed specifications. | [Uncertainty compositions](uncertainty-compositions.md) |
