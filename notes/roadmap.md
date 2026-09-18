@@ -39,6 +39,12 @@ encoding, schema dispatch and identity checks. Existing schemas and identities
 are preserved; each result family still owns its semantic qualifications, and
 independent certificate verification remains a separate step.
 
+Native linear queries now share a
+[production representation](../docs/linear-problem-representation.md) for physical
+rows, variable roles, bounds and objectives. Dispatch normalization, sensitivity,
+scenario replication, equipment relief and controller proposals retain common
+source metadata; the independent verifier continues to reconstruct its own rows.
+
 The [scope decision](package-boundary.md) fixes the target as a process-engineering
 sensitivity and robustness DSL. Its [result contract](result-contract.md)
 now implements evaluation, sensitivity, and robustness outputs, validated against

@@ -12,110 +12,10 @@ from math import inf, nextafter
 from fractions import Fraction
 
 from . import linear
-from ._numeric import exact_dot, round_down, round_up
-from ._cvxpy_backend import numeric_vector
+from ._linear_problem import LinearSystem as LinearSystem
+from ._linear_compile import compile_model
+from ._numeric import exact_dot, numeric_vector, round_down, round_up
 from .primitives import finite
-
-
-@dataclass
-class LinearSystem:
-    """Bounded mathematical variables, independent of their actuator/state roles.
-
-    Exported proof keys retain historical names for artifact compatibility.
-    Operating permissions are applied only by the model binding at compilation.
-    """
-
-    variables: tuple
-    fixed: dict
-    rows: list
-    upper: list
-    row_refs: list
-
-    @property
-    def spans(self):
-        return tuple(Fraction(c.upper) - Fraction(c.lower) for c in self.variables)
-
-    def physical_values(self, coordinates):
-        if len(coordinates) != len(self.variables):
-            raise ValueError("solver returned the wrong number of control coordinates")
-        values = dict(self.fixed)
-        for control, span, coordinate in zip(self.variables, self.spans, coordinates):
-            z = Fraction(min(1.0, max(0.0, finite(coordinate, "control coordinate"))))
-            value = finite(float(Fraction(control.lower) + span * z), control.name)
-            values[control.name] = min(control.upper, max(control.lower, value))
-        return values
-
-    def checked_values(self, values):
-        if set(values) != set(self.fixed) | {c.name for c in self.variables}:
-            return None
-        if any(values[n] != v for n, v in self.fixed.items()) or any(
-            not c.lower <= values[c.name] <= c.upper for c in self.variables
-        ):
-            return None
-        # Recheck the physical floats that will actually be returned, including
-        # the rounding introduced by denormalizing the proposed coordinates.
-        z = [
-            (Fraction(values[c.name]) - Fraction(c.lower)) / span
-            for c, span in zip(self.variables, self.spans)
-        ]
-        if any(exact_dot(row, z) > b for row, b in zip(self.rows, self.upper)):
-            return None
-        return values
-
-    def candidate(self, coordinates):
-        return self.checked_values(self.physical_values(coordinates))
-
-    def objective_bound(self, objective, multipliers):
-        """Checked weak duality on the normalized control box."""
-        if len(objective) != len(self.variables) or len(multipliers) != len(self.rows):
-            raise ValueError("invalid objective certificate dimensions")
-        multipliers = [max(0.0, finite(v, "multiplier")) for v in multipliers]
-        weighted = [exact_dot(column, multipliers) for column in zip(*self.rows)]
-        residual = [Fraction(c) + a for c, a in zip(objective, weighted)]
-        minimum = sum((min(Fraction(0), a) for a in residual), Fraction(0))
-        rhs = exact_dot(self.upper, multipliers)
-        return minimum - rhs, {
-            "formula": "min_box((c + lambda A) z) - lambda b <= minimum relief",
-            "objective_exact": list(map(str, objective)),
-            "multipliers": multipliers,
-            "weighted_residual_exact": list(map(str, residual)),
-            "box_minimum_exact": str(minimum),
-            "weighted_upper_exact": str(rhs),
-            "lower_exact": str(minimum - rhs),
-        }
-
-    def certificate(self, multipliers):
-        if len(multipliers) != len(self.rows):
-            raise ValueError("solver returned the wrong number of multipliers")
-        multipliers = [max(0.0, finite(v, "multiplier")) for v in multipliers]
-        weighted = [exact_dot(column, multipliers) for column in zip(*self.rows)]
-        minimum = sum((min(Fraction(0), a) for a in weighted), Fraction(0))
-        upper = exact_dot(self.upper, multipliers)
-        gap = minimum - upper
-        if gap <= 0:
-            return None
-        return {
-            "formula": "min over 0 <= z <= 1 of (lambda A) z > lambda b",
-            "arithmetic": "exact_rationals_of_declared_floats",
-            "row_constraint_refs": self.row_refs,
-            "rows_exact": [[str(a) for a in row] for row in self.rows],
-            "upper_exact": [str(b) for b in self.upper],
-            "multipliers": multipliers,
-            "weighted_coefficients_exact": list(map(str, weighted)),
-            "box_minimum_exact": str(minimum),
-            "weighted_upper_exact": str(upper),
-            "contradiction_gap_exact": str(gap),
-            "control_coordinates": [
-                {
-                    "name": c.name,
-                    "origin_exact": str(Fraction(c.lower)),
-                    "scale_exact": str(span),
-                }
-                for c, span in zip(self.variables, self.spans)
-            ],
-            "fixed_controls": self.fixed,
-            "scope": "joint infeasibility; no claim of a minimal conflict or individually impossible requirements",
-        }
 
 
 def checked_candidates(system, primal):
@@ -164,54 +64,9 @@ def checked_candidates(system, primal):
 
 
 def compile_system(claim, point):
-    model = claim.adapter
-    fixed = model._permissions(claim)
-    fixed.update(
-        {
-            c.name: c.lower
-            for c in model.variables
-            if c.lower == c.upper and c.name not in fixed
-        }
+    return compile_model(claim.adapter, claim.requirements).normalized(
+        point, claim.adapter._permissions(claim)
     )
-    variables = tuple(c for c in model.variables if c.name not in fixed)
-    constants = {**point, **fixed, **{c.name: c.lower for c in variables}}
-    rows, upper, refs = [], [], []
-    limits = model.operating_limits + tuple(
-        r for r in model.requirements if r.name in claim.requirements
-    )
-    for limit in limits:
-        output = model.output(limit.output)
-        coefficients = {t.variable: Fraction(t.coefficient) for t in output.terms}
-        scale = Fraction(limit.residual_scale)
-        rows.append(
-            tuple(
-                limit.sign
-                * coefficients.get(c.name, 0)
-                * (Fraction(c.upper) - Fraction(c.lower))
-                / scale
-                for c in variables
-            )
-        )
-        upper.append(
-            (
-                Fraction(limit.tolerance)
-                - limit.sign * (output._exact_value(constants) - Fraction(limit.limit))
-            )
-            / scale
-        )
-        refs.append(limit.name)
-    # Fixed values remain subject to the declared equipment bounds. Their
-    # constant rows also give a certificate for an out-of-bounds fixed command.
-    for control in model.variables:
-        if control.name in fixed:
-            for side, b in (
-                ("lower", Fraction(fixed[control.name]) - Fraction(control.lower)),
-                ("upper", Fraction(control.upper) - Fraction(fixed[control.name])),
-            ):
-                rows.append((Fraction(0),) * len(variables))
-                upper.append(b)
-                refs.append(model.bound_id(control, side))
-    return LinearSystem(variables, fixed, rows, upper, refs)
 
 
 @dataclass
@@ -271,13 +126,7 @@ def solve_system(system, tolerance, *, backend="scipy"):
         if backend == "cvxpy" and n:
             from ._cvxpy_backend import solve_bounded
 
-            proposal = LinearSystem(
-                system.variables,
-                system.fixed,
-                [system.rows[i] for i in active],
-                [system.upper[i] for i in active],
-                [system.row_refs[i] for i in active],
-            )
+            proposal = system.select_rows(active)
             candidate = solve_bounded(proposal, [0.0] * n, tolerance, phase_one=True)
             attempts.extend(candidate.attempts)
             values = (

@@ -9,10 +9,11 @@ The saved physical controller must still pass its separate exact audit.
 from fractions import Fraction as F
 
 from .primitives import finite
+from ._linear_problem import bound_rows
 
 
-def constraints(program, requirements, reserve):
-    cp, model = program.cp, program.model
+def constraints(program, reserve):
+    cp = program.cp
     centers = {n: (lo + hi) / 2 for n, (lo, hi) in program.input_ranges.items()}
     radii = {n: (hi - lo) / 2 for n, (lo, hi) in program.input_ranges.items()}
     commands = {}
@@ -39,11 +40,11 @@ def constraints(program, requirements, reserve):
                     )
         commands[n] = (center, slopes)
 
-    def output_form(output):
-        constant = F(output.offset)
+    def output_form(expression):
+        constant = expression.constant
         slopes, control_centers = {}, []
-        for term in output.terms:
-            n, a = term.variable, term.coefficient
+        for n, exact_coefficient in expression.terms:
+            a = finite(float(exact_coefficient), "affine coefficient")
             if n in commands:
                 center, command_slopes = commands[n]
                 control_centers.append(a * center)
@@ -59,43 +60,30 @@ def constraints(program, requirements, reserve):
         )
         return center, slopes
 
-    def upper(form, *, sign=1, limit=0, scale=1):
+    def upper(form, *, scale=1):
         center, slopes = form
         radius = (
             cp.norm1(cp.hstack([slope / scale for slope in slopes.values()]))
             if slopes
             else 0
         )
-        return sign * (center - limit) / scale + radius
+        return center / scale + radius
 
-    rows = []
-    for control in model.controls:
-        form = commands[control.name]
-        rows.extend(
-            (
-                upper(form, sign=-1, limit=control.lower) <= 0,
-                upper(form, limit=control.upper) <= 0,
-            )
-        )
-    for row in model.operating_limits + tuple(
-        r for r in model.requirements if r.name in requirements
-    ):
-        rows.append(
-            upper(
-                output_form(model.output(row.output)),
-                sign=row.sign,
-                limit=row.limit,
-                scale=row.residual_scale,
-            )
-            <= (1 - reserve) * row.tolerance / row.residual_scale
-        )
-    spec = program.objective
-    epigraph = cp.Variable(name="worst_case_cost")
-    rows.append(
-        upper(
-            output_form(model.output(spec.output)),
-            sign=1 if spec.sense == "minimize" else -1,
-        )
-        <= epigraph
+    physical = program.physical
+    declarations = (
+        tuple(row for c in physical.variables for row in bound_rows(c)) + physical.rows
     )
+    rows = [
+        upper(
+            output_form(row.expression),
+            scale=finite(float(row.source.scale), "row scale"),
+        )
+        <= finite(
+            float((1 - F(reserve)) * row.tolerance / row.source.scale),
+            "reserved tolerance",
+        )
+        for row in declarations
+    ]
+    epigraph = cp.Variable(name="worst_case_cost")
+    rows.append(upper(output_form(physical.objective.expression)) <= epigraph)
     return rows, epigraph

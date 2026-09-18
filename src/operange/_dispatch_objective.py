@@ -5,10 +5,12 @@ For any lambda >= 0, minimizing its separable Lagrangian over the box gives a
 global lower bound. Numerical solvers only propose commands and multipliers.
 """
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from fractions import Fraction as F
 
 from . import linear
+from ._linear_problem import Polynomial as Polynomial
+from ._linear_compile import objective as physical_objective
 from ._cvxpy_backend import numeric_vector, solve_bounded
 from ._linear_recourse import RecourseSolution, solve_system
 from ._numeric import exact_dot, round_down, round_up
@@ -17,82 +19,8 @@ from .objectives import LinearObjective
 from .primitives import finite
 
 
-@dataclass
-class Polynomial:
-    constant: F
-    linear: tuple
-    diagonal: tuple
-
-    def value(self, system, controls):
-        z = [
-            (F(controls[c.name]) - F(c.lower)) / span
-            for c, span in zip(system.variables, system.spans)
-        ]
-        return (
-            self.constant
-            + exact_dot(self.linear, z)
-            + sum(d * v * v for d, v in zip(self.diagonal, z))
-        )
-
-    def bound(self, system, multipliers):
-        values = numeric_vector(multipliers, len(system.rows), "objective multipliers")
-        if values is None:
-            raise ValueError("missing objective multipliers")
-        multipliers = [max(0.0, v) for v in values]
-        slopes = [
-            c + exact_dot((row[i] for row in system.rows), multipliers)
-            for i, c in enumerate(self.linear)
-        ]
-        minimizers = [
-            min(F(1), max(F(0), -c / (2 * d))) if d else F(c < 0)
-            for c, d in zip(slopes, self.diagonal)
-        ]
-        bound = (
-            self.constant
-            - exact_dot(system.upper, multipliers)
-            + sum(
-                d * z * z + c * z for d, c, z in zip(self.diagonal, slopes, minimizers)
-            )
-        )
-        return bound, {
-            "formula": "k - lambda.b + sum(min_0<=z_i<=1(d_i*z_i**2 + (c_i + (lambda.A)_i)*z_i))",
-            "multipliers": multipliers,
-            "lagrangian_slopes_exact": list(map(str, slopes)),
-            "box_minimizers_exact": list(map(str, minimizers)),
-            "minimization_lower_exact": str(bound),
-        }
-
-
 def compile_objective(model, point, system):
-    spec = model.objective
-    constants = {**point, **system.fixed, **{c.name: c.lower for c in system.variables}}
-    if isinstance(spec, LinearObjective):
-        sign = 1 if spec.sense == "minimize" else -1
-        output = model.output(spec.output)
-        coefficients = {t.variable: F(t.coefficient) for t in output.terms}
-        return Polynomial(
-            sign * output._exact_value(constants),
-            tuple(
-                sign * coefficients.get(c.name, 0) * span
-                for c, span in zip(system.variables, system.spans)
-            ),
-            (F(0),) * len(system.variables),
-        )
-    constant = F(0)
-    coefficients, diagonal = (
-        dict.fromkeys((c.name for c in system.variables), F(0)),
-        dict.fromkeys((c.name for c in system.variables), F(0)),
-    )
-    for target in spec.targets:
-        weight = F(target.weight) / F(target.scale) ** 2
-        difference = F(constants[target.control]) - F(target.target)
-        constant += weight * difference**2
-        if target.control in coefficients:
-            control = next(c for c in system.variables if c.name == target.control)
-            span = F(control.upper) - F(control.lower)
-            coefficients[target.control] = 2 * weight * difference * span
-            diagonal[target.control] = weight * span**2
-    return Polynomial(constant, tuple(coefficients.values()), tuple(diagonal.values()))
+    return physical_objective(model).normalized(system, point)
 
 
 def _candidates(system, primal):

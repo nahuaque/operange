@@ -4,6 +4,8 @@ from dataclasses import dataclass, asdict
 from fractions import Fraction as F
 
 from . import linear
+from ._linear_compile import compile_model
+from ._linear_problem import LinearProblem, PhysicalRow, coordinates
 from ._numeric import exact_dot as dot
 from .primitives import finite
 
@@ -60,17 +62,20 @@ class ParametricDispatch:
     cost: list
     constant: F
     sign: int
+    declaration: LinearProblem
+    source_rows: tuple[PhysicalRow, ...]
 
     def proposal(self, rhs, tolerance, backend):
         """Numerical primal/dual values only choose a rational basis to check."""
         n, m = len(self.names), len(self.rows)
+        scaled_rows, scaled_upper = coordinates(
+            self.rows, rhs, self.origins, self.scales, [F(1)] * len(self.rows)
+        )
         matrix, upper = [], []
-        for row, value in zip(self.rows, rhs):
-            scaled = [a * s for a, s in zip(row, self.scales)]
-            b = value - dot(row, self.origins)
-            norm = max([abs(b), *map(abs, scaled)]) or F(1)
-            matrix.append([finite(float(a / norm), "LP row") for a in scaled])
-            upper.append(finite(float(b / norm), "LP rhs"))
+        for row, value in zip(scaled_rows, scaled_upper):
+            norm = max([abs(value), *map(abs, row)]) or F(1)
+            matrix.append([finite(float(a / norm), "LP row") for a in row])
+            upper.append(finite(float(value / norm), "LP rhs"))
         objective = [a * s for a, s in zip(self.cost, self.scales)]
         norm = max(map(abs, objective)) or F(1)
         objective = [float(a / norm) for a in objective]
@@ -250,54 +255,25 @@ class ParametricDispatch:
 
 
 def problem(claim, point):
-    model = claim.adapter
-    fixed = model._permissions(claim)
-    names = tuple(c.name for c in model.variables)
-    rows, rhs, refs = [], [], []
-    limits = model.operating_limits + tuple(
-        r for r in model.requirements if r.name in claim.requirements
-    )
-    for limit in limits:
-        output = model.output(limit.output)
-        terms = {t.variable: F(t.coefficient) for t in output.terms}
-        offset = F(output.offset) + sum(
-            (a * F(point[n]) for n, a in terms.items() if n in point), F(0)
-        )
-        rows.append([limit.sign * terms.get(n, F(0)) for n in names])
-        rhs.append(F(limit.tolerance) + limit.sign * (F(limit.limit) - offset))
-        refs.append(
-            f"{'operating_limit' if limit in model.operating_limits else 'requirement'}:{limit.name}"
-        )
-    for i, control in enumerate(model.variables):
-        for side, sign in (("lower", -1), ("upper", 1)):
-            row = [F(sign if j == i else 0) for j in range(len(names))]
-            rows.append(row)
-            rhs.append(sign * F(getattr(control, side)))
-            refs.append(f"{control.quantity.role}_{side}:{control.name}")
-            if control.name in fixed:
-                rows.append(row)
-                rhs.append(sign * F(fixed[control.name]))
-                refs.append(f"fixed_{side}:{control.name}")
-    objective = model.output(model.objective.output)
-    terms = {t.variable: F(t.coefficient) for t in objective.terms}
-    sign = 1 if model.objective.sense == "minimize" else -1
+    declaration = compile_model(claim.adapter, claim.requirements)
+    variables = declaration.variables
+    names = tuple(c.name for c in variables)
+    physical = declaration.explicit_rows(claim.adapter._permissions(claim))
+    matrix = [row.at(point, names) for row in physical]
+    objective = declaration.objective
+    form = objective.expression.substitute(point)
     return ParametricDispatch(
         names,
-        [F(c.lower) for c in model.variables],
-        [
-            F(c.upper) - F(c.lower) or max(F(1), abs(F(c.lower)))
-            for c in model.variables
-        ],
-        rows,
-        rhs,
-        refs,
-        [sign * terms.get(n, F(0)) for n in names],
-        sign
-        * (
-            F(objective.offset)
-            + sum((v * F(point[n]) for n, v in terms.items() if n in point), F(0))
-        ),
-        sign,
+        [F(c.lower) for c in variables],
+        [F(c.upper) - F(c.lower) or max(F(1), abs(F(c.lower))) for c in variables],
+        [list(row) for row, _ in matrix],
+        [rhs for _, rhs in matrix],
+        [row.source.ref for row in physical],
+        [form.coefficient(n) for n in names],
+        form.constant,
+        objective.sign,
+        declaration,
+        physical,
     )
 
 
@@ -308,41 +284,31 @@ def change_rates(claim, system, change):
         if change.name not in model.input_space.names:
             raise ValueError("unknown sensitivity input")
         unit = model.input_space.coordinate(change.name).unit
-        limits = model.operating_limits + tuple(
-            r for r in model.requirements if r.name in claim.requirements
-        )
-        for i, limit in enumerate(limits):
-            rates[i] = -limit.sign * sum(
-                (
-                    F(t.coefficient)
-                    for t in model.output(limit.output).terms
-                    if t.variable == change.name
-                ),
-                F(0),
-            )
-        constant = system.sign * sum(
-            (
-                F(t.coefficient)
-                for t in model.output(model.objective.output).terms
-                if t.variable == change.name
-            ),
-            F(0),
-        )
+        rates = [-row.expression.coefficient(change.name) for row in system.source_rows]
+        constant = system.declaration.objective.expression.coefficient(change.name)
     elif change.kind == "operating_limit":
-        limit = next((r for r in model.operating_limits if r.name == change.name), None)
-        if limit is None:
+        source = next(
+            (
+                row.source
+                for row in system.source_rows
+                if row.source.kind == "operating_limit"
+                and row.source.name == change.name
+            ),
+            None,
+        )
+        if source is None:
             raise ValueError(
                 "sensitivity must name an operating limit, not a service requirement"
             )
-        unit = model.output(limit.output).unit
-        rates[system.refs.index(change.change_id)] = F(limit.sign)
+        unit = source.unit
+        rates[system.refs.index(change.change_id)] = F(source.sign)
     else:
         role, side = change.kind.split("_")
         control = next(
             (
                 c
-                for c in model.variables
-                if c.name == change.name and c.quantity.role == role
+                for c in system.declaration.variables
+                if c.name == change.name and c.role == role
             ),
             None,
         )

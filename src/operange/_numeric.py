@@ -4,6 +4,8 @@ from decimal import Context, Decimal, localcontext
 from fractions import Fraction
 from math import inf, nextafter
 
+import numpy as np
+
 from .primitives import finite
 
 
@@ -63,3 +65,12 @@ def sqrt_upper(value):
     while Fraction(candidate) ** 2 < value:
         candidate = finite(nextafter(candidate, inf), "square root bound")
     return candidate
+
+
+def numeric_vector(value, size, name):
+    if value is None:
+        return None
+    values = np.asarray(value)
+    if values.shape != (size,):
+        raise ValueError(f"{name} has an unexpected shape")
+    return [finite(v, name) for v in values]

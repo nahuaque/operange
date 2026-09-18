@@ -165,6 +165,7 @@ shared-idaes-controls
 local-uncertainty
 parameter-data-and-execution
 variable-roles-and-operation
+linear-problem-representation
 continuous-dispatch
 shared-relief
 dispatch-objectives

@@ -6,7 +6,8 @@ from fractions import Fraction as F
 
 from ._dispatch_objective import solve_dispatch
 from ._joint_relief import candidate_changes, compile_relief, declarations
-from ._linear_recourse import LinearSystem, checked_candidates, compile_system
+from ._linear_recourse import checked_candidates, compile_system
+from ._linear_transform import stack_scenarios, relax_rows
 from ._linear_vertex_audit import vertex_count
 from ._numeric import round_down, round_up
 from .claim import rejected_result
@@ -44,58 +45,29 @@ def _blocks(claim, baseline, count):
 
 
 def _combine(blocks):
-    controls, rows, upper, refs, row_scenarios = [], [], [], [], []
-    width = sum(len(b["system"].variables) for b in blocks)
-    for i, block in enumerate(blocks):
-        system = block["system"]
-        block["offset"] = offset = len(controls)
-        renamed = [
-            replace(c, name=f"_operange_dispatch_{i}_{j}")
-            for j, c in enumerate(system.variables)
-        ]
-        block["control_mapping"] = {
-            c.name: new.name for c, new in zip(system.variables, renamed)
-        }
-        controls.extend(renamed)
-        for row, bound, ref in zip(system.rows, system.upper, system.row_refs):
-            rows.append(
-                (F(0),) * offset + tuple(row) + (F(0),) * (width - offset - len(row))
-            )
-            upper.append(bound)
-            refs.append(ref)
-            row_scenarios.append(block["scenario_names"])
-    return LinearSystem(tuple(controls), {}, rows, upper, refs), row_scenarios
+    system, mappings = stack_scenarios(tuple(b["system"] for b in blocks))
+    for block, mapping in zip(blocks, mappings):
+        block["offset"] = mapping.offset
+        block["control_mapping"] = dict(mapping.mapping)
+    return system, [blocks[s.scenario]["scenario_names"] for s in system.sources]
 
 
-def _at_maximum(model, changes, blocks, augmented, primal):
+def _at_maximum(changes, blocks, augmented, primal, tolerance):
     """Repair each independent dispatch candidate before checking the joint one."""
-    limits = {r.name: r for r in model.operating_limits}
     maximum = {c["constraint"]: F(c["maximum"]) for c in changes}
     proposed = {}
     for block in blocks:
         system = block["system"]
         start = block["offset"]
         coordinates = list(primal[start : start + len(system.variables)])
-        relaxed = replace(
-            system,
-            upper=[
-                b + maximum[ref] / F(limits[ref].residual_scale)
-                if ref in maximum
-                else b
-                for b, ref in zip(system.upper, system.row_refs)
-            ],
-        )
+        relaxed = relax_rows(system, maximum)
         values = next(iter(checked_candidates(relaxed, coordinates)), None)
         if values is None:
             # A tiny near-bound flow can make an exact balance impossible to
             # express with the other physical floats. Try the actual bound,
             # then reuse row repair and exact checks without relaxing any row.
             snapped = [
-                0.0
-                if abs(z) <= model.solver_tolerance
-                else 1.0
-                if abs(z - 1) <= model.solver_tolerance
-                else z
+                0.0 if abs(z) <= tolerance else 1.0 if abs(z - 1) <= tolerance else z
                 for z in coordinates
             ]
             values = next(iter(checked_candidates(relaxed, snapped)), None)
@@ -190,9 +162,7 @@ def _relief(claim, baseline, options, changes, *, backend, max_vertices, count):
     try:
         blocks = _blocks(claim, baseline, count)
         system, row_scenarios = _combine(blocks)
-        augmented, polynomial = compile_relief(
-            claim.adapter, system, changes, options["objective"]
-        )
+        augmented, polynomial = compile_relief(system, changes, options["objective"])
         details.update(
             rows_exact=[[str(a) for a in row] for row in augmented.rows],
             upper_exact=list(map(str, augmented.upper)),
@@ -230,7 +200,7 @@ def _relief(claim, baseline, options, changes, *, backend, max_vertices, count):
                 claim.adapter.solver_tolerance,
                 backend=backend,
                 candidate_values=lambda primal: _at_maximum(
-                    claim.adapter, changes, blocks, augmented, primal
+                    changes, blocks, augmented, primal, claim.adapter.solver_tolerance
                 ),
             )
             attempts = solution.attempts

@@ -73,6 +73,10 @@ for algebraic capacity bounds, and the existing `control_upper`/`control_lower`
 variants for actuators. The independent verifier reconstructs both roles without
 using the production solver or row compiler.
 
+The [shared linear representation](linear-problem-representation.md) describes
+how production queries preserve these roles through normalization, scenario
+replication, relief and controller synthesis.
+
 Saved controllers with algebraic states support **finite replay and finite
 synthesis**. Every candidate fixes the actual rounded actuator commands and
 checks existence of a physical state completion. A failed solve stays unresolved;

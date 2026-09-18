@@ -5,6 +5,8 @@ from fractions import Fraction as F
 from itertools import product
 
 from ._controller_envelope import ControllerEnvelope
+from ._linear_compile import compile_model
+from ._linear_problem import bound_rows
 from ._cvxpy_backend import BackendUnavailable, load_cvxpy, numeric_vector
 from ._numeric import exact_dot, round_down, round_up
 from .affine import AffineTerm
@@ -123,6 +125,9 @@ class PolicyProgram:
     def __init__(self, cp, claim, model, objective, scenarios):
         self.cp, self.model, self.objective = cp, model, objective
         self.scenarios = scenarios
+        self.physical = compile_model(
+            model, claim.requirements, objective_spec=objective
+        )
         self.input_ranges = (
             {p.name: (F(p.lower), F(p.upper)) for p in claim.domain.scalar_parameters}
             if scenarios is None
@@ -214,30 +219,22 @@ class PolicyProgram:
                 ) * (features @ variable)
         return commands
 
-    def output(self, output, point, commands):
-        constant = F(output.offset) + sum(
+    def expression(self, expression, point, commands):
+        form = expression.substitute(point)
+        return self.cp.Constant(finite(float(form.constant), "output constant")) + sum(
             (
-                F(t.coefficient) * F(point[t.variable])
-                for t in output.terms
-                if t.variable not in commands
-            ),
-            F(0),
-        )
-        return self.cp.Constant(finite(float(constant), "output constant")) + sum(
-            (
-                t.coefficient * commands[t.variable]
-                for t in output.terms
-                if t.variable in commands
+                finite(float(a), "output coefficient") * commands[n]
+                for n, a in form.terms
             ),
             0,
         )
 
-    def _constraints(self, requirements, reserve):
+    def _constraints(self, reserve):
         if self.scenarios is None:
             from ._box_controller_synthesis import constraints
 
-            return constraints(self, requirements, reserve)
-        cp, model, spec = self.cp, self.model, self.objective
+            return constraints(self, reserve)
+        cp, model = self.cp, self.model
         constraints, epigraph = [], cp.Variable(name="worst_case_cost")
         for scenario in self.scenarios:
             point = scenario.values
@@ -248,38 +245,42 @@ class PolicyProgram:
                     for s in model.states
                 }
             )
-            for control in model.variables:
-                constraints.extend(
-                    (
-                        commands[control.name] >= control.lower,
-                        commands[control.name] <= control.upper,
+            rows = (
+                tuple(row for c in self.physical.variables for row in bound_rows(c))
+                + self.physical.rows
+            )
+            for row in rows:
+                scale = finite(float(row.source.scale), "row scale")
+                residual = self.expression(row.expression, point, commands)
+                constraints.append(
+                    residual / scale
+                    <= finite(
+                        float((1 - F(reserve)) * row.tolerance / row.source.scale),
+                        "reserved tolerance",
                     )
                 )
-            for row in model.operating_limits + tuple(
-                r for r in model.requirements if r.name in requirements
-            ):
-                residual = row.sign * (
-                    self.output(model.output(row.output), point, commands) - row.limit
-                )
-                constraints.append(
-                    residual / row.residual_scale
-                    <= (1 - reserve) * row.tolerance / row.residual_scale
-                )
-            if type(spec) is LinearObjective:
-                cost = (1 if spec.sense == "minimize" else -1) * self.output(
-                    model.output(spec.output), point, commands
-                )
-            else:
-                cost = sum(
-                    t.weight * cp.square((commands[t.control] - t.target) / t.scale)
-                    for t in spec.targets
-                )
+            objective = self.physical.objective
+            cost = self.expression(objective.expression, point, commands)
+            cost += sum(
+                (
+                    finite(float(t.weight), "tracking weight")
+                    * cp.square(
+                        (
+                            commands[t.variable]
+                            - finite(float(t.target), "tracking target")
+                        )
+                        / finite(float(t.scale), "tracking scale")
+                    )
+                    for t in objective.squares
+                ),
+                0,
+            )
             constraints.append(cost <= epigraph)
         return constraints, epigraph
 
-    def solve(self, requirements, reserve):
+    def solve(self, reserve):
         cp, model, spec = self.cp, self.model, self.objective
-        constraints, epigraph = self._constraints(requirements, reserve)
+        constraints, epigraph = self._constraints(reserve)
         problem = cp.Problem(cp.Minimize(epigraph), constraints)
         report = {
             "backend": f"CVXPY {cp.__version__}",
@@ -564,7 +565,7 @@ def synthesize(claim, *, objective, name, max_vertices):
     try:
         program = PolicyProgram(cp, claim, model, objective, scenarios)
         for reserve in (0.5, 0.0):
-            values, report = program.solve(claim.requirements, reserve)
+            values, report = program.solve(reserve)
             attempts.append(report)
             if values is None:
                 continue

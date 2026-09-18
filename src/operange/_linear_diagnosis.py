@@ -5,10 +5,11 @@ from fractions import Fraction
 from math import inf, nextafter
 
 from . import linear
-from ._linear_recourse import LinearSystem, solve_system
+from ._linear_recourse import solve_system
+from ._linear_problem import Variable
+from ._linear_transform import ReliefColumn, augment_relief
 from ._numeric import round_down, round_up
 from .contract_types import Evidence
-from .linear_process import LinearControl
 from .primitives import finite
 
 
@@ -46,12 +47,7 @@ def conflict_evidence(system, solution, tolerance, *, backend="scipy"):
     removals, unresolved = {}, []
     for name in system.row_refs:
         indices = [i for i, ref in enumerate(current.row_refs) if ref != name]
-        trial = replace(
-            current,
-            rows=[current.rows[i] for i in indices],
-            upper=[current.upper[i] for i in indices],
-            row_refs=[current.row_refs[i] for i in indices],
-        )
+        trial = current.select_rows(indices)
         checked = solve_system(trial, tolerance, backend=backend)
         if checked.feasibility == "infeasible":
             current, proof = trial, checked.certificate
@@ -68,7 +64,7 @@ def conflict_evidence(system, solution, tolerance, *, backend="scipy"):
     for control, a in zip(current.variables, proof["weighted_coefficients_exact"]):
         if Fraction(a):
             side = "lower" if Fraction(a) > 0 else "upper"
-            used_bounds.append(f"{control.quantity.role}_{side}:{control.name}")
+            used_bounds.append(f"{control.role}_{side}:{control.name}")
     return Evidence(
         "conflict",
         "recourse_conflict",
@@ -106,22 +102,8 @@ def relief_evidence(claim, point, system, options, *, backend="scipy"):
     name = "_operange_relief"
     while name in {c.name for c in model.variables}:
         name += "_"
-    control = LinearControl(name, unit, 0, maximum)
-    augmented = LinearSystem(
-        system.variables + (control,),
-        dict(system.fixed),
-        [
-            row
-            + (
-                (-Fraction(maximum) / Fraction(limit.residual_scale))
-                if ref == limit.name
-                else Fraction(0),
-            )
-            for row, ref in zip(system.rows, system.row_refs)
-        ],
-        list(system.upper),
-        list(system.row_refs),
-    )
+    control = Variable(name, unit, 0, maximum, "auxiliary")
+    augmented = augment_relief(system, (ReliefColumn(control, limit.name),))
     details = {
         "constraint": limit.name,
         "unit": unit,

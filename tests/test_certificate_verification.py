@@ -3,6 +3,7 @@
 from dataclasses import replace
 from fractions import Fraction as F
 import json
+
 # CLI tests use a fixed executable without a shell.
 import subprocess  # nosec B404
 import sys
@@ -217,6 +218,9 @@ def test_no_optimizer_model_query_or_producer_certificate_code_is_called(monkeyp
         _dispatch_objective,
         _controller_envelope,
         _joint_relief,
+        _linear_compile,
+        _linear_problem,
+        _linear_transform,
     )
 
     claim = boiler()
@@ -236,6 +240,11 @@ def test_no_optimizer_model_query_or_producer_certificate_code_is_called(monkeyp
         (linear, ("solve_lp",)),
         (_cvxpy_backend, ("load_cvxpy",)),
         (_linear_recourse, ("compile_system", "solve_system")),
+        (_linear_compile, ("compile_model", "expression", "objective")),
+        (_linear_problem, ("bound_rows", "coordinates")),
+        (_linear_problem.LinearProblem, ("normalized", "explicit_rows")),
+        (_linear_problem.PhysicalObjective, ("normalized",)),
+        (_linear_transform, ("stack_scenarios", "augment_relief", "relax_rows")),
         (
             _linear_recourse.LinearSystem,
             ("certificate", "objective_bound", "checked_values"),

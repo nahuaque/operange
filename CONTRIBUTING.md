@@ -48,6 +48,13 @@ excluded from distributions. Public design notes belong in `notes/`; supported
 user-facing behavior belongs in `docs/`. Examples may show downstream economics
 and reporting, but those concerns do not belong in the installed package.
 
+## Linear problem architecture
+
+For changes to linear queries, see the
+[shared production representation](docs/linear-problem-representation.md).
+Physical compilation and transformations belong in the production layer;
+certificate verification must keep an independent reconstruction.
+
 ## Publishing
 
 The distribution and import namespace are both `operange`. The manual

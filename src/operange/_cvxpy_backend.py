@@ -12,6 +12,7 @@ from threading import local
 import numpy as np
 
 from .primitives import finite
+from ._numeric import numeric_vector as numeric_vector
 
 
 class BackendUnavailable(RuntimeError):
@@ -55,15 +56,6 @@ def cached_program(key, build):
 def clear_cache():
     """Release this thread's prepared programs (also useful for cold benchmarks)."""
     _workspaces.cache = OrderedDict()
-
-
-def numeric_vector(value, size, name):
-    if value is None:
-        return None
-    values = np.asarray(value)
-    if values.shape != (size,):
-        raise ValueError(f"{name} has an unexpected shape")
-    return [finite(v, name) for v in values]
 
 
 @dataclass

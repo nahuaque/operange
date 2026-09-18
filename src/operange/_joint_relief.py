@@ -5,10 +5,10 @@ from dataclasses import replace
 from fractions import Fraction as F
 
 from ._dispatch_objective import Polynomial, solve_dispatch
-from ._linear_recourse import LinearSystem
+from ._linear_problem import Variable
+from ._linear_transform import ReliefColumn, augment_relief
 from ._numeric import round_down, round_up
 from .contract_types import Evidence
-from .linear_process import LinearControl
 from .primitives import finite
 
 
@@ -57,31 +57,23 @@ def declarations(model, options):
     return tuple(result)
 
 
-def compile_relief(model, system, changes, objective):
+def compile_relief(system, changes, objective):
     """Append one shared relief vector to a point or scenario-block system."""
-    limits = {r.name: r for r in model.operating_limits}
     controls, names = [], {c.name for c in system.variables} | set(system.fixed)
     for i, change in enumerate(changes):
         name = f"_operange_relief_{i}"
         while name in names:
             name += "_"
         names.add(name)
-        controls.append(LinearControl(name, change["unit"], 0, change["maximum"]))
-    augmented = LinearSystem(
-        system.variables + tuple(controls),
-        dict(system.fixed),
-        [
-            row
-            + tuple(
-                -F(c["maximum"]) / F(limits[ref].residual_scale)
-                if ref == c["constraint"]
-                else F(0)
-                for c in changes
-            )
-            for row, ref in zip(system.rows, system.row_refs)
-        ],
-        list(system.upper),
-        list(system.row_refs),
+        controls.append(
+            Variable(name, change["unit"], 0, change["maximum"], "auxiliary")
+        )
+    augmented = augment_relief(
+        system,
+        tuple(
+            ReliefColumn(variable, change["constraint"])
+            for variable, change in zip(controls, changes)
+        ),
     )
     quadratic = objective == "quadratic"
     costs = tuple(
@@ -148,7 +140,7 @@ def relief_evidence(claim, point, system, options, *, backend):
 
     model = claim.adapter
     changes = declarations(model, options)
-    augmented, polynomial = compile_relief(model, system, changes, options["objective"])
+    augmented, polynomial = compile_relief(system, changes, options["objective"])
     quadratic = options["objective"] == "quadratic"
     details = {
         "declaration": {
