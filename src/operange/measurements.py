@@ -76,7 +76,7 @@ class MeasurementModel(Record):
     def validate(self, model):
         inputs = set(model.input_space.names)
         reserved = (
-            inputs | {c.name for c in model.controls} | {o.name for o in model.outputs}
+            inputs | {c.name for c in model.variables} | {o.name for o in model.outputs}
         )
         if any(r.name in reserved for r in self.readings):
             raise ValueError(

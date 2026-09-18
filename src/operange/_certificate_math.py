@@ -304,21 +304,25 @@ class Context:
         )
 
     def system(self, point):
-        fixed = {
-            r.control: r.fixed_value
-            for r in self.policy.rules
-            if r.fixed_value is not None
-        }
+        fixed = (
+            self.commands(point)
+            if self.controller is not None
+            else {
+                r.control: r.fixed_value
+                for r in self.policy.rules
+                if r.fixed_value is not None
+            }
+        )
         fixed.update(
             {
                 c.name: c.lower
-                for c in self.model.controls
+                for c in self.model.variables
                 if c.lower == c.upper and c.name not in fixed
             }
         )
         coords = [
             (c.name, q(c.lower), q(c.upper) - q(c.lower))
-            for c in self.model.controls
+            for c in self.model.variables
             if c.name not in fixed
         ]
         base = {**point, **fixed, **{n: origin for n, origin, _ in coords}}
@@ -343,7 +347,7 @@ class Context:
                 / q(limit.residual_scale)
             )
             refs.append(limit.name)
-        for c in self.model.controls:
+        for c in self.model.variables:
             if c.name in fixed:
                 for side, value in (
                     ("lower", q(fixed[c.name]) - q(c.lower)),
@@ -351,13 +355,13 @@ class Context:
                 ):
                     rows.append([Fraction(0)] * len(coords))
                     rhs.append(value)
-                    refs.append(f"control_{side}:{c.name}")
+                    refs.append(f"{c.quantity.role}_{side}:{c.name}")
         return System(coords, fixed, rows, rhs, refs)
 
     def response(self, point, commands):
         require(
-            set(commands) == {c.name for c in self.model.controls},
-            "missing or extra commands",
+            set(commands) == {c.name for c in self.model.variables},
+            "missing or extra physical variable values",
         )
         require(
             all(
@@ -373,11 +377,11 @@ class Context:
             residuals[r.name] = rounded(
                 (1 if r.relation == "le" else -1) * (outputs[r.output] - q(r.limit)), 1
             )
-        for c in self.model.controls:
-            residuals[f"control_lower:{c.name}"] = rounded(
+        for c in self.model.variables:
+            residuals[f"{c.quantity.role}_lower:{c.name}"] = rounded(
                 q(c.lower) - q(commands[c.name]), 1
             )
-            residuals[f"control_upper:{c.name}"] = rounded(
+            residuals[f"{c.quantity.role}_upper:{c.name}"] = rounded(
                 q(commands[c.name]) - q(c.upper), 1
             )
         values = {

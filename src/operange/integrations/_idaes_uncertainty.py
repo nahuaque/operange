@@ -8,6 +8,7 @@ import numpy as np
 from ..contract_types import Diagnostic, unique
 from ..domains import Coordinate, ParameterSpace, FiniteSet, Scenario
 from ..parameters import ParameterPoint, ParameterCovariance, covariance_matrix
+from ..operating import resolve_operating
 from ..primitives import finite
 from ._idaes_derivatives import _regular_system
 from ._idaes_model import component, number
@@ -66,9 +67,26 @@ def propagate_uncertainty(
     relative_tolerance,
     absolute_tolerance,
     provenance=None,
+    operating=None,
 ):
     from .idaes import IdaesVariable
 
+    if operating is not None:
+        if fixed_controls is not None or reoptimize is not False:
+            raise ValueError("Supply operating or fixed_controls/reoptimize, not both")
+        spec = resolve_operating(
+            adapter.controls, adapter.input_space.names, operating=operating
+        )
+        spec.validate(adapter.controls, adapter.input_space.names)
+        prescribed = spec.point_commands(adapter.input_space.names)
+        if len(prescribed) == len(adapter.controls):
+            fixed_controls = prescribed
+        elif prescribed:
+            raise ValueError(
+                "Local propagation requires all actuators fixed or all reoptimized"
+            )
+        else:
+            reoptimize = True
     parameters = tuple(parameters)
     if not parameters or not all(isinstance(p, IdaesVariable) for p in parameters):
         raise ValueError("Supply a nonempty ordered tuple of IdaesVariable parameters")

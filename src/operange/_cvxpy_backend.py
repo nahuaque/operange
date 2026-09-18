@@ -184,7 +184,7 @@ def solve_bounded(system, objective, tolerance, *, phase_one=False, quadratic=No
     )
     upper = [finite(float(b), "LP right-hand side") for b in system.upper]
     objective = [finite(v, "LP objective") for v in objective]
-    if not rows or not system.controls or len(objective) != len(system.controls):
+    if not rows or not system.variables or len(objective) != len(system.variables):
         raise ValueError(
             "prepared bounded LP needs rows, controls and an aligned objective"
         )

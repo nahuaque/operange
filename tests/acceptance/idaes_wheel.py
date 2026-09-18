@@ -40,6 +40,30 @@ def main():
     exported = adapter.export_linear()
     restored = IdaesLinearExport.from_json(exported.to_json())
     require(restored.to_dict() == exported.to_dict(), "export changed on loading")
+    require(
+        {c.name for c in restored.adapter.controls} == {"fuel_a", "fuel_b"},
+        "export promotes states to actuators",
+    )
+    require(len(restored.adapter.states) == 2, "export lost algebraic states")
+    domain = operange.FiniteSet(
+        adapter.input_space,
+        (operange.Scenario("nominal", {"load": 16}, "Fixed command replay"),),
+    )
+    operating = operange.OperatingSpec.fixed(
+        adapter.controls, {"fuel_a": 10, "fuel_b": 16}
+    )
+    require(
+        adapter.as_claim(domain, operating=operating)
+        .evaluate_result({"load": 16})
+        .payload.feasibility
+        == "feasible",
+        "IDAES operating specification failed",
+    )
+    checked = restored.as_claim(domain, operating=operating).audit_result()
+    require(
+        checked.payload.verdict == "pass" and operange.verify_result(checked).verified,
+        "fixed actuators did not retain checked state completion",
+    )
     print(json.dumps(report, indent=2))
 
 

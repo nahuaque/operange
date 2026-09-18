@@ -63,6 +63,8 @@ def _validate(claim, objective, name, max_vertices):
         raise NotImplementedError(
             "Affine synthesis requires the declarative LinearProcessAdapter."
         )
+    if not model.controls:
+        raise NotImplementedError("Controller synthesis requires a physical actuator")
     if not isinstance(name, str):
         raise ValueError("controller name must be a string")
     nonempty(name, "controller name")
@@ -76,6 +78,17 @@ def _validate(claim, objective, name, max_vertices):
     replace(
         model, objective=objective
     )  # Reuse the model's output and target-unit validation.
+    if (
+        model.states
+        and type(objective) is LinearObjective
+        and any(
+            t.variable in {s.name for s in model.states}
+            for t in model.output(objective.output).terms
+        )
+    ):
+        raise NotImplementedError(
+            "Controller objectives depending on algebraic states require a unique response model; use an input/actuator objective"
+        )
     dummy = AffineController(
         name,
         tuple(
@@ -229,7 +242,13 @@ class PolicyProgram:
         for scenario in self.scenarios:
             point = scenario.values
             commands = self.commands(point)
-            for control in model.controls:
+            commands.update(
+                {
+                    s.name: cp.Variable(name=f"state_{scenario.name}_{s.name}")
+                    for s in model.states
+                }
+            )
+            for control in model.variables:
                 constraints.extend(
                     (
                         commands[control.name] >= control.lower,

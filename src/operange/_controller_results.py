@@ -1,4 +1,6 @@
-"""Execute prescribed commands and retain physical failures without redispatch."""
+"""Execute actuator commands, then check any required algebraic completion."""
+
+from dataclasses import replace
 
 from ._finite_audit import audit_finite
 from ._linear_process_results import _included, _physical_response
@@ -14,6 +16,42 @@ from .contract_types import (
     snapshot,
 )
 from .engineering_results import EvaluationResult
+from .operating import OperatingSpec
+
+
+def _complete_states(claim, point, commands, contract, evidence):
+    from ._linear_process_results import evaluate_result as evaluate_linear
+
+    model = claim.adapter.model
+    # Fix only actuators. States remain bounded mathematical unknowns. Suppress
+    # dispatch preferences: this checks existence of a physical completion.
+    prepared = replace(
+        claim,
+        adapter=replace(model, objective=None),
+        recourse=OperatingSpec.fixed(model.controls, commands).policy,
+    )
+    result = evaluate_linear(prepared, point, contract=contract)
+    for item in result.evidence:
+        if item.evidence_id == "membership":
+            continue
+        if item.evidence_id == "response":
+            item = replace(
+                item,
+                details={
+                    **dict(item.details),
+                    "controller_ref": claim.adapter.controller.ref.to_dict(),
+                    "scope": "prescribed actuator commands with a checked feasible algebraic completion; uniqueness is not asserted",
+                },
+            )
+        evidence.append(item)
+    payload = result.payload
+    if payload.feasibility != "feasible":
+        payload = replace(
+            payload,
+            values=payload.values
+            + tuple(QuantityValue(n, v) for n, v in commands.items()),
+        )
+    return replace(result, payload=payload, evidence=tuple(evidence))
 
 
 def evaluate_result(claim, realization, *, contract=None):
@@ -95,6 +133,8 @@ def evaluate_result(claim, realization, *, contract=None):
                 },
             )
         )
+        if claim.adapter.model.states:
+            return _complete_states(claim, point, commands, contract, evidence)
         physical, residuals = _physical_response(
             claim.adapter.model, claim.requirements, point, commands
         )
@@ -168,6 +208,10 @@ def evaluate_result(claim, realization, *, contract=None):
 
 
 def _failed_constraints(claim, result):
+    if claim.adapter.model.states:
+        from ._linear_process_results import _failed_constraints as joint_failure
+
+        return joint_failure(claim, result)
     return tuple(
         c.constraint_ref
         for c in result.payload.constraint_checks

@@ -57,6 +57,7 @@ class IdaesSharedControlResult(Record):
     preparation: Mapping[str, Any] = field(default_factory=dict)
     diagnostics: tuple[Diagnostic, ...] = ()
     scope: Mapping[str, Any] = field(default_factory=lambda: _SCOPE)
+    operating_policy: RecoursePolicy | None = None
 
     def _validate(self):
         if dict(self.scope) != _SCOPE:
@@ -66,6 +67,31 @@ class IdaesSharedControlResult(Record):
         controls = self.contract.model["controls"]
         if not controls:
             raise ValueError("Shared optimization needs at least one actuator")
+        if self.operating_policy is not None:
+            policy = self.operating_policy
+            units = {c["name"]: c["unit"] for c in controls}
+            if (
+                policy.mode not in ("fixed", "static")
+                or {r.control for r in policy.rules} != set(units)
+                or any(
+                    r.observes
+                    or r.unit != units[r.control]
+                    or r.stage != "operation"
+                    or (policy.mode == "fixed" and r.fixed_value is None)
+                    for r in policy.rules
+                )
+            ):
+                raise ValueError(
+                    "Shared operating permissions must cover exactly the actuators without observations"
+                )
+            if self.execution == "completed" and any(
+                r.fixed_value is not None
+                and self.commands.get(r.control) != r.fixed_value
+                for r in policy.rules
+            ):
+                raise ValueError(
+                    "Shared result contradicts a prescribed actuator command"
+                )
         inputs = {b["name"]: b["unit"] for b in self.contract.model["inputs"]}
         if {c.name: c.unit for c in self.domain.space.coordinates} != inputs:
             raise ValueError("Shared-control domain differs from the source inputs")
@@ -156,6 +182,8 @@ class IdaesSharedControlResult(Record):
 
     def to_dict(self):
         data = plain(self)
+        if self.operating_policy is None:
+            data.pop("operating_policy")
         data["audit"] = None if self.audit is None else self.audit.to_dict(compact=True)
         return data
 

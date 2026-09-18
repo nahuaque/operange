@@ -113,7 +113,9 @@ checks precede solving; conservation laws remain always-applied operating limits
 Examples cover the two-boiler utility system and water mixing/splitting, with
 continuous audits and independent certificate checks. Source networks have a
 portable declaration, while frozen controllers retain the compiled equations.
-Internal stream rates remain bounded algebraic controls; general property
+Networks can now explicitly distinguish actuators from bounded algebraic states;
+see [variable roles and operation](../docs/variable-roles-and-operation.md).
+General property
 calculations, actuator inference and multi-period inventories are future work.
 
 The [common engineering-change comparison](../docs/engineering-changes.md) now

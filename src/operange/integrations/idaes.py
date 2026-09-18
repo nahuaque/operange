@@ -17,7 +17,7 @@ from ..claim import (
 )
 from ..contract_types import Record, freeze, nonempty, unique
 from ..domains import FiniteSet, ParameterSpace
-from ..recourse import DecisionRule, RecoursePolicy
+from ..operating import OperatingSpec, resolve_operating
 from ._idaes_affine import IdaesLinearExport
 from ._idaes_shared_result import IdaesSharedControlResult
 from ._idaes_uncertainty_result import (
@@ -177,32 +177,24 @@ class IdaesAdapter:
         )
 
     def _permissions(self, policy):
-        if policy.mode not in ("fixed", "static"):
-            raise ValueError(
-                "IDAES supports fixed or fully observed static operation only"
-            )
-        if {r.control for r in policy.rules} != {v.name for v in self.controls}:
-            raise ValueError("one operating permission is required for each actuator")
-        for rule in policy.rules:
-            item = next(v for v in self.controls if v.name == rule.control)
-            if rule.unit != item.unit or rule.stage != "operation":
-                raise ValueError("actuator units/stage do not match the binding")
-            if rule.fixed_value is None and (
-                policy.mode != "static"
-                or set(rule.observes) != set(self.input_space.names)
-            ):
-                raise ValueError("adjustable actuators must observe every input")
+        return (
+            OperatingSpec(policy)
+            .validate(self.controls, self.input_space.names)
+            .point_commands(self.input_space.names)
+        )
 
-    def as_claim(self, domain, *, recourse=None, requirements=None):
-        if recourse is None:
-            recourse = RecoursePolicy(
-                "static" if self.controls else "fixed",
-                tuple(
-                    DecisionRule(v.name, v.unit, "operation", self.input_space.names)
-                    for v in self.controls
-                ),
+    def as_claim(self, domain, *, recourse=None, operating=None, requirements=None):
+        spec = resolve_operating(
+            self.controls,
+            self.input_space.names,
+            operating=operating,
+            recourse=recourse,
+        )
+        if spec.controller is not None:
+            raise ValueError(
+                "IDAES controller execution is not supported; export a supported linear model first"
             )
-        return Claim(self, domain, recourse, requirements)
+        return Claim(self, domain, spec.policy, requirements)
 
     def capabilities(self, claim):
         try:
@@ -249,7 +241,7 @@ class IdaesAdapter:
 
         return export_linear(self)
 
-    def optimize_shared_controls(self, domain):
+    def optimize_shared_controls(self, domain, *, operating=None):
         """Optimize one command vector over a FiniteSet of input realizations.
 
         Uses the source model's active objective and sense, aggregated as the
@@ -259,7 +251,7 @@ class IdaesAdapter:
         """
         from ._idaes_shared_controls import optimize_shared_controls
 
-        return optimize_shared_controls(self, domain)
+        return optimize_shared_controls(self, domain, operating=operating)
 
     def with_parameters(self, point, *, parameter_map):
         """Bind provider-independent parameter values on a fresh model snapshot."""
@@ -291,6 +283,7 @@ class IdaesAdapter:
         margins=(),
         fixed_controls=None,
         reoptimize=False,
+        operating=None,
         steps=None,
         relative_tolerance=1e-3,
         absolute_tolerance=1e-6,
@@ -315,6 +308,7 @@ class IdaesAdapter:
             margins=margins,
             fixed_controls=fixed_controls,
             reoptimize=reoptimize,
+            operating=operating,
             steps=steps,
             relative_tolerance=relative_tolerance,
             absolute_tolerance=absolute_tolerance,

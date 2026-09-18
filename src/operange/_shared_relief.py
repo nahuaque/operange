@@ -45,16 +45,16 @@ def _blocks(claim, baseline, count):
 
 def _combine(blocks):
     controls, rows, upper, refs, row_scenarios = [], [], [], [], []
-    width = sum(len(b["system"].controls) for b in blocks)
+    width = sum(len(b["system"].variables) for b in blocks)
     for i, block in enumerate(blocks):
         system = block["system"]
         block["offset"] = offset = len(controls)
         renamed = [
             replace(c, name=f"_operange_dispatch_{i}_{j}")
-            for j, c in enumerate(system.controls)
+            for j, c in enumerate(system.variables)
         ]
         block["control_mapping"] = {
-            c.name: new.name for c, new in zip(system.controls, renamed)
+            c.name: new.name for c, new in zip(system.variables, renamed)
         }
         controls.extend(renamed)
         for row, bound, ref in zip(system.rows, system.upper, system.row_refs):
@@ -75,7 +75,7 @@ def _at_maximum(model, changes, blocks, augmented, primal):
     for block in blocks:
         system = block["system"]
         start = block["offset"]
-        coordinates = list(primal[start : start + len(system.controls)])
+        coordinates = list(primal[start : start + len(system.variables)])
         relaxed = replace(
             system,
             upper=[
@@ -106,7 +106,7 @@ def _at_maximum(model, changes, blocks, augmented, primal):
         proposed.update(
             {new: values[old] for old, new in block["control_mapping"].items()}
         )
-    proposed.update({c.name: c.upper for c in augmented.controls[-len(changes) :]})
+    proposed.update({c.name: c.upper for c in augmented.variables[-len(changes) :]})
     return proposed
 
 
@@ -200,7 +200,7 @@ def _relief(claim, baseline, options, changes, *, backend, max_vertices, count):
             row_scenario_names=row_scenarios,
             control_coordinates=[
                 {"name": c.name, "origin": c.lower, "upper": c.upper}
-                for c in augmented.controls
+                for c in augmented.variables
             ],
             dispatch_blocks=[
                 {
@@ -219,7 +219,7 @@ def _relief(claim, baseline, options, changes, *, backend, max_vertices, count):
                 {
                     v.quantity_ref: v.value
                     for v in b["evaluation"].payload.values
-                    if v.quantity_ref in {c.name for c in claim.adapter.controls}
+                    if v.quantity_ref in {c.name for c in claim.adapter.variables}
                 }
                 for b in blocks
             ]
@@ -247,13 +247,13 @@ def _relief(claim, baseline, options, changes, *, backend, max_vertices, count):
                     "verified",
                     details=details,
                 )
-            if solution.controls is None:
+            if solution.values is None:
                 raise ValueError(solution.message)
             dispatches = [
                 {
                     **b["system"].fixed,
                     **{
-                        original: solution.controls[renamed]
+                        original: solution.values[renamed]
                         for original, renamed in b["control_mapping"].items()
                     },
                 }

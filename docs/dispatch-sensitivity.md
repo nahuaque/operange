@@ -70,6 +70,8 @@ or normalization is inferred.
 | `operating_limit` | An `AffineRequirement` in `model.operating_limits` | Increase its numeric `limit`. For a `ge` limit this tightens the minimum. |
 | `control_upper` | A declared control | Increase its upper bound. |
 | `control_lower` | A declared control | Increase its lower bound. |
+| `state_upper` | A declared algebraic state | Increase its upper bound. |
+| `state_lower` | A declared algebraic state | Increase its lower bound. |
 
 Service requirements cannot be changed with `operating_limit`. They remain
 selected by the claim, and every operating limit remains present. Fixed
@@ -79,9 +81,10 @@ one can create room for adjustment, unless a permission fixes the command too.
 
 Each requested change is analyzed independently. Joint upgrades, changes to
 coefficients or efficiencies, quadratic objectives and integer decisions are
-outside this first scope. A compiled stream capacity is a control bound; for
-example, use `DispatchChange("control_upper", "steam_a", "MW")` in the connected
-boiler model.
+outside this first scope. A compiled stream capacity uses its declared variable
+role: `DispatchChange("state_upper", "steam_a", "MW")` for a steam state, or
+`control_upper` when that stream is declared as an actuator. Legacy network
+compilation without explicit `actuators` retains control bounds for every stream.
 
 These are **ambient** derivatives. The base must be a checked member of the
 claim's domain. Nearby changes are checked against the physical equations and

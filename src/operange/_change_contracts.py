@@ -123,6 +123,18 @@ def _basis(contract):
                     }
                     for c in controls
                 }
+                if "states" in model:
+                    states = model.pop("states")
+                    design["state_bounds"] = {
+                        s["name"]: {"lower": s["lower"], "upper": s["upper"]}
+                        for s in states
+                    }
+                    model["state_definitions"] = {
+                        s["name"]: {
+                            k: v for k, v in s.items() if k not in ("lower", "upper")
+                        }
+                        for s in states
+                    }
                 design["operating_limits"] = _by_name(model.pop("operating_limits"))
                 model.pop("solver_tolerance")  # Compared as numerical policy below.
                 model.pop("objective", None)  # An operating preference, not physics.

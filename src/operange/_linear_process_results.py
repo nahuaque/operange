@@ -41,7 +41,7 @@ def _physical_response(model, requirements, point, controls):
             residuals[limit.name] = round_up(
                 limit.sign * (outputs[limit.output] - Fraction(limit.limit))
             )
-    for control in model.controls:
+    for control in model.variables:
         value = Fraction(controls[control.name])
         residuals[model.bound_id(control, "lower")] = round_up(
             Fraction(control.lower) - value
@@ -214,7 +214,7 @@ def evaluate_result(
             feasibility = "infeasible"
         elif solution.feasibility == "feasible":
             physical, residuals = _physical_response(
-                claim.adapter, claim.requirements, point, solution.controls
+                claim.adapter, claim.requirements, point, solution.values
             )
             if any(residuals[c.constraint_id] > c.tolerance for c in included):
                 raise ValueError(
@@ -251,7 +251,7 @@ def evaluate_result(
                     claim.adapter,
                     point,
                     system,
-                    solution.controls,
+                    solution.values,
                     polynomial,
                     objective_lower,
                     objective_proof,

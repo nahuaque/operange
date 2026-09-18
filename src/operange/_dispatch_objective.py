@@ -26,7 +26,7 @@ class Polynomial:
     def value(self, system, controls):
         z = [
             (F(controls[c.name]) - F(c.lower)) / span
-            for c, span in zip(system.controls, system.spans)
+            for c, span in zip(system.variables, system.spans)
         ]
         return (
             self.constant
@@ -65,7 +65,7 @@ class Polynomial:
 
 def compile_objective(model, point, system):
     spec = model.objective
-    constants = {**point, **system.fixed, **{c.name: c.lower for c in system.controls}}
+    constants = {**point, **system.fixed, **{c.name: c.lower for c in system.variables}}
     if isinstance(spec, LinearObjective):
         sign = 1 if spec.sense == "minimize" else -1
         output = model.output(spec.output)
@@ -74,21 +74,21 @@ def compile_objective(model, point, system):
             sign * output._exact_value(constants),
             tuple(
                 sign * coefficients.get(c.name, 0) * span
-                for c, span in zip(system.controls, system.spans)
+                for c, span in zip(system.variables, system.spans)
             ),
-            (F(0),) * len(system.controls),
+            (F(0),) * len(system.variables),
         )
     constant = F(0)
     coefficients, diagonal = (
-        dict.fromkeys((c.name for c in system.controls), F(0)),
-        dict.fromkeys((c.name for c in system.controls), F(0)),
+        dict.fromkeys((c.name for c in system.variables), F(0)),
+        dict.fromkeys((c.name for c in system.variables), F(0)),
     )
     for target in spec.targets:
         weight = F(target.weight) / F(target.scale) ** 2
         difference = F(constants[target.control]) - F(target.target)
         constant += weight * difference**2
         if target.control in coefficients:
-            control = next(c for c in system.controls if c.name == target.control)
+            control = next(c for c in system.variables if c.name == target.control)
             span = F(control.upper) - F(control.lower)
             coefficients[target.control] = 2 * weight * difference * span
             diagonal[target.control] = weight * span**2
@@ -103,12 +103,12 @@ def _candidates(system, primal):
 
 def _interpolate(system, primal, seed):
     """Try the checked portion of the line from a feasible seed to the proposal."""
-    primal = numeric_vector(primal, len(system.controls), "dispatch candidate")
+    primal = numeric_vector(primal, len(system.variables), "dispatch candidate")
     if primal is None:
         return []
     start = [
         (F(seed[c.name]) - F(c.lower)) / span
-        for c, span in zip(system.controls, system.spans)
+        for c, span in zip(system.variables, system.spans)
     ]
     delta = [F(min(1.0, max(0.0, v))) - s for v, s in zip(primal, start)]
     fraction = F(1)
@@ -169,7 +169,7 @@ def solve_dispatch(
 ):
     lower, proof = polynomial.bound(system, [0.0] * len(system.rows))
     attempts, candidates, primal = [], [], None
-    if system.controls and (any(polynomial.linear) or any(polynomial.diagonal)):
+    if system.variables and (any(polynomial.linear) or any(polynomial.diagonal)):
         try:
             primal, multipliers, reports = _numerical(
                 system, polynomial, tolerance, backend
@@ -209,9 +209,9 @@ def solve_dispatch(
         solution.attempts = attempts + solution.attempts
         if solution.feasibility == "feasible" and primal is not None:
             try:
-                candidates = _interpolate(system, primal, solution.controls)
-                solution.controls = min(
-                    [solution.controls, *candidates],
+                candidates = _interpolate(system, primal, solution.values)
+                solution.values = min(
+                    [solution.values, *candidates],
                     key=lambda c: polynomial.value(system, c),
                 )
             except (ValueError, OverflowError):
@@ -256,8 +256,11 @@ def objective_result(model, point, system, controls, polynomial, lower, proof):
             else "maximum_verified"
             if closed
             else "bounded",
-            "strictly_convex_on_adjustable_controls": bool(system.controls)
-            and all(d > 0 for d in polynomial.diagonal),
+            (
+                "strictly_convex_on_adjustable_variables"
+                if model.states
+                else "strictly_convex_on_adjustable_controls"
+            ): bool(system.variables) and all(d > 0 for d in polynomial.diagonal),
             "value_exact": str(value),
             "lower_exact": str(low),
             "upper_exact": str(high),
@@ -274,7 +277,7 @@ def objective_result(model, point, system, controls, polynomial, lower, proof):
                     "origin_exact": str(F(c.lower)),
                     "scale_exact": str(span),
                 }
-                for c, span in zip(system.controls, system.spans)
+                for c, span in zip(system.variables, system.spans)
             ],
             "certificate": proof,
         },

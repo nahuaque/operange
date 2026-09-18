@@ -44,7 +44,7 @@ def test_irreducible_conflict_records_feasible_removals_and_bound_dependency():
         commands = record["controls"]
         z = [
             (Fraction(commands[c.name]) - Fraction(c.lower)) / span
-            for c, span in zip(system.controls, system.spans)
+            for c, span in zip(system.variables, system.spans)
         ]
         assert all(0 <= v <= 1 for v in z)  # nosec B101
         for name, row, rhs in zip(system.row_refs, system.rows, system.upper):

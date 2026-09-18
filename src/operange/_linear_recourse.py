@@ -19,7 +19,13 @@ from .primitives import finite
 
 @dataclass
 class LinearSystem:
-    controls: tuple
+    """Bounded mathematical variables, independent of their actuator/state roles.
+
+    Exported proof keys retain historical names for artifact compatibility.
+    Operating permissions are applied only by the model binding at compilation.
+    """
+
+    variables: tuple
     fixed: dict
     rows: list
     upper: list
@@ -27,30 +33,30 @@ class LinearSystem:
 
     @property
     def spans(self):
-        return tuple(Fraction(c.upper) - Fraction(c.lower) for c in self.controls)
+        return tuple(Fraction(c.upper) - Fraction(c.lower) for c in self.variables)
 
     def physical_values(self, coordinates):
-        if len(coordinates) != len(self.controls):
+        if len(coordinates) != len(self.variables):
             raise ValueError("solver returned the wrong number of control coordinates")
         values = dict(self.fixed)
-        for control, span, coordinate in zip(self.controls, self.spans, coordinates):
+        for control, span, coordinate in zip(self.variables, self.spans, coordinates):
             z = Fraction(min(1.0, max(0.0, finite(coordinate, "control coordinate"))))
             value = finite(float(Fraction(control.lower) + span * z), control.name)
             values[control.name] = min(control.upper, max(control.lower, value))
         return values
 
     def checked_values(self, values):
-        if set(values) != set(self.fixed) | {c.name for c in self.controls}:
+        if set(values) != set(self.fixed) | {c.name for c in self.variables}:
             return None
         if any(values[n] != v for n, v in self.fixed.items()) or any(
-            not c.lower <= values[c.name] <= c.upper for c in self.controls
+            not c.lower <= values[c.name] <= c.upper for c in self.variables
         ):
             return None
         # Recheck the physical floats that will actually be returned, including
         # the rounding introduced by denormalizing the proposed coordinates.
         z = [
             (Fraction(values[c.name]) - Fraction(c.lower)) / span
-            for c, span in zip(self.controls, self.spans)
+            for c, span in zip(self.variables, self.spans)
         ]
         if any(exact_dot(row, z) > b for row, b in zip(self.rows, self.upper)):
             return None
@@ -61,7 +67,7 @@ class LinearSystem:
 
     def objective_bound(self, objective, multipliers):
         """Checked weak duality on the normalized control box."""
-        if len(objective) != len(self.controls) or len(multipliers) != len(self.rows):
+        if len(objective) != len(self.variables) or len(multipliers) != len(self.rows):
             raise ValueError("invalid objective certificate dimensions")
         multipliers = [max(0.0, finite(v, "multiplier")) for v in multipliers]
         weighted = [exact_dot(column, multipliers) for column in zip(*self.rows)]
@@ -105,7 +111,7 @@ class LinearSystem:
                     "origin_exact": str(Fraction(c.lower)),
                     "scale_exact": str(span),
                 }
-                for c, span in zip(self.controls, self.spans)
+                for c, span in zip(self.variables, self.spans)
             ],
             "fixed_controls": self.fixed,
             "scope": "joint infeasibility; no claim of a minimal conflict or individually impossible requirements",
@@ -113,7 +119,7 @@ class LinearSystem:
 
 
 def checked_candidates(system, primal):
-    primal = numeric_vector(primal, len(system.controls), "dispatch candidate")
+    primal = numeric_vector(primal, len(system.variables), "dispatch candidate")
     if primal is None:
         return []
     proposals = [primal]
@@ -138,13 +144,13 @@ def checked_candidates(system, primal):
         values = system.physical_values(primal)
         z = [
             (Fraction(values[c.name]) - Fraction(c.lower)) / span
-            for c, span in zip(system.controls, system.spans)
+            for c, span in zip(system.variables, system.spans)
         ]
         for row, rhs in zip(system.rows, system.upper):
             residual = exact_dot(row, z) - rhs
             if residual <= 0:
                 continue
-            for c, span, a in zip(system.controls, system.spans, row):
+            for c, span, a in zip(system.variables, system.spans, row):
                 if not a:
                     continue
                 corrected = Fraction(values[c.name]) - residual * span / a
@@ -163,12 +169,12 @@ def compile_system(claim, point):
     fixed.update(
         {
             c.name: c.lower
-            for c in model.controls
+            for c in model.variables
             if c.lower == c.upper and c.name not in fixed
         }
     )
-    controls = tuple(c for c in model.controls if c.name not in fixed)
-    constants = {**point, **fixed, **{c.name: c.lower for c in controls}}
+    variables = tuple(c for c in model.variables if c.name not in fixed)
+    constants = {**point, **fixed, **{c.name: c.lower for c in variables}}
     rows, upper, refs = [], [], []
     limits = model.operating_limits + tuple(
         r for r in model.requirements if r.name in claim.requirements
@@ -183,7 +189,7 @@ def compile_system(claim, point):
                 * coefficients.get(c.name, 0)
                 * (Fraction(c.upper) - Fraction(c.lower))
                 / scale
-                for c in controls
+                for c in variables
             )
         )
         upper.append(
@@ -196,22 +202,22 @@ def compile_system(claim, point):
         refs.append(limit.name)
     # Fixed values remain subject to the declared equipment bounds. Their
     # constant rows also give a certificate for an out-of-bounds fixed command.
-    for control in model.controls:
+    for control in model.variables:
         if control.name in fixed:
             for side, b in (
                 ("lower", Fraction(fixed[control.name]) - Fraction(control.lower)),
                 ("upper", Fraction(control.upper) - Fraction(fixed[control.name])),
             ):
-                rows.append((Fraction(0),) * len(controls))
+                rows.append((Fraction(0),) * len(variables))
                 upper.append(b)
                 refs.append(model.bound_id(control, side))
-    return LinearSystem(controls, fixed, rows, upper, refs)
+    return LinearSystem(variables, fixed, rows, upper, refs)
 
 
 @dataclass
 class RecourseSolution:
     feasibility: str
-    controls: dict | None
+    values: dict | None
     certificate: dict | None
     attempts: list
     message: str
@@ -235,7 +241,7 @@ def solve_system(system, tolerance, *, backend="scipy"):
         )
 
     try:
-        m, n = len(system.rows), len(system.controls)
+        m, n = len(system.rows), len(system.variables)
         if not m:
             return RecourseSolution(
                 "feasible",
@@ -266,7 +272,7 @@ def solve_system(system, tolerance, *, backend="scipy"):
             from ._cvxpy_backend import solve_bounded
 
             proposal = LinearSystem(
-                system.controls,
+                system.variables,
                 system.fixed,
                 [system.rows[i] for i in active],
                 [system.upper[i] for i in active],

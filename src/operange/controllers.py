@@ -181,6 +181,10 @@ class _ControllerAdapter(Record):
                 "objective": "execute prescribed commands; no optimization",
             }
         )
+        if self.model.states:
+            operating["objective"] = (
+                "execute prescribed actuator commands and find a feasible algebraic completion; no uniqueness or dispatch optimum asserted"
+            )
         return replace(
             original,
             operating=operating,
@@ -190,7 +194,9 @@ class _ControllerAdapter(Record):
                 if self.model.measurements is not None
                 else "exact_rationals_of_declared_floats_then_round_command_to_float",
                 "controller_clipping": False,
-                "infeasibility": "verified violation by the uniquely prescribed commands; other controllers not assessed",
+                "infeasibility": "verified bounded-linear contradiction with the prescribed actuators; other controllers not assessed"
+                if self.model.states
+                else "verified violation by the uniquely prescribed commands; other controllers not assessed",
             },
         )
 
@@ -264,7 +270,9 @@ class _ControllerAdapter(Record):
         from ._convex_distance import supported as distance_supported
 
         search = Capability(
-            support and distance_supported(claim.domain, claim.distance),
+            not self.model.states
+            and support
+            and distance_supported(claim.domain, claim.distance),
             "Rounded-controller thresholds support normalized L-infinity and Euclidean metrics over supported convex domains; extended searches use backend='cvxpy'; candidates execute the saved rule.",
         )
         return AdapterCapabilities(
@@ -277,8 +285,12 @@ class _ControllerAdapter(Record):
                 "Controller-response sensitivities are not provided in this slice.",
             ),
             Capability(
-                type(claim.domain) in (FiniteSet, ConvexHullSet) or support,
-                "Finite replay or continuous affine enclosures with command rounding, equipment bounds and selected requirements.",
+                type(claim.domain) is FiniteSet
+                if self.model.states
+                else type(claim.domain) in (FiniteSet, ConvexHullSet) or support,
+                "Algebraic-state controllers support finite replay with checked state completion; continuous rounded-controller enclosures require outputs expressed directly in inputs and actuators."
+                if self.model.states
+                else "Finite replay or continuous affine enclosures with command rounding, equipment bounds and selected requirements.",
             ),
             search,
             search,

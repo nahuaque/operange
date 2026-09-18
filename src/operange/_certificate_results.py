@@ -47,38 +47,23 @@ def evaluation(ctx, result):
         == tuple(c.constraint_id for c in ctx.included),
         "feasibility omits a selected requirement or equipment constraint",
     )
-    if ctx.controller is None and payload.feasibility == "infeasible":
-        ctx.system(point).contradiction(
-            evidence(result, "recourse", "exact_bounded_linear_contradiction")
-        )
-        require(
-            {v.quantity_ref: v.value for v in payload.values} == dict(point),
-            "infeasibility certificate invents an operating response",
-        )
-        require(
-            all(
-                c.assessment == "unknown" and c.residual is None
-                for c in payload.constraint_checks
-            ),
-            "joint infeasibility does not establish individual violations",
-        )
-        return
-    commands = {
-        v.quantity_ref: v.value
-        for v in payload.values
-        if v.quantity_ref in {c.name for c in ctx.model.controls}
-    }
     if ctx.controller is not None:
-        require(
-            commands == ctx.commands(point),
-            "stored commands differ from exact affine execution and rounding",
-        )
+        expected_commands = ctx.commands(point)
         data = evidence(result, "controller", "exact_affine_command_evaluation")
         require(
             data["controller_ref"] == ctx.controller.ref.to_dict()
-            and dict(data["commands"]) == commands
+            and dict(data["commands"]) == expected_commands
             and data["clipping"] is False,
             "controller execution certificate differs",
+        )
+        require(
+            {
+                v.quantity_ref: v.value
+                for v in payload.values
+                if v.quantity_ref in expected_commands
+            }
+            == expected_commands,
+            "stored commands differ from exact affine execution and rounding",
         )
         require(
             data["observations_by_control"]
@@ -93,7 +78,34 @@ def evaluation(ctx, result):
                 data["measurement_readings"] == ctx.observations(point),
                 "sensor readings differ from the declared measurement map and rounding",
             )
-    else:
+    if (
+        ctx.controller is None or ctx.model.states
+    ) and payload.feasibility == "infeasible":
+        ctx.system(point).contradiction(
+            evidence(result, "recourse", "exact_bounded_linear_contradiction")
+        )
+        require(
+            {v.quantity_ref: v.value for v in payload.values}
+            == {
+                **dict(point),
+                **(ctx.commands(point) if ctx.controller is not None else {}),
+            },
+            "infeasibility certificate invents an operating response",
+        )
+        require(
+            all(
+                c.assessment == "unknown" and c.residual is None
+                for c in payload.constraint_checks
+            ),
+            "joint infeasibility does not establish individual violations",
+        )
+        return
+    commands = {
+        v.quantity_ref: v.value
+        for v in payload.values
+        if v.quantity_ref in {c.name for c in ctx.model.variables}
+    }
+    if ctx.controller is None or ctx.model.states:
         ctx.system(point).feasible(commands)
         if result.request.get("dispatch_source") == "shared_relief_candidate":
             require(
@@ -199,7 +211,7 @@ def operating_objective(ctx, result):
     commands = {
         v.quantity_ref: v.value
         for v in result.payload.values
-        if v.quantity_ref in {c.name for c in ctx.model.controls}
+        if v.quantity_ref in {c.name for c in ctx.model.variables}
     }
     if isinstance(spec, LinearObjective):
         sign = 1 if spec.sense == "minimize" else -1
@@ -290,7 +302,11 @@ def operating_objective(ctx, result):
             "objective resolution contradicts its sense",
         )
     require(
-        data["strictly_convex_on_adjustable_controls"]
+        data[
+            "strictly_convex_on_adjustable_variables"
+            if ctx.model.states
+            else "strictly_convex_on_adjustable_controls"
+        ]
         == (bool(diagonal) and all(d > 0 for d in diagonal)),
         "strict convexity claim differs",
     )
@@ -376,7 +392,7 @@ def coverage(ctx, result):
                 for c in child.payload.constraint_checks
                 if c.assessment == "violated"
             )
-            if ctx.controller
+            if ctx.controller and not ctx.model.states
             else tuple(c.constraint_id for c in ctx.included if c.kind != "equation")
         )
         require(

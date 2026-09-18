@@ -22,6 +22,7 @@ from operange import (
     ParameterSamples,
     Scenario,
     FiniteSet,
+    OperatingSpec,
 )
 from operange.integrations import _idaes_execution as execution
 from operange.integrations._idaes_parameter_studies import prepare_joint_samples
@@ -226,3 +227,85 @@ def test_internal_import_boundaries():
             for alias in node.names
         ]
         assert not any(part in name for part in forbidden for name in imports), filename  # nosec B101
+
+
+def test_operating_spec_preserves_fixed_and_reoptimized_local_semantics():
+    _, adapter = boiler()
+    fixed = propagate(
+        adapter, operating=OperatingSpec.fixed(adapter.controls, {"fuel": 15})
+    )
+    legacy = propagate(adapter, fixed_controls={"fuel": 15})
+    assert fixed.to_json() == legacy.to_json()  # nosec B101
+    observed = OperatingSpec.dispatch(adapter.controls, adapter.input_space.names)
+    optimized = propagate(
+        adapter, operating=observed, steps={"eta": 1e-4, "loss": 1e-3}
+    )
+    assert optimized.execution == "completed" and optimized.mode == "reoptimized"  # nosec B101
+    with pytest.raises(ValueError, match="operating"):
+        propagate(adapter, operating=observed, fixed_controls={"fuel": 15})
+    with pytest.raises(ValueError, match="observe"):
+        propagate(adapter, operating=OperatingSpec.shared(adapter.controls))
+
+
+def test_shared_operating_spec_preserves_fixed_permissions_and_checks_them(monkeypatch):
+    from operange import DecisionRule, RecoursePolicy
+    from operange.integrations.idaes import IdaesVariable, IdaesSharedControlResult
+    from tests.test_idaes_shared_controls import boiler as shared_boiler
+
+    _, adapter, domain = shared_boiler()
+    source = adapter._template.clone()
+    source.trim = pyo.Var(initialize=0, bounds=(0, 4), units=pyo.units.MW)
+    source.trim.fix()
+    source.balance.set_value(
+        source.steam == source.efficiency * source.fuel + source.trim - source.loss
+    )
+    source.objective.set_value(source.fuel + source.trim)
+    adapter = replace(
+        adapter,
+        model=source,
+        controls=adapter.controls + (IdaesVariable("trim", "trim", "MW"),),
+    )
+    spec = OperatingSpec(
+        RecoursePolicy(
+            "static",
+            (
+                DecisionRule("fuel", "MW", "operation", fixed_value=9),
+                DecisionRule("trim", "MW", "operation"),
+            ),
+        )
+    )
+    result = adapter.optimize_shared_controls(domain, operating=spec)
+    assert result.execution == "completed", result.to_json()  # nosec B101
+    assert result.commands["fuel"] == 9 and result.commands["trim"] == pytest.approx(
+        0.8
+    )  # nosec B101
+    assert result.operating_policy == spec.policy  # nosec B101
+    assert IdaesSharedControlResult.from_json(result.to_json()) == result  # nosec B101
+    with pytest.raises(ValueError, match="prescribed"):
+        replace(
+            result,
+            operating_policy=RecoursePolicy(
+                "fixed",
+                (
+                    DecisionRule("fuel", "MW", "operation", fixed_value=10),
+                    DecisionRule("trim", "MW", "operation", fixed_value=0.8),
+                ),
+            ),
+        )
+    with pytest.raises(ValueError, match="observe"):
+        adapter.optimize_shared_controls(
+            domain,
+            operating=OperatingSpec.dispatch(
+                adapter.controls, adapter.input_space.names
+            ),
+        )
+    original = execution.solve
+
+    def changed_fixed_command(model, settings):
+        solved, details = original(model, settings)
+        model.commands[0].value.set_value(9.1)
+        return solved, details
+
+    monkeypatch.setattr(execution, "solve", changed_fixed_command)
+    failed = adapter.optimize_shared_controls(domain, operating=spec)
+    assert failed.execution == "unresolved" and failed.audit is None  # nosec B101

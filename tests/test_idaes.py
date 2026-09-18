@@ -73,6 +73,8 @@ def test_existing_flowsheet_and_exact_export_agree_and_preserve_source():
     assert {c.name for c in exported.adapter.controls} == {
         "fuel_a",
         "fuel_b",
+    }  # nosec B101
+    assert {s.name for s in exported.adapter.states} == {
         "state:fs.boiler[a].steam",
         "state:fs.boiler[b].steam",
     }  # nosec B101

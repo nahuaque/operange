@@ -520,6 +520,7 @@ class CalibrationBootstrap(Record):
         parameter_map,
         fixed_controls=None,
         fully_observed=False,
+        operating=None,
     ):
         """Cross whole draws with finite cases on a fresh IDAES model snapshot.
 
@@ -535,9 +536,12 @@ class CalibrationBootstrap(Record):
             parameter_map=parameter_map,
             fixed_controls=fixed_controls,
             fully_observed=fully_observed,
+            operating=operating,
         )
 
-    def optimize_shared_controls(self, adapter, operating_cases, *, parameter_map):
+    def optimize_shared_controls(
+        self, adapter, operating_cases, *, parameter_map, operating=None
+    ):
         """Choose common commands using the worst-case source objective.
 
         All checked joint draws are crossed with all operating cases. Commands
@@ -553,7 +557,7 @@ class CalibrationBootstrap(Record):
             parameter_map=parameter_map,
             dispatch="optimized_shared_actuator_commands",
         )
-        return propagated.optimize_shared_controls(domain)
+        return propagated.optimize_shared_controls(domain, operating=operating)
 
     def propagate_uncertainty(
         self,
@@ -565,6 +569,7 @@ class CalibrationBootstrap(Record):
         margins=(),
         fixed_controls=None,
         reoptimize=False,
+        operating=None,
         steps=None,
         relative_tolerance=1e-3,
         absolute_tolerance=1e-6,
@@ -586,6 +591,7 @@ class CalibrationBootstrap(Record):
             margins=margins,
             fixed_controls=fixed_controls,
             reoptimize=reoptimize,
+            operating=operating,
             steps=steps,
             relative_tolerance=relative_tolerance,
             absolute_tolerance=absolute_tolerance,

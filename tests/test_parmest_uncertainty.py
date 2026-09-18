@@ -167,6 +167,36 @@ def test_propagation_requires_explicit_dispatch_and_preserves_whole_vectors(join
         )
 
 
+def test_explicit_operating_spec_never_expands_latent_parameter_observations(joint):
+    from operange import OperatingSpec
+
+    adapter = example.operating_model()
+    options = {"parameter_map": example.PARAMETER_MAP}
+    fixed = OperatingSpec.fixed(adapter.controls, {"fuel": 13.5})
+    claim = joint.as_claim(adapter, cases(adapter), operating=fixed, **options)
+    assert claim.recourse == fixed.policy  # nosec B101
+    with pytest.raises(ValueError, match="observe"):
+        joint.as_claim(
+            adapter,
+            cases(adapter),
+            operating=OperatingSpec.dispatch(
+                adapter.controls, adapter.input_space.names
+            ),
+            **options,
+        )
+    observed = OperatingSpec.dispatch(adapter.controls, claim.domain.space.names)
+    ideal = joint.as_claim(adapter, cases(adapter), operating=observed, **options)
+    assert ideal.recourse == observed.policy  # nosec B101
+    shared = joint.optimize_shared_controls(
+        adapter,
+        cases(adapter),
+        operating=OperatingSpec.shared(adapter.controls),
+        **options,
+    )
+    assert shared.execution == "completed", shared.to_json()  # nosec B101
+    assert all(not r.observes for r in shared.operating_policy.rules)  # nosec B101
+
+
 @ipopt
 def test_joint_operating_audit_retains_unknowns_and_portable_finite_scope(joint):
     adapter = example.operating_model()

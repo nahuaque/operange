@@ -16,9 +16,9 @@ Import these from `operange`:
 | Domain protocol and evidence | `UncertaintySet`, `DomainCapabilities`, `MembershipCheck`, `LinearSupport` |
 | Concrete domains | `BoxSet`, `FiniteSet`, `ConvexHullSet`, `Scenario`, `SimplexSet`, `BudgetSet`, `EllipsoidSet`, `PolytopeSet`, `LinearConstraint` |
 | Domain composition and loading | `Intersection`, `Union`, `Product`, `domain_from_manifest`, `domain_from_json` |
-| Operating permissions and severity | `DecisionRule`, `RecoursePolicy`, `Distance`, `NormalizedLInf`, `NormalizedL2` |
+| Operating permissions and severity | `OperatingSpec`, `DecisionRule`, `RecoursePolicy`, `Distance`, `NormalizedLInf`, `NormalizedL2` |
 | Fixed affine model | `AffineProcessAdapter`, `AffineOutput`, `AffineTerm`, `AffineRequirement` |
-| Adjustable linear model | `LinearProcessAdapter`, `LinearControl`; reuses `AffineOutput`, `AffineTerm`, `AffineRequirement` |
+| Adjustable linear model | `LinearProcessAdapter`, `LinearControl`, `LinearState`; reuses `AffineOutput`, `AffineTerm`, `AffineRequirement` |
 | Connected steady-state equipment | `ProcessNetwork`, `ProcessStream`, `StreamSource`, `StreamSink`, `Mixer`, `UtilityHeader`, `FixedRatioSplitter`, `Boiler`, `StreamTotal` |
 | Dispatch objectives | `LinearObjective`, `ControlTrackingObjective`, `ControlTarget` |
 | Optimized objective sensitivities | `DispatchChange`, `DispatchSlope`, `DispatchSensitivity`, `DispatchSensitivityResult`, `dispatch_sensitivity` |
@@ -161,6 +161,13 @@ are provider-independent records exported from `operange.parameters` and
 on a fresh snapshot; local propagation also accepts named covariance records.
 See [parameter data and execution](parameter-data-and-execution.md).
 
+`OperatingSpec` expresses fixed, observed, shared or controller-driven actuator
+permissions across linear and IDAES studies. `LinearState` declares bounded
+algebraic unknowns separately from actuator controls; equipment networks opt in
+with an explicit `actuators` tuple. See
+[variable roles and operation](variable-roles-and-operation.md) for examples,
+compatibility and controller scope.
+
 | Adapter | Evaluation and sensitivity | Robustness |
 | --- | --- | --- |
 | `AffineProcessAdapter` | Fixed affine responses; analytical first derivatives in physical or normalized coordinates | Finite and supported linear-support audits; L∞ box/polytope distances by default, and optional convex-domain L∞/Euclidean distances; no adjustable recourse |
@@ -207,10 +214,12 @@ does not imply a passing claim audit. See the [failure-distance guide](failure-d
 for proof semantics and numerical limits.
 
 `LinearControl(name, unit, lower, upper, physical_kind="declared_process_control")`
-declares finite physical bounds. `LinearProcessAdapter(name, input_space, outputs,
+declares a physical actuator with finite bounds. `LinearState(name, unit, lower,
+upper)` declares a bounded algebraic variable. `LinearProcessAdapter(name, input_space, outputs,
 requirements, controls, operating_limits=(), solver_tolerance=1e-9)` reuses affine
-expressions in physical inputs and controls. All operating limits and control
-bounds always apply; only `requirements` can be selected by a claim.
+expressions in physical inputs and controls; its optional `states=()` adds algebraic
+unknowns. All operating limits and variable bounds always apply; only
+`requirements` can be selected by a claim.
 `model.as_claim(domain)` defaults to independent static adjustment after observing
 every input. Explicit rules must use stage `"operation"`; a rule can instead fix
 its control. A `"fixed"` policy must fix every control. Partial observation and

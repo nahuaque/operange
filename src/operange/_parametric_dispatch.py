@@ -252,7 +252,7 @@ class ParametricDispatch:
 def problem(claim, point):
     model = claim.adapter
     fixed = model._permissions(claim)
-    names = tuple(c.name for c in model.controls)
+    names = tuple(c.name for c in model.variables)
     rows, rhs, refs = [], [], []
     limits = model.operating_limits + tuple(
         r for r in model.requirements if r.name in claim.requirements
@@ -268,12 +268,12 @@ def problem(claim, point):
         refs.append(
             f"{'operating_limit' if limit in model.operating_limits else 'requirement'}:{limit.name}"
         )
-    for i, control in enumerate(model.controls):
+    for i, control in enumerate(model.variables):
         for side, sign in (("lower", -1), ("upper", 1)):
             row = [F(sign if j == i else 0) for j in range(len(names))]
             rows.append(row)
             rhs.append(sign * F(getattr(control, side)))
-            refs.append(f"control_{side}:{control.name}")
+            refs.append(f"{control.quantity.role}_{side}:{control.name}")
             if control.name in fixed:
                 rows.append(row)
                 rhs.append(sign * F(fixed[control.name]))
@@ -283,8 +283,11 @@ def problem(claim, point):
     sign = 1 if model.objective.sense == "minimize" else -1
     return ParametricDispatch(
         names,
-        [F(c.lower) for c in model.controls],
-        [F(c.upper) - F(c.lower) or max(F(1), abs(F(c.lower))) for c in model.controls],
+        [F(c.lower) for c in model.variables],
+        [
+            F(c.upper) - F(c.lower) or max(F(1), abs(F(c.lower)))
+            for c in model.variables
+        ],
         rows,
         rhs,
         refs,
@@ -334,13 +337,19 @@ def change_rates(claim, system, change):
         unit = model.output(limit.output).unit
         rates[system.refs.index(change.change_id)] = F(limit.sign)
     else:
-        control = next((c for c in model.controls if c.name == change.name), None)
-        if control is None:
-            raise ValueError("unknown sensitivity control bound")
-        unit = control.unit
-        rates[system.refs.index(change.change_id)] = F(
-            1 if change.kind == "control_upper" else -1
+        role, side = change.kind.split("_")
+        control = next(
+            (
+                c
+                for c in model.variables
+                if c.name == change.name and c.quantity.role == role
+            ),
+            None,
         )
+        if control is None:
+            raise ValueError("unknown sensitivity control/state bound")
+        unit = control.unit
+        rates[system.refs.index(change.change_id)] = F(1 if side == "upper" else -1)
     if change.unit != unit:
         raise ValueError(
             "sensitivity change unit differs from the physical declaration"

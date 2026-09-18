@@ -10,7 +10,7 @@ from .objectives import LinearObjective
 
 def _physical_rows(ctx, point, change):
     """Rebuild physical inequalities independently of the producer's LP compiler."""
-    controls = [c.name for c in ctx.model.controls]
+    controls = [c.name for c in ctx.model.variables]
     rows, rhs, delta, refs = [], [], [], []
     operating = {r.name for r in ctx.model.operating_limits}
     for limit in ctx.limits:
@@ -37,18 +37,19 @@ def _physical_rows(ctx, point, change):
     fixed = {
         r.control: r.fixed_value for r in ctx.policy.rules if r.fixed_value is not None
     }
-    for i, c in enumerate(ctx.model.controls):
+    for i, c in enumerate(ctx.model.variables):
         for side, sign in (("lower", -1), ("upper", 1)):
             rows.append([F(sign if i == j else 0) for j in range(len(controls))])
             rhs.append(sign * q(getattr(c, side)))
             delta.append(
                 F(
                     sign
-                    if change.kind == f"control_{side}" and change.name == c.name
+                    if change.kind == f"{c.quantity.role}_{side}"
+                    and change.name == c.name
                     else 0
                 )
             )
-            refs.append(f"control_{side}:{c.name}")
+            refs.append(f"{c.quantity.role}_{side}:{c.name}")
             if c.name in fixed:
                 rows.append(rows[-1])
                 rhs.append(sign * q(fixed[c.name]))
@@ -172,8 +173,8 @@ def verify_dispatch_sensitivity(verifier, result):
             "invalid numerical search declaration",
         )
         require(
-            1 <= len(ctx.model.controls) <= 64
-            and len(ctx.limits) + 4 * len(ctx.model.controls) <= 4096,
+            1 <= len(ctx.model.variables) <= 64
+            and len(ctx.limits) + 4 * len(ctx.model.variables) <= 4096,
             "local proof exceeds the declared size limit",
         )
         changes = tuple(DispatchChange(**plain(c)) for c in request["changes"])
@@ -205,7 +206,12 @@ def verify_dispatch_sensitivity(verifier, result):
                 )
                 unit = ctx.model.output(limit.output).unit
             else:
-                unit = next(c.unit for c in ctx.model.controls if c.name == change.name)
+                unit = next(
+                    c.unit
+                    for c in ctx.model.variables
+                    if c.name == change.name
+                    and change.kind.startswith(c.quantity.role + "_")
+                )
             require(
                 change.unit == unit, "perturbation unit differs from the declaration"
             )

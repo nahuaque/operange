@@ -56,10 +56,10 @@ def analyze(claim, realization, changes, backend, max_refinements):
     except ValueError as exc:
         return rejected(str(exc))
     if (
-        len(model.controls) > 64
+        len(model.variables) > 64
         or len(model.operating_limits)
         + len(model.requirements)
-        + 4 * len(model.controls)
+        + 4 * len(model.variables)
         > 4096
     ):
         return rejected(

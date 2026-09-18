@@ -46,11 +46,11 @@ def conflict(ctx, result):
     )
     require(
         list(data["background_control_bounds"])
-        == [c.to_dict() for c in ctx.model.controls if c.name not in system.fixed],
+        == [c.to_dict() for c in ctx.model.variables if c.name not in system.fixed],
         "conflict changes background bounds",
     )
     used = [
-        f"control_{'lower' if q(a) > 0 else 'upper'}:{n}"
+        f"{next(c.quantity.role for c in ctx.model.variables if c.name == n)}_{'lower' if q(a) > 0 else 'upper'}:{n}"
         for (n, _, _), a in zip(
             system.coordinates,
             data["infeasibility_certificate"]["weighted_coefficients_exact"],

@@ -163,6 +163,7 @@ joint-calibration-uncertainty
 shared-idaes-controls
 local-uncertainty
 parameter-data-and-execution
+variable-roles-and-operation
 continuous-dispatch
 shared-relief
 dispatch-objectives

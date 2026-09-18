@@ -57,7 +57,7 @@ def conflict_evidence(system, solution, tolerance, *, backend="scipy"):
             current, proof = trial, checked.certificate
         elif checked.feasibility == "feasible":
             removals[name] = {
-                "controls": checked.controls,
+                "controls": checked.values,
                 "satisfied_row_refs": trial.row_refs,
                 "arithmetic": "physical float controls checked against exact rows and control bounds",
             }
@@ -65,10 +65,10 @@ def conflict_evidence(system, solution, tolerance, *, backend="scipy"):
             unresolved.append(name)
     irreducible = not unresolved
     used_bounds = []
-    for control, a in zip(current.controls, proof["weighted_coefficients_exact"]):
+    for control, a in zip(current.variables, proof["weighted_coefficients_exact"]):
         if Fraction(a):
             side = "lower" if Fraction(a) > 0 else "upper"
-            used_bounds.append(f"control_{side}:{control.name}")
+            used_bounds.append(f"{control.quantity.role}_{side}:{control.name}")
     return Evidence(
         "conflict",
         "recourse_conflict",
@@ -79,7 +79,7 @@ def conflict_evidence(system, solution, tolerance, *, backend="scipy"):
             "irreducible": irreducible,
             "minimum_cardinality": False,
             "scope": "irreducible row conflict relative to the declared control box and fixed commands; bounds are retained background assumptions",
-            "background_control_bounds": [c.to_dict() for c in system.controls],
+            "background_control_bounds": [c.to_dict() for c in system.variables],
             "fixed_controls": system.fixed,
             "certificate_bound_refs": used_bounds,
             "infeasibility_certificate": proof,
@@ -104,11 +104,11 @@ def relief_evidence(claim, point, system, options, *, backend="scipy"):
     tolerance = finite(options.get("tolerance", 1e-8), "relief tolerance")
     unit = model.output(limit.output).unit
     name = "_operange_relief"
-    while name in {c.name for c in model.controls}:
+    while name in {c.name for c in model.variables}:
         name += "_"
     control = LinearControl(name, unit, 0, maximum)
     augmented = LinearSystem(
-        system.controls + (control,),
+        system.variables + (control,),
         dict(system.fixed),
         [
             row
@@ -134,7 +134,7 @@ def relief_evidence(claim, point, system, options, *, backend="scipy"):
         "row_constraint_refs": augmented.row_refs,
         "control_coordinates": [
             {"name": c.name, "origin": c.lower, "upper": c.upper}
-            for c in augmented.controls
+            for c in augmented.variables
         ],
         "fixed_controls": system.fixed,
     }
@@ -189,7 +189,7 @@ def relief_evidence(claim, point, system, options, *, backend="scipy"):
             [finite(float(a), "LP coefficient") for a in row] for row in augmented.rows
         ]
         upper = [finite(float(b), "LP rhs") for b in augmented.upper]
-        objective = [0.0] * len(system.controls) + [maximum]
+        objective = [0.0] * len(system.variables) + [maximum]
         if backend == "cvxpy":
             from ._cvxpy_backend import solve_bounded
 
@@ -254,7 +254,7 @@ def relief_evidence(claim, point, system, options, *, backend="scipy"):
                     "verified",
                     details=details,
                 )
-            consider(feasible.controls)
+            consider(feasible.values)
     except (ValueError, OverflowError) as exc:
         details["diagnostic"] = str(exc)
     upper_bound = round_up(candidate[0]) if candidate is not None else None

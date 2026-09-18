@@ -17,7 +17,7 @@ from .convex_hull import ConvexHullSet
 from .primitives import BoxSet
 from .objectives import ControlTrackingObjective, LinearObjective
 from .measurements import MeasurementModel
-from .recourse import DecisionRule, RecoursePolicy
+from .operating import OperatingSpec, resolve_operating
 
 
 @dataclass(frozen=True)
@@ -42,6 +42,31 @@ class LinearControl(Record):
 
 
 @dataclass(frozen=True)
+class LinearState(Record):
+    """A bounded algebraic variable, with no command or observation permission.
+
+    A feasible completion satisfies the declared equations, limits and bounds.
+    Declaring a state does not establish that those equations determine it uniquely.
+    """
+
+    name: str
+    unit: str
+    lower: float
+    upper: float
+    physical_kind: str = "algebraic_state"
+
+    def _validate(self):
+        for name in ("name", "unit", "physical_kind"):
+            nonempty(getattr(self, name), name)
+        if self.lower > self.upper:
+            raise ValueError("state bounds must be ordered")
+
+    @property
+    def quantity(self):
+        return QuantitySpec(self.name, self.unit, self.physical_kind, "state")
+
+
+@dataclass(frozen=True)
 class LinearProcessAdapter(Record):
     """Find controls satisfying equipment limits and selected requirements jointly.
 
@@ -60,14 +85,17 @@ class LinearProcessAdapter(Record):
     solver_tolerance: float = 1e-9
     objective: LinearObjective | ControlTrackingObjective | None = None
     measurements: MeasurementModel | None = None
+    states: tuple[LinearState, ...] = ()
 
     def _validate(self):
         if self.measurements is not None:
             if type(self.measurements) is not MeasurementModel:
                 raise ValueError("measurements require a declarative MeasurementModel")
             self.measurements.validate(self)
-        if not self.controls or not self.requirements:
-            raise ValueError("linear operation needs bounded controls and requirements")
+        if not self.variables or not self.requirements:
+            raise ValueError(
+                "linear operation needs bounded variables and requirements"
+            )
         if not 1e-10 <= self.solver_tolerance <= 1e-4:
             raise ValueError("solver_tolerance must lie between 1e-10 and 1e-4")
         # Reuse affine declaration/unit validation, then check generated bounds.
@@ -80,7 +108,14 @@ class LinearProcessAdapter(Record):
             data.pop("objective")
         if self.measurements is None:
             data.pop("measurements")
+        if not self.states:
+            data.pop("states")
         return data
+
+    @property
+    def variables(self):
+        """Mathematical unknowns; only ``controls`` are physical actuators."""
+        return self.controls + self.states
 
     @property
     def observation_space(self):
@@ -103,6 +138,7 @@ class LinearProcessAdapter(Record):
             self.outputs,
             self.operating_limits + self.requirements,
             tuple(c.quantity for c in self.controls),
+            tuple(s.quantity for s in self.states),
         )
 
     def output(self, name):
@@ -113,7 +149,7 @@ class LinearProcessAdapter(Record):
 
     @staticmethod
     def bound_id(control, side):
-        return f"control_{side}:{control.name}"
+        return f"{control.quantity.role}_{side}:{control.name}"
 
     @cached_property
     def base_contract(self):
@@ -124,10 +160,10 @@ class LinearProcessAdapter(Record):
             for c in base.constraints
         ]
         quantities = list(base.quantities)
-        for control in self.controls:
+        for control in self.variables:
             for side, expression in (
-                ("lower", "lower - control"),
-                ("upper", "control - upper"),
+                ("lower", f"lower - {control.quantity.role}"),
+                ("upper", f"{control.quantity.role} - upper"),
             ):
                 name = self.bound_id(control, side)
                 quantities.append(
@@ -170,6 +206,13 @@ class LinearProcessAdapter(Record):
             model_id="linear_process/v1",
             model=self.to_dict(),
             operating={
+                **(
+                    {
+                        "algebraic_states": "bounded feasible completion; no actuator permissions or uniqueness asserted"
+                    }
+                    if self.states
+                    else {}
+                ),
                 "response": "optimized_dispatch"
                 if self.objective is not None
                 else "linear_feasibility",
@@ -178,6 +221,8 @@ class LinearProcessAdapter(Record):
                 "adjustable_observations": self.observation_space.names,
                 "objective": self.objective.to_dict()
                 if self.objective is not None
+                else "find any jointly feasible actuator/state vector; no dispatch optimum asserted"
+                if self.states
                 else "find any feasible controls; no dispatch optimum asserted",
             },
             quantities=tuple(quantities),
@@ -194,11 +239,14 @@ class LinearProcessAdapter(Record):
                 "arithmetic": "exact_rationals_of_declared_floats",
                 "solver_tolerance": self.solver_tolerance,
                 "control_bound_tolerance": 0,
+                **({"state_bound_tolerance": 0} if self.states else {}),
                 "constraint_tolerances": {
                     r.name: r.tolerance
                     for r in self.operating_limits + self.requirements
                 },
-                "infeasibility": "verified nonnegative row combination over bounded controls",
+                "infeasibility": "verified nonnegative row combination over bounded actuators and algebraic states"
+                if self.states
+                else "verified nonnegative row combination over bounded controls",
             },
         )
 
@@ -208,32 +256,13 @@ class LinearProcessAdapter(Record):
         )
 
     def _permissions(self, claim):
-        policy = claim.recourse
-        if policy.mode not in ("static", "fixed"):
-            raise ValueError(
-                "linear operation supports fixed or fully observed static recourse"
+        return (
+            OperatingSpec(claim.recourse)
+            .validate(self.controls, self.observation_space.names)
+            .point_commands(
+                self.input_space.names, measurements=self.measurements is not None
             )
-        if {r.control for r in policy.rules} != {c.name for c in self.controls}:
-            raise ValueError("linear operation needs one permission for every control")
-        for rule in policy.rules:
-            if rule.stage != "operation":
-                raise ValueError(
-                    "linear controls must use the single 'operation' stage"
-                )
-            if rule.fixed_value is None:
-                if self.measurements is not None:
-                    raise ValueError(
-                        "measurement-based operation requires an explicit or synthesized controller; pointwise full-information redispatch is not permitted"
-                    )
-                if policy.mode == "fixed" or set(rule.observes) != set(
-                    self.input_space.names
-                ):
-                    raise ValueError(
-                        "each adjustable control must observe every process input"
-                    )
-        return {
-            r.control: r.fixed_value for r in policy.rules if r.fixed_value is not None
-        }
+        )
 
     def capabilities(self, claim):
         try:
@@ -269,29 +298,25 @@ class LinearProcessAdapter(Record):
         domain,
         *,
         recourse=None,
+        operating=None,
         requirements=None,
         controller=None,
         distance=None,
     ):
-        if controller is not None:
+        spec = resolve_operating(
+            self.controls,
+            self.observation_space.names,
+            operating=operating,
+            recourse=recourse,
+            controller=controller,
+        )
+        recourse = spec.policy
+        if spec.controller is not None:
             from .controllers import _ControllerAdapter
 
-            adapter = _ControllerAdapter(self, controller)
-            recourse = (
-                adapter.controller.recourse_policy if recourse is None else recourse
-            )
+            adapter = _ControllerAdapter(self, spec.controller)
             adapter.validate_binding(recourse)
             return Claim(adapter, domain, recourse, requirements, distance)
-        if recourse is None:
-            recourse = RecoursePolicy(
-                "static",
-                tuple(
-                    DecisionRule(
-                        c.name, c.unit, "operation", self.observation_space.names
-                    )
-                    for c in self.controls
-                ),
-            )
         return Claim(self, domain, recourse, requirements, distance)
 
     def run(self, claim, operation, realization, options):

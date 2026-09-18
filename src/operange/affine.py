@@ -100,6 +100,13 @@ class AffineProcessAdapter(Record):
     outputs: tuple[AffineOutput, ...]
     requirements: tuple[AffineRequirement, ...]
     controls: tuple[QuantitySpec, ...] = ()
+    states: tuple[QuantitySpec, ...] = ()
+
+    def to_dict(self):
+        data = super().to_dict()
+        if not self.states:
+            data.pop("states")
+        return data
 
     def _validate(self):
         nonempty(self.name, "model name")
@@ -107,12 +114,15 @@ class AffineProcessAdapter(Record):
             raise ValueError("affine model needs outputs and requirements")
         unique(tuple(r.name for r in self.requirements), "requirement names")
         variables = {c.name: c.unit for c in self.input_space.coordinates}
-        for control in self.controls:
-            if control.role != "control" or control.axes:
-                raise ValueError("affine controls must be scalar control quantities")
-            if control.quantity_id in variables:
-                raise ValueError("input and control identities must be distinct")
-            variables[control.quantity_id] = control.unit
+        for role, declarations in (("control", self.controls), ("state", self.states)):
+            for variable in declarations:
+                if variable.role != role or variable.axes:
+                    raise ValueError(f"affine {role}s must be scalar {role} quantities")
+                if variable.quantity_id in variables:
+                    raise ValueError(
+                        "input, control and state identities must be distinct"
+                    )
+                variables[variable.quantity_id] = variable.unit
         for output in self.outputs:
             for term in output.terms:
                 if term.variable not in variables:
@@ -149,6 +159,7 @@ class AffineProcessAdapter(Record):
             for c in self.input_space.coordinates
         ]
         quantities.extend(self.controls)
+        quantities.extend(self.states)
         constraints = []
         for output in self.outputs:
             quantities.append(
@@ -218,6 +229,8 @@ class AffineProcessAdapter(Record):
         )
 
     def _fixed_values(self, claim):
+        if self.states:
+            raise ValueError("Algebraic completion requires LinearProcessAdapter")
         policy = claim.recourse
         if policy.mode != "fixed" or {r.control for r in policy.rules} != {
             c.quantity_id for c in self.controls

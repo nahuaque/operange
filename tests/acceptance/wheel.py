@@ -3,7 +3,7 @@
 Copy steam_header.py, linear_dispatch.py, failure_distance.py, engineering_changes.py,
 frozen_controllers.py, storage_replay.py, startup.py, pinch.py,
 uncertainty_compositions.py, measurement_uncertainty.py, operating_limits.py,
-equipment_network.py, dispatch_sensitivity.py and
+equipment_network.py, operating_roles.py, dispatch_sensitivity.py and
 prototype_result_v1.json, calibration_result_v1.json and calibration_bootstrap_v1.json here.
 There are no pytest, repository, optional solver, or test-environment imports.
 """
@@ -80,6 +80,17 @@ def main():
         kink.sensitivities[0].backward.value == 1.25
         and kink.sensitivities[0].forward.value == 2,
         "boiler threshold slopes changed",
+    )
+    roles = runpy.run_path(str(directory / "operating_roles.py"))["run_example"]()
+    require(
+        roles["roles"] == {"fuel": "control", "steam": "state"},
+        "state/actuator roles changed",
+    )
+    require(all(roles["verified"].values()), "role-aware operating evidence failed")
+    frozen_roles = process.FrozenController.from_json(json.dumps(roles["frozen"]))
+    require(
+        frozen_roles.audit_result().payload.verdict == "pass",
+        "state completion failed during installed replay",
     )
     network_example = runpy.run_path(str(directory / "equipment_network.py"))
     network_results = network_example["run_example"]()

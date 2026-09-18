@@ -1,7 +1,7 @@
 """Process-engineering sensitivity and robustness DSL with portable evidence."""
 
 from .affine import AffineOutput, AffineProcessAdapter, AffineRequirement, AffineTerm
-from .linear_process import LinearControl, LinearProcessAdapter
+from .linear_process import LinearControl, LinearState, LinearProcessAdapter
 from .objectives import LinearObjective, ControlTarget, ControlTrackingObjective
 from .controllers import AffineControlRule, AffineController
 from .measurements import AffineMeasurement, MeasurementModel
@@ -65,6 +65,7 @@ from .domains import (
     UncertaintySet,
 )
 from .recourse import DecisionRule, RecoursePolicy
+from .operating import OperatingSpec
 from .contract_types import (
     ArtifactRef,
     Axis,
@@ -108,6 +109,7 @@ __all__ = [
     "AffineRequirement",
     "AffineTerm",
     "LinearControl",
+    "LinearState",
     "LinearProcessAdapter",
     "LinearObjective",
     "ControlTarget",
@@ -176,6 +178,7 @@ __all__ = [
     "UncertaintySet",
     "DecisionRule",
     "RecoursePolicy",
+    "OperatingSpec",
     "ArtifactRef",
     "Axis",
     "Bound",

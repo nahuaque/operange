@@ -3,18 +3,30 @@
 from .._finite_audit import audit_finite
 from ..contract_types import Diagnostic
 from ..domains import FiniteSet
+from ..operating import OperatingSpec, resolve_operating
 from . import _idaes_results, _idaes_execution
 from ._idaes_model import backend, component, number, uid, unit
 from ._idaes_shared_result import IdaesSharedControlResult, fixed_policy
 from ._idaes_execution import Candidate, OperatingPointRequest, PointExecution
 
 
-def optimize_shared_controls(adapter, domain):
+def optimize_shared_controls(adapter, domain, *, operating=None):
     if type(domain) is not FiniteSet:
         raise ValueError("Shared-control optimization requires a FiniteSet")
     adapter.input_space.check_alignment(domain.space)
     if not adapter.controls:
         raise ValueError("Shared-control optimization needs at least one actuator")
+    spec = resolve_operating(
+        adapter.controls,
+        adapter.input_space.names,
+        operating=OperatingSpec.shared(adapter.controls)
+        if operating is None
+        else operating,
+    )
+    spec.validate(adapter.controls, adapter.input_space.names)
+    fixed = spec.shared_commands()
+    # Preserve existing saved reports when no explicit specification was supplied.
+    requested_policy = None if operating is None else spec.policy
     pyo, _ = backend()
     objectives = tuple(
         adapter._template.component_data_objects(
@@ -44,6 +56,8 @@ def optimize_shared_controls(adapter, domain):
             model.commands[index].value = pyo.Var(
                 initialize=source.value, units=pyo.units.get_units(source)
             )
+            if binding.name in fixed:
+                model.commands[index].value.fix(fixed[binding.name])
         model.worst = pyo.Var(units=pyo.units.get_units(objective.expr))
         model.links = pyo.ConstraintList()
         model.envelope = pyo.ConstraintList()
@@ -54,7 +68,7 @@ def optimize_shared_controls(adapter, domain):
                 adapter,
                 OperatingPointRequest(
                     scenario.values,
-                    {b.name: None for b in adapter.controls},
+                    {b.name: fixed.get(b.name) for b in adapter.controls},
                     tuple(r.name for r in adapter.requirements),
                 ),
             )
@@ -90,6 +104,8 @@ def optimize_shared_controls(adapter, domain):
             b.name: number(model.commands[i].value)
             for i, b in enumerate(adapter.controls)
         }
+        if any(commands[n] != value for n, value in fixed.items()):
+            raise ValueError("Solver changed a prescribed shared actuator command")
         # The solver enforces equalities numerically. Record their errors, then
         # substitute the SAME exact command into every source scenario check.
         # Never accept slightly different scenario commands as one policy.
@@ -168,6 +184,7 @@ def optimize_shared_controls(adapter, domain):
             audit=audit,
             solver=solver,
             preparation=preparation,
+            operating_policy=requested_policy,
             diagnostics=(
                 Diagnostic(
                     "shared_controls_unresolved", stage, f"{type(exc).__name__}: {exc}"
@@ -186,4 +203,5 @@ def optimize_shared_controls(adapter, domain):
         audit=audit,
         solver=solver,
         preparation=preparation,
+        operating_policy=requested_policy,
     )

@@ -19,7 +19,7 @@ class ProcessStream(Record):
 
     Units and commodity labels must match at conserving equipment; no property
     calculation or unit conversion is implied. Unknown rates require a finite
-    upper bound. Fixed values use equal control bounds in the compiled model.
+    upper bound. Fixed values use equal variable bounds in the compiled model.
     """
 
     name: str
@@ -212,6 +212,8 @@ class ProcessNetwork(Record):
     Every stream has exactly one producer and consumer. Physical balances are
     always-applied operating limits; sinks declare selectable service demands.
     Cycles are allowed: internal rates remain bounded algebraic variables.
+    An explicit ``actuators`` tuple identifies commandable non-input streams;
+    other rates become states. None preserves legacy all-control declarations.
     """
 
     name: str
@@ -231,6 +233,7 @@ class ProcessNetwork(Record):
     balance_scale: float = 1
     solver_tolerance: float = 1e-9
     provenance: str = "Caller-declared steady-state process network"
+    actuators: tuple[str, ...] | None = None
 
     schema_version: ClassVar[str] = "process_network/v1"
 
@@ -250,6 +253,12 @@ class ProcessNetwork(Record):
         from ._network_compile import compile_network
 
         return compile_network(self)
+
+    def to_dict(self):
+        data = super().to_dict()
+        if self.actuators is None:
+            data.pop("actuators")
+        return data
 
     def _body(self):
         return {"schema_version": self.schema_version, "network": self.to_dict()}

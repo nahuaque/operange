@@ -43,7 +43,14 @@ class DispatchChange(Record):
     ``unit``. All other declarations and operating permissions remain fixed.
     """
 
-    kind: Literal["input", "operating_limit", "control_lower", "control_upper"]
+    kind: Literal[
+        "input",
+        "operating_limit",
+        "control_lower",
+        "control_upper",
+        "state_lower",
+        "state_upper",
+    ]
     name: str
     unit: str
     step: float = 1

@@ -60,7 +60,7 @@ def declarations(model, options):
 def compile_relief(model, system, changes, objective):
     """Append one shared relief vector to a point or scenario-block system."""
     limits = {r.name: r for r in model.operating_limits}
-    controls, names = [], {c.name for c in system.controls} | set(system.fixed)
+    controls, names = [], {c.name for c in system.variables} | set(system.fixed)
     for i, change in enumerate(changes):
         name = f"_operange_relief_{i}"
         while name in names:
@@ -68,7 +68,7 @@ def compile_relief(model, system, changes, objective):
         names.add(name)
         controls.append(LinearControl(name, change["unit"], 0, change["maximum"]))
     augmented = LinearSystem(
-        system.controls + tuple(controls),
+        system.variables + tuple(controls),
         dict(system.fixed),
         [
             row
@@ -88,11 +88,11 @@ def compile_relief(model, system, changes, objective):
         F(c["weight"]) * (F(c["maximum"]) / F(c["scale"])) ** (2 if quadratic else 1)
         for c in changes
     )
-    zero = (F(0),) * len(augmented.controls)
+    zero = (F(0),) * len(augmented.variables)
     polynomial = Polynomial(
         F(0),
-        zero if quadratic else (F(0),) * len(system.controls) + costs,
-        (F(0),) * len(system.controls) + costs if quadratic else zero,
+        zero if quadratic else (F(0),) * len(system.variables) + costs,
+        (F(0),) * len(system.variables) + costs if quadratic else zero,
     )
     return augmented, polynomial
 
@@ -167,7 +167,7 @@ def relief_evidence(claim, point, system, options, *, backend):
         "row_constraint_refs": augmented.row_refs,
         "control_coordinates": [
             {"name": c.name, "origin": c.lower, "upper": c.upper}
-            for c in augmented.controls
+            for c in augmented.variables
         ],
         "fixed_controls": system.fixed,
         "objective_linear_exact": list(map(str, polynomial.linear)),
@@ -186,7 +186,7 @@ def relief_evidence(claim, point, system, options, *, backend):
             model.solver_tolerance,
             backend=backend,
             candidate_transform=lambda primal: (
-                list(primal[: len(system.controls)]) + [1.0] * len(changes)
+                list(primal[: len(system.variables)]) + [1.0] * len(changes)
             ),
         )
         attempts = solution.attempts
@@ -203,8 +203,8 @@ def relief_evidence(claim, point, system, options, *, backend):
                 "verified",
                 details=details,
             )
-        if solution.controls is not None:
-            commands = {c.name: solution.controls[c.name] for c in model.controls}
+        if solution.values is not None:
+            commands = {c.name: solution.values[c.name] for c in model.variables}
             changed, records, value = candidate_changes(
                 model, changes, [(point, commands)], options["objective"]
             )

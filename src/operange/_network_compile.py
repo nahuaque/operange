@@ -4,7 +4,7 @@ from fractions import Fraction as F
 
 from .affine import AffineOutput, AffineRequirement, AffineTerm
 from .contract_types import unique
-from .linear_process import LinearControl, LinearProcessAdapter
+from .linear_process import LinearControl, LinearState, LinearProcessAdapter
 from .network import (
     Boiler,
     FixedRatioSplitter,
@@ -53,6 +53,12 @@ def validate_network(network):
     unique(tuple(e.name for e in network.equipment), "equipment names")
     unique(tuple(t.name for t in network.totals), "total names")
     streams = {s.name: s for s in network.streams}
+    if network.actuators is not None:
+        unique(network.actuators, "network actuators")
+        if any(
+            n not in streams or streams[n].input is not None for n in network.actuators
+        ):
+            raise ValueError("Actuators must name non-input network streams")
     producers, consumers = {}, {}
 
     def input_unit(name, unit):
@@ -103,14 +109,15 @@ def validate_network(network):
 
 def compile_network(network):
     streams = {s.name: s for s in network.streams}
-    controls, outputs, limits, services = [], [], [], []
+    controls, states, outputs, limits, services = [], [], [], [], []
     units = {c.name: c.unit for c in network.input_space.coordinates}
     for stream in sorted(network.streams, key=lambda s: s.name):
         if stream.input is None:
             lower = stream.lower if stream.value is None else stream.value
             upper = stream.upper if stream.value is None else stream.value
-            controls.append(
-                LinearControl(
+            actuator = network.actuators is None or stream.name in network.actuators
+            (controls if actuator else states).append(
+                (LinearControl if actuator else LinearState)(
                     stream.name, stream.unit, lower, upper, stream.physical_kind
                 )
             )
@@ -259,4 +266,5 @@ def compile_network(network):
         network.solver_tolerance,
         network.objective,
         network.measurements,
+        tuple(states),
     )

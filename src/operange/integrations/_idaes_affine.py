@@ -7,7 +7,7 @@ from numbers import Real
 
 from ..affine import AffineOutput, AffineRequirement, AffineTerm
 from ..contract_types import ProcessContract, Record
-from ..linear_process import LinearControl, LinearProcessAdapter
+from ..linear_process import LinearControl, LinearState, LinearProcessAdapter
 from ..objectives import LinearObjective
 from ..recourse import DecisionRule, RecoursePolicy
 from ._idaes_model import backend, component, number, uid, unit
@@ -106,8 +106,19 @@ class IdaesLinearExport(Record):
     source_contract: ProcessContract
     actuator_names: tuple[str, ...]
 
-    def as_claim(self, domain, *, recourse=None, requirements=None):
-        """Preserve actuator permissions; give dependent algebraic rates recourse."""
+    def as_claim(self, domain, *, recourse=None, operating=None, requirements=None):
+        """Preserve physical actuator permissions independently of algebraic states."""
+        if self.adapter.states or operating is not None:
+            claim = self.adapter.as_claim(
+                domain,
+                recourse=recourse,
+                operating=operating,
+                requirements=requirements,
+            )
+            if claim.adapter is self.adapter:
+                self.adapter._permissions(claim)
+            return claim
+        # Compatibility for older exports that declared algebraic rates as controls.
         if recourse is not None:
             if recourse.mode not in {"static", "fixed"} or {
                 r.control for r in recourse.rules
@@ -171,7 +182,7 @@ def export_linear(source):
             name = control_bindings.get(id(var), f"state:{uid(var)}")
             variables[id(var)] = name
             candidates.append((name, var))
-    controls = []
+    controls, states = [], []
     for name, var in candidates:
         if var.lower is None or var.upper is None:
             raise ValueError(f"Affine export requires finite bounds on {uid(var)}")
@@ -180,8 +191,9 @@ def export_linear(source):
         )
         if lower[1] or upper[1]:
             raise ValueError(f"Affine control bounds must be constant: {uid(var)}")
-        controls.append(
-            LinearControl(
+        actuator = id(var) in control_bindings
+        (controls if actuator else states).append(
+            (LinearControl if actuator else LinearState)(
                 name,
                 unit(var),
                 _exact_float(lower[0]),
@@ -191,12 +203,12 @@ def export_linear(source):
                 else "algebraic_state",
             )
         )
-    if not controls:
+    if not controls and not states:
         raise ValueError(
             "This export requires at least one bounded actuator or algebraic state"
         )
     units = {b.name: b.unit for b in source.inputs}
-    units.update({c.name: c.unit for c in controls})
+    units.update({c.name: c.unit for c in controls + states})
     fingerprint = source.base_contract.model["source_fingerprint"]
 
     def output(name, expr, native_unit, origin):
@@ -250,6 +262,7 @@ def export_linear(source):
         tuple(controls),
         tuple(limits),
         objective=objective,
+        states=tuple(states),
     )
     return IdaesLinearExport(
         adapter, source.base_contract, tuple(c.name for c in source.controls)

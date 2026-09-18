@@ -5,7 +5,7 @@ from dataclasses import replace
 
 from ..contract_types import plain
 from ..domains import FiniteSet
-from ..recourse import DecisionRule, RecoursePolicy
+from ..operating import OperatingSpec, resolve_operating
 from ..primitives import finite
 from ._idaes_parameters import parameter_model
 from ._idaes_parameter_studies import prepare_joint_samples
@@ -51,6 +51,7 @@ def as_claim(
     parameter_map,
     fixed_controls,
     fully_observed,
+    operating=None,
 ):
     uncertainty._require_complete()
     if not isinstance(adapter, IdaesAdapter) or type(operating_cases) is not FiniteSet:
@@ -59,6 +60,24 @@ def as_claim(
         )
     if type(fully_observed) is not bool:
         raise ValueError("fully_observed must be a bool")
+    if operating is not None:
+        if fixed_controls is not None or fully_observed:
+            raise ValueError(
+                "Supply operating or fixed_controls/fully_observed, not both"
+            )
+        observations = adapter.input_space.names + tuple(
+            f"parameter:{p.component}" for p in uncertainty.calibration.estimates
+        )
+        spec = resolve_operating(adapter.controls, observations, operating=operating)
+        spec.validate(adapter.controls, observations).point_commands(observations)
+        propagated, domain = prepare_joint(
+            uncertainty,
+            adapter,
+            operating_cases,
+            parameter_map=parameter_map,
+            dispatch="explicit_actuator_permissions",
+        )
+        return propagated.as_claim(domain, operating=spec)
     if fully_observed and fixed_controls is not None:
         raise ValueError("Choose fixed_controls or fully_observed dispatch, not both")
     if not fully_observed:
@@ -84,20 +103,12 @@ def as_claim(
         if fully_observed
         else "fixed_actuator_commands",
     )
-    policy = (
-        None
+    spec = (
+        OperatingSpec.dispatch(propagated.controls, propagated.input_space.names)
         if fully_observed
-        else RecoursePolicy(
-            "fixed",
-            tuple(
-                DecisionRule(
-                    v.name, v.unit, "operation", fixed_value=fixed_controls[v.name]
-                )
-                for v in adapter.controls
-            ),
-        )
+        else OperatingSpec.fixed(adapter.controls, fixed_controls)
     )
-    return propagated.as_claim(domain, recourse=policy)
+    return propagated.as_claim(domain, operating=spec)
 
 
 def prepare_joint(uncertainty, adapter, operating_cases, *, parameter_map, dispatch):

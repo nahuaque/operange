@@ -44,8 +44,8 @@ audit; reducing it to 30 MW produces a verified failure. The example declares a
 
 | Declaration | Compiled meaning |
 | --- | --- |
-| `ProcessStream(..., lower=0, upper=12)` | A bounded operating rate, represented by `LinearControl(stream.name, ...)`. A finite upper bound is required. |
-| `ProcessStream(..., value=2)` | A fixed rate, represented by equal lower and upper control bounds. Cannot be combined with input or bounds. |
+| `ProcessStream(..., lower=0, upper=12)` | A bounded operating rate, represented by `LinearControl` for a declared actuator or `LinearState` otherwise. A finite upper bound is required. |
+| `ProcessStream(..., value=2)` | A fixed rate, represented by equal lower and upper variable bounds. Cannot be combined with input or bounds. |
 | `ProcessStream(..., input="feed")` | The true uncertainty coordinate directly enters the physical equations. Optional lower/upper bounds become always-applied operating limits; the default lower bound is zero. No adjustable copy of the input is created. |
 
 Rates are extensive quantities: `physical_kind` is `"mass_flow"` or
@@ -55,6 +55,12 @@ identical **unit, physical kind and commodity** labels. Input-bound rates and
 sink demand coordinates must use the stream's unit. There is no implicit unit
 conversion or inference from labels. Equipment and streams require unique names;
 bounded stream names must also be distinct from input names.
+
+Set `ProcessNetwork(..., actuators=("fuel_a", "fuel_b"))` to identify the
+commandable streams explicitly. Other non-input streams become algebraic states
+and need no controller or permission rules. `actuators=()` declares a passive
+network. Omitting the field preserves the historical interpretation of all
+non-input streams as controls. See [variable roles and operation](variable-roles-and-operation.md).
 
 These are aggregate rate balances. A water mixer adds water mass flows; it does
 not calculate a mixture temperature, pressure or composition. A boiler's steam
@@ -150,12 +156,14 @@ if search.verified:
 Query capabilities remain those of the compiled adapter and bound domain.
 Use [dispatch sensitivities](dispatch-sensitivity.md) to check local fuel savings
 from a stream-capacity change and identify another limit that blocks the benefit.
-Adjustable audits establish existence of joint steady-state flows. The compiled
-controls include **algebraic stream rates**, which need not each correspond to
-an independent physical actuator. A saved controller supplies one rule for
-every bounded or fixed stream, and its audit checks their consistency with all
-balances. This first layer does not eliminate internal flows or infer which
-streams are actuated. Input-bound streams need no command rule.
+Adjustable audits establish existence of joint steady-state flows. With explicit
+`actuators`, saved controllers command only those streams, and finite replay
+checks a feasible completion of the remaining algebraic rates. Finite synthesis
+supports objectives expressed in inputs and actuator commands. Continuous
+rounded-controller queries with algebraic states remain unsupported. Legacy
+declarations without `actuators` retain a rule per non-input stream and their
+existing continuous controller support. No actuator inference or uniqueness of
+internal flows is implied.
 
 Attach `measurements=MeasurementModel(...)` to restrict controller observations.
 Physical stream equations continue to use true inputs; declared measurement
