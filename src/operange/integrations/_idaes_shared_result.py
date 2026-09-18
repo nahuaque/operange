@@ -2,13 +2,17 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-import json
 from typing import Any, Literal
 
+from .._artifact_json import (
+    read_json,
+    record_from_dict,
+    record_to_json,
+)
 from ..claim import bind_contract
 from ..contract_types import Diagnostic, ProcessContract, Record, plain, reference
 from ..domains import FiniteSet
-from ..engineering_results import RobustnessResult, result_from_json
+from ..engineering_results import RobustnessResult, result_from_dict
 from ..primitives import finite
 from ..recourse import DecisionRule, RecoursePolicy
 
@@ -196,31 +200,17 @@ class IdaesSharedControlResult(Record):
         return self.ref.artifact_id
 
     def to_json(self):
-        return json.dumps(
-            {
-                "schema_version": "idaes_shared_controls/v1",
-                "result_id": self.result_id,
-                **self.to_dict(),
-            },
-            indent=2,
-            allow_nan=False,
-        )
+        return record_to_json(self, "idaes_shared_controls/v1")
 
     @classmethod
     def from_json(cls, text):
-        data = json.loads(text)
-        if (
-            not isinstance(data, dict)
-            or data.pop("schema_version", None) != "idaes_shared_controls/v1"
-        ):
-            raise ValueError("Unsupported shared-control result schema")
-        expected = data.pop("result_id", None)
-        try:
-            if data.get("audit") is not None:
-                data["audit"] = result_from_json(json.dumps(data["audit"]))
-            result = cls(**data)
-        except (TypeError, KeyError) as exc:
-            raise ValueError("Invalid shared-control result fields") from exc
-        if result.result_id != expected:
-            raise ValueError("Shared-control result integrity check failed")
-        return result
+        return cls.from_dict(read_json(text))
+
+    @classmethod
+    def from_dict(cls, data):
+        def decode(body):
+            if body.get("audit") is not None:
+                body["audit"] = result_from_dict(body["audit"])
+            return body
+
+        return record_from_dict(cls, data, "idaes_shared_controls/v1", decode=decode)

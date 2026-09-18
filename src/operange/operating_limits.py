@@ -4,11 +4,16 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from fractions import Fraction as F
 from functools import cached_property
-import json
 from typing import Any, ClassVar, Literal
 
+from ._artifact_json import (
+    dumps,
+    read_json,
+    require_fields,
+    require_schema,
+)
 from .contract_types import Diagnostic, ProcessContract, Record, plain, reference
-from .engineering_results import RobustnessResult, result_from_json
+from .engineering_results import RobustnessResult, result_from_dict
 
 
 @dataclass(frozen=True)
@@ -181,7 +186,7 @@ class OperatingLimitResult(Record):
             requirements=contract.operating["requirement_refs"],
             controller=None
             if controller is None
-            else AffineController.from_json(json.dumps(plain(controller))),
+            else AffineController.from_dict(plain(controller)),
         )
         if claim.contract != contract:
             raise ValueError("operating-limit replay changed the checked contract")
@@ -217,17 +222,20 @@ class OperatingLimitResult(Record):
         return {**self._body(compact), "result_id": self.result_id}
 
     def to_json(self, *, compact=False, indent=2):
-        return json.dumps(
+        return dumps(
             self.to_dict(compact=compact),
             indent=indent,
             sort_keys=True,
-            allow_nan=False,
         )
 
     @classmethod
     def from_json(cls, document):
+        return cls.from_dict(read_json(document))
+
+    @classmethod
+    def from_dict(cls, data):
         try:
-            return cls._load_json(document)
+            return cls._decode(data)
         except (
             TypeError,
             KeyError,
@@ -239,11 +247,8 @@ class OperatingLimitResult(Record):
             raise ValueError(f"invalid operating-limit artifact: {exc}") from exc
 
     @classmethod
-    def _load_json(cls, document):
-        from .controllers import _fields, _read_json
-
-        data = _read_json(document)
-        _fields(
+    def _decode(cls, data):
+        require_fields(
             data,
             (
                 "schema_version",
@@ -260,19 +265,16 @@ class OperatingLimitResult(Record):
                 "result_id",
             ),
         )
-        if data["schema_version"] != cls.schema_version:
-            raise ValueError("unsupported operating-limit schema")
+        require_schema(data, cls.schema_version)
         if not isinstance(data["trials"], list) or not isinstance(
             data["diagnostics"], list
         ):
             raise ValueError("operating-limit trials and diagnostics must be arrays")
         trials = []
         for t in data["trials"]:
-            _fields(t, ("endpoint", "audit"))
+            require_fields(t, ("endpoint", "audit"))
             trials.append(
-                OperatingLimitTrial(
-                    t["endpoint"], result_from_json(json.dumps(t["audit"]))
-                )
+                OperatingLimitTrial(t["endpoint"], result_from_dict(t["audit"]))
             )
         result = cls(
             data["contract"],

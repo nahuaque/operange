@@ -4,7 +4,7 @@ Copy steam_header.py, linear_dispatch.py, failure_distance.py, engineering_chang
 frozen_controllers.py, storage_replay.py, startup.py, pinch.py,
 uncertainty_compositions.py, measurement_uncertainty.py, operating_limits.py,
 equipment_network.py, operating_roles.py, dispatch_sensitivity.py and
-prototype_result_v1.json, calibration_result_v1.json and calibration_bootstrap_v1.json here.
+the saved *_v1.json fixtures here.
 There are no pytest, repository, optional solver, or test-environment imports.
 """
 
@@ -828,6 +828,42 @@ def main():
         len(joint.statistics["covariance"]) == 1,
         "empirical covariance lost its parameter axes",
     )
+    for artifact in (fit, joint, frozen, envelope_frozen, comparison):
+        restored = process.artifact_from_json(artifact.to_json())
+        require(
+            type(restored) is type(artifact), "schema dispatch changed artifact type"
+        )
+        require(restored.to_json() == artifact.to_json(), "artifact transport changed")
+    for name in ("evaluation", "sensitivity", "robustness"):
+        restored = process.artifact_from_json(json.dumps(corpus[name]))
+        require(
+            restored.to_dict() == corpus[name],
+            "generic reader changed historical result",
+        )
+    for name in (
+        "calibration_diagnostics",
+        "calibration_validation",
+        "idaes_shared_controls",
+        "idaes_local_uncertainty",
+    ):
+        saved = (directory / f"{name}_v1.json").read_text()
+        restored = process.artifact_from_json(saved)
+        require(
+            restored.result_id == json.loads(saved)["result_id"],
+            "study identity changed",
+        )
+        require(
+            process.artifact_from_json(restored.to_json()) == restored,
+            "portable numerical study changed",
+        )
+    try:
+        process.artifact_from_json(
+            '{"schema_version":"calibration_result/v1","unused":1e999}'
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("overflowing JSON number was accepted")
     require(
         not any(name in sys.modules for name in ("idaes", "pyomo", "pandas")),
         "calibration reader loaded optional backends",

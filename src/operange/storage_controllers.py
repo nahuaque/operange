@@ -3,12 +3,17 @@
 from dataclasses import asdict, dataclass, replace
 from fractions import Fraction
 from functools import cached_property
-import json
 from typing import ClassVar, Literal
 
+from ._artifact_json import (
+    check_identity,
+    dumps,
+    read_json,
+    require_fields,
+    require_schema,
+)
 from .claim import AdapterCapabilities, Capability, bind_contract, rejected_result
 from .contract_types import Record, nonempty, reference, snapshot, unique
-from .controllers import _fields, _read_json
 from .domains import FiniteSet
 from .primitives import finite
 from .storage import ThermalStorageClaim
@@ -93,22 +98,21 @@ class StorageController(Record):
         return {**self._body(), "controller_id": self.controller_id}
 
     def to_json(self, *, indent=2):
-        return json.dumps(
-            self.to_manifest(), indent=indent, sort_keys=True, allow_nan=False
-        )
+        return dumps(self.to_manifest(), indent=indent, sort_keys=True)
 
     @classmethod
     def from_json(cls, document):
-        data = _read_json(document)
-        _fields(data, ("schema_version", "controller", "controller_id"))
-        if data["schema_version"] != cls.schema_version:
-            raise ValueError("unsupported storage controller schema")
+        return cls.from_dict(read_json(document))
+
+    @classmethod
+    def from_dict(cls, data):
+        require_fields(data, ("schema_version", "controller", "controller_id"))
+        require_schema(data, cls.schema_version)
         try:
             result = cls(**data["controller"])
         except TypeError as exc:
             raise ValueError("invalid storage controller fields") from exc
-        if data["controller_id"] != result.controller_id:
-            raise ValueError("controller identity mismatch")
+        check_identity(data["controller_id"], result.controller_id)
         return result
 
 
@@ -245,7 +249,7 @@ def restore_storage_claim(contract):
 
     operating = plain(contract.operating)
     tree = operating["replay_tree"]
-    _fields(tree, ("scenarios", "preparation_hours", "event_hours"))
+    require_fields(tree, ("scenarios", "preparation_hours", "event_hours"))
     model = ThermalStorageClaim(
         operating["claim_name"],
         StorageDesign(**plain(contract.design)),
@@ -257,9 +261,7 @@ def restore_storage_claim(contract):
         StorageRequirement(**plain(contract.model["requirement"])),
         contract.numerical_policy["absolute_tolerance"],
     )
-    controller = StorageController.from_json(
-        json.dumps(operating["controller"], allow_nan=False)
-    )
+    controller = StorageController.from_dict(operating["controller"])
     return replace(
         model.as_claim(controller=controller),
         recourse=RecoursePolicy(**operating["recourse_policy"]),

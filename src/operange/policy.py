@@ -3,31 +3,19 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-import hashlib
-import json
 from typing import Mapping
 
+from ._artifact_json import (
+    check_identity,
+    digest,
+    dumps,
+    read_json,
+    require_fields,
+    require_schema,
+)
 from .heat_recovery import MODEL_ID, HeatRecoveryClaim
 from .primitives import BoxSet, HeatDemand, HeatRecoveryDesign, Parameter
 from .results import OperationResult
-
-
-def _canonical(payload: dict) -> str:
-    return json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False)
-
-
-def _keys(payload: dict, expected: set[str]) -> None:
-    if not isinstance(payload, dict) or set(payload) != expected:
-        raise ValueError(f"expected exactly these fields: {sorted(expected)}")
-
-
-def _unique(pairs: list[tuple[str, object]]) -> dict:
-    result = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError(f"duplicate JSON key: {key}")
-        result[key] = value
-    return result
 
 
 @dataclass(frozen=True)
@@ -54,26 +42,27 @@ class FrozenHeatRecoveryContract:
 
     @property
     def fingerprint(self) -> str:
-        return hashlib.sha256(_canonical(self._payload()).encode("utf-8")).hexdigest()
+        return digest(self._payload())
 
     def to_json(self) -> str:
-        return json.dumps(
+        return dumps(
             {**self._payload(), "fingerprint": self.fingerprint},
             indent=2,
             sort_keys=True,
-            allow_nan=False,
         )
 
     @classmethod
     def from_json(cls, document: str) -> FrozenHeatRecoveryContract:
-        payload = json.loads(document, object_pairs_hook=_unique)
-        _keys(payload, {"schema_version", "model_id", "claim", "fingerprint"})
-        if type(payload["schema_version"]) is not int or payload["schema_version"] != 1:
-            raise ValueError("unsupported contract schema_version")
+        return cls.from_dict(read_json(document))
+
+    @classmethod
+    def from_dict(cls, payload):
+        require_fields(payload, {"schema_version", "model_id", "claim", "fingerprint"})
+        require_schema(payload, 1)
         if payload["model_id"] != MODEL_ID:
             raise ValueError("unsupported model_id")
         claim = payload["claim"]
-        _keys(
+        require_fields(
             claim,
             {
                 "name",
@@ -85,14 +74,14 @@ class FrozenHeatRecoveryContract:
                 "tolerance",
             },
         )
-        _keys(claim["design"], {"source_capacity_mw", "power_capacity_mw"})
-        _keys(claim["requirement"], {"base_heat_mw", "reserve_mw"})
-        _keys(claim["uncertainty"], {"parameters"})
+        require_fields(claim["design"], {"source_capacity_mw", "power_capacity_mw"})
+        require_fields(claim["requirement"], {"base_heat_mw", "reserve_mw"})
+        require_fields(claim["uncertainty"], {"parameters"})
         parameters = claim["uncertainty"]["parameters"]
         if not isinstance(parameters, list):
             raise ValueError("parameters must be an array")
         for parameter in parameters:
-            _keys(
+            require_fields(
                 parameter,
                 {"name", "unit", "nominal", "lower", "upper", "scale", "provenance"},
             )
@@ -107,8 +96,7 @@ class FrozenHeatRecoveryContract:
                 tolerance=claim["tolerance"],
             )
         )
-        if payload["fingerprint"] != restored.fingerprint:
-            raise ValueError("contract fingerprint mismatch")
+        check_identity(payload["fingerprint"], restored.fingerprint)
         return restored
 
     def audit_realization(self, realization: Mapping[str, float]) -> OperationResult:

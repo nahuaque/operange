@@ -5,29 +5,11 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, fields, is_dataclass
 from functools import cached_property, lru_cache
-import hashlib
-import json
 from types import MappingProxyType, UnionType
 from typing import Any, Literal, Union, get_args, get_origin, get_type_hints
 
+from ._artifact_json import digest as digest, plain as plain
 from .primitives import finite
-
-
-def plain(value):
-    if isinstance(value, Mapping):
-        return {key: plain(item) for key, item in value.items()}
-    if is_dataclass(value):
-        return {item.name: plain(getattr(value, item.name)) for item in fields(value)}
-    if isinstance(value, tuple):
-        return [plain(item) for item in value]
-    return value
-
-
-def digest(value) -> str:
-    encoded = json.dumps(
-        plain(value), sort_keys=True, separators=(",", ":"), allow_nan=False
-    ).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
 
 
 def freeze(value):

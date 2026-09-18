@@ -2,12 +2,18 @@
 
 from dataclasses import dataclass, replace
 from functools import cached_property
-import json
 from typing import ClassVar
 
+from ._artifact_json import (
+    check_identity,
+    dumps,
+    read_json,
+    require_fields,
+    require_schema,
+)
 from .claim import Claim
 from .contract_types import ProcessContract, plain, reference
-from .controllers import AffineController, _ControllerAdapter, _fields, _read_json
+from .controllers import AffineController, _ControllerAdapter
 from .distance import NormalizedL2, NormalizedLInf
 from .domain_io import domain_from_manifest
 from .domains import ParameterSpace
@@ -140,22 +146,22 @@ class FrozenController:
         return {**self._body(), "frozen_id": self.frozen_id}
 
     def to_json(self, *, indent=2):
-        return json.dumps(
-            self.to_dict(), indent=indent, sort_keys=True, allow_nan=False
-        )
+        return dumps(self.to_dict(), indent=indent, sort_keys=True)
 
     @classmethod
     def from_json(cls, document):
-        data = _read_json(document)
-        _fields(data, ("schema_version", "contract", "distance", "frozen_id"))
-        if data["schema_version"] != cls.schema_version:
-            raise ValueError("unsupported frozen controller schema")
+        return cls.from_dict(read_json(document))
+
+    @classmethod
+    def from_dict(cls, data):
+        require_fields(data, ("schema_version", "contract", "distance", "frozen_id"))
+        require_schema(data, cls.schema_version)
         try:
             contract = ProcessContract(**data["contract"])
             if contract.model_id == "linear_process/v1":
                 model = LinearProcessAdapter(**plain(contract.model))
-                controller = AffineController.from_json(
-                    json.dumps(plain(contract.operating["controller"]), allow_nan=False)
+                controller = AffineController.from_dict(
+                    plain(contract.operating["controller"])
                 )
                 domain = domain_from_manifest(plain(contract.domain))
                 recourse = RecoursePolicy(
@@ -175,7 +181,7 @@ class FrozenController:
                 raise ValueError("unsupported frozen controller model")
             if data["distance"] is not None:
                 distance = data["distance"]
-                _fields(distance, ("kind", "space"))
+                require_fields(distance, ("kind", "space"))
                 metrics = {
                     "normalized_linf": NormalizedLInf,
                     "normalized_l2": NormalizedL2,
@@ -193,8 +199,7 @@ class FrozenController:
                     "frozen contract does not match its executable model and controller"
                 )
             result = cls(claim)
-            if result.frozen_id != data["frozen_id"]:
-                raise ValueError("frozen controller identity mismatch")
+            check_identity(data["frozen_id"], result.frozen_id)
             return result
         except (TypeError, KeyError, AttributeError) as exc:
             raise ValueError("invalid frozen controller fields") from exc

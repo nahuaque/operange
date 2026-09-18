@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-import json
 from typing import Any
 
+from ._artifact_json import (
+    dumps,
+)
 from .primitives import RepairAction
 
 
@@ -14,7 +16,7 @@ class Artifact:
         return asdict(self)
 
     def to_json(self) -> str:
-        return json.dumps(self.to_dict(), indent=2, allow_nan=False)
+        return dumps(self.to_dict(), indent=2)
 
 
 @dataclass(frozen=True)

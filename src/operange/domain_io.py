@@ -1,8 +1,10 @@
 """Reconstruct supported declarative domain manifests without executing models."""
 
 from collections.abc import Mapping
-import json
 
+from ._artifact_json import (
+    read_json,
+)
 from .composition import Intersection, Product, Union
 from .domains import FiniteSet, ParameterSpace
 from .convex_hull import ConvexHullSet
@@ -55,17 +57,4 @@ def domain_from_manifest(manifest):
 
 
 def domain_from_json(document):
-    def pairs(items):
-        result = {}
-        for name, value in items:
-            if name in result:
-                raise ValueError("duplicate JSON key")
-            result[name] = value
-        return result
-
-    def constant(value):
-        raise ValueError(f"nonfinite JSON number: {value}")
-
-    return domain_from_manifest(
-        json.loads(document, object_pairs_hook=pairs, parse_constant=constant)
-    )
+    return domain_from_manifest(read_json(document))

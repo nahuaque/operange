@@ -3,9 +3,13 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from functools import cached_property
-import json
 from typing import Any, Literal
 
+from .._artifact_json import (
+    read_json,
+    record_from_dict,
+    record_to_json,
+)
 from ..contract_types import Diagnostic, Record, freeze, nonempty, reference, unique
 from ..primitives import finite
 from .parmest import CalibrationResult, CalibrationExperimentResult
@@ -21,29 +25,15 @@ class _PortableQuality(Record):
         return self.ref.artifact_id
 
     def to_json(self):
-        return json.dumps(
-            {
-                "schema_version": self.schema,
-                "result_id": self.result_id,
-                **self.to_dict(),
-            },
-            indent=2,
-            allow_nan=False,
-        )
+        return record_to_json(self, self.schema)
 
     @classmethod
     def from_json(cls, text):
-        data = json.loads(text)
-        if not isinstance(data, dict) or data.pop("schema_version", None) != cls.schema:
-            raise ValueError("Unsupported calibration quality schema")
-        expected = data.pop("result_id", None)
-        try:
-            result = cls(**data)
-        except (TypeError, KeyError, IndexError) as exc:
-            raise ValueError("Invalid calibration quality fields") from exc
-        if result.result_id != expected:
-            raise ValueError("Calibration quality integrity check failed")
-        return result
+        return cls.from_dict(read_json(text))
+
+    @classmethod
+    def from_dict(cls, data):
+        return record_from_dict(cls, data, cls.schema)
 
 
 @dataclass(frozen=True)

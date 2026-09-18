@@ -3,11 +3,15 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from functools import cached_property
-import json
 from typing import Any, Literal
 
 import numpy as np
 
+from .._artifact_json import (
+    read_json,
+    record_from_dict,
+    record_to_json,
+)
 from ..contract_types import Diagnostic, Record, freeze, nonempty, reference, unique
 from ..engineering_results import EvaluationResult
 from ..primitives import finite
@@ -244,29 +248,12 @@ class IdaesUncertaintyResult(Record):
         return self.ref.artifact_id
 
     def to_json(self):
-        return json.dumps(
-            {
-                "schema_version": self.ref.schema_version,
-                "result_id": self.result_id,
-                **self.to_dict(),
-            },
-            indent=2,
-            allow_nan=False,
-        )
+        return record_to_json(self, "idaes_local_uncertainty/v1")
 
     @classmethod
     def from_json(cls, text):
-        data = json.loads(text)
-        if (
-            not isinstance(data, dict)
-            or data.pop("schema_version", None) != "idaes_local_uncertainty/v1"
-        ):
-            raise ValueError("Unsupported local uncertainty schema")
-        expected = data.pop("result_id", None)
-        try:
-            result = cls(**data)
-        except (TypeError, KeyError) as exc:
-            raise ValueError("Invalid local uncertainty fields") from exc
-        if result.result_id != expected:
-            raise ValueError("Local uncertainty integrity check failed")
-        return result
+        return cls.from_dict(read_json(text))
+
+    @classmethod
+    def from_dict(cls, data):
+        return record_from_dict(cls, data, "idaes_local_uncertainty/v1")

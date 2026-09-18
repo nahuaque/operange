@@ -4,9 +4,15 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from fractions import Fraction as F
 from functools import cached_property
-import json
 from typing import Any, ClassVar, Literal
 
+from ._artifact_json import (
+    check_identity,
+    dumps,
+    read_json,
+    require_fields,
+    require_schema,
+)
 from ._numeric import round_down, round_up
 from .contract_types import (
     Diagnostic,
@@ -16,8 +22,7 @@ from .contract_types import (
     plain,
     reference,
 )
-from .controllers import _fields, _read_json
-from .engineering_results import EvaluationResult, result_from_json
+from .engineering_results import EvaluationResult, result_from_dict
 from .primitives import finite
 
 
@@ -234,17 +239,19 @@ class DispatchSensitivityResult(Record):
         return {**self._body(compact), "result_id": self.ref.artifact_id}
 
     def to_json(self, *, compact=False, indent=2):
-        return json.dumps(
+        return dumps(
             self.to_dict(compact=compact),
             indent=indent,
             sort_keys=True,
-            allow_nan=False,
         )
 
     @classmethod
     def from_json(cls, document):
-        data = _read_json(document)
-        _fields(
+        return cls.from_dict(read_json(document))
+
+    @classmethod
+    def from_dict(cls, data):
+        require_fields(
             data,
             (
                 "schema_version",
@@ -258,21 +265,17 @@ class DispatchSensitivityResult(Record):
                 "result_id",
             ),
         )
-        if data["schema_version"] != cls.schema_version:
-            raise ValueError("unsupported dispatch sensitivity schema")
+        require_schema(data, cls.schema_version)
         result = cls(
             data["contract"],
             data["request"],
             data["execution"],
             data["sensitivities"],
-            None
-            if data["base"] is None
-            else result_from_json(json.dumps(data["base"])),
+            None if data["base"] is None else result_from_dict(data["base"]),
             data["diagnostics"],
             data["solver_attempts"],
         )
-        if result.ref.artifact_id != data["result_id"]:
-            raise ValueError("dispatch sensitivity identity mismatch")
+        check_identity(data["result_id"], result.ref.artifact_id)
         return result
 
 

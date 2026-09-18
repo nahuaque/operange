@@ -216,10 +216,8 @@ class Context:
         self.claim = Claim(self.model, self.domain, self.policy, self.selected)
         self.controller = None
         if contract.operating.get("response") == "frozen_affine_controller":
-            import json
-
-            self.controller = AffineController.from_json(
-                json.dumps(plain(contract.operating["controller"]))
+            self.controller = AffineController.from_dict(
+                plain(contract.operating["controller"])
             )
             self.claim = self.claim.with_controller(self.controller)
         require(

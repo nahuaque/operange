@@ -8,9 +8,13 @@ fit. Importing this module does not load Pyomo, IDAES, pandas or a solver.
 from collections.abc import Mapping
 from dataclasses import InitVar, dataclass, field
 from functools import cached_property
-import json
 from typing import Any, Literal, TYPE_CHECKING
 
+from .._artifact_json import (
+    read_json,
+    record_from_dict,
+    record_to_json,
+)
 from ..contract_types import Diagnostic, Record, freeze, nonempty, reference, unique
 from ..primitives import finite
 
@@ -189,32 +193,15 @@ class CalibrationResult(Record):
         return self.ref.artifact_id
 
     def to_json(self):
-        return json.dumps(
-            {
-                "schema_version": "calibration_result/v1",
-                "result_id": self.result_id,
-                **self.to_dict(),
-            },
-            indent=2,
-            allow_nan=False,
-        )
+        return record_to_json(self, "calibration_result/v1")
 
     @classmethod
     def from_json(cls, text):
-        data = json.loads(text)
-        if (
-            not isinstance(data, dict)
-            or data.pop("schema_version", None) != "calibration_result/v1"
-        ):
-            raise ValueError("Unsupported calibration result schema")
-        expected = data.pop("result_id", None)
-        try:
-            result = cls(**data)
-        except TypeError as exc:
-            raise ValueError("Invalid calibration result fields") from exc
-        if result.result_id != expected:
-            raise ValueError("Calibration result integrity check failed")
-        return result
+        return cls.from_dict(read_json(text))
+
+    @classmethod
+    def from_dict(cls, data):
+        return record_from_dict(cls, data, "calibration_result/v1")
 
     @cached_property
     def parameter_point(self):
@@ -598,32 +585,15 @@ class CalibrationBootstrap(Record):
         )
 
     def to_json(self):
-        return json.dumps(
-            {
-                "schema_version": "calibration_bootstrap/v1",
-                "result_id": self.result_id,
-                **self.to_dict(),
-            },
-            indent=2,
-            allow_nan=False,
-        )
+        return record_to_json(self, "calibration_bootstrap/v1")
 
     @classmethod
     def from_json(cls, text):
-        data = json.loads(text)
-        if (
-            not isinstance(data, dict)
-            or data.pop("schema_version", None) != "calibration_bootstrap/v1"
-        ):
-            raise ValueError("Unsupported calibration bootstrap schema")
-        expected = data.pop("result_id", None)
-        try:
-            result = cls(**data)
-        except (TypeError, KeyError) as exc:
-            raise ValueError("Invalid calibration bootstrap fields") from exc
-        if result.result_id != expected:
-            raise ValueError("Calibration bootstrap integrity check failed")
-        return result
+        return cls.from_dict(read_json(text))
+
+    @classmethod
+    def from_dict(cls, data):
+        return record_from_dict(cls, data, "calibration_bootstrap/v1")
 
 
 # The quality records use CalibrationResult. Lazy re-exports keep either module

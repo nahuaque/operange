@@ -153,6 +153,7 @@ results fit into broader flexibility and economic studies.
 overview
 installation
 examples
+artifact-serialization
 api
 linear-dispatch
 equipment-networks

@@ -4,9 +4,15 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from fractions import Fraction
 from functools import cached_property
-import json
 from typing import ClassVar
 
+from ._artifact_json import (
+    check_identity,
+    dumps,
+    read_json,
+    require_fields,
+    require_schema,
+)
 from .affine import AffineTerm
 from ._numeric import exact_dot
 from .claim import AdapterCapabilities, Capability, bind_contract, rejected_result
@@ -16,26 +22,6 @@ from .convex_hull import ConvexHullSet
 from .linear_process import LinearProcessAdapter
 from .primitives import finite
 from .recourse import DecisionRule, RecoursePolicy
-
-
-def _read_json(document):
-    def pairs(items):
-        result = {}
-        for key, value in items:
-            if key in result:
-                raise ValueError(f"duplicate JSON key: {key}")
-            result[key] = value
-        return result
-
-    def constant(value):
-        raise ValueError(f"nonfinite JSON number: {value}")
-
-    return json.loads(document, object_pairs_hook=pairs, parse_constant=constant)
-
-
-def _fields(data, expected):
-    if not isinstance(data, Mapping) or set(data) != set(expected):
-        raise ValueError("invalid controller artifact fields")
 
 
 @dataclass(frozen=True)
@@ -126,22 +112,21 @@ class AffineController(Record):
         return {**self._body(), "controller_id": self.controller_id}
 
     def to_json(self, *, indent=2):
-        return json.dumps(
-            self.to_manifest(), indent=indent, sort_keys=True, allow_nan=False
-        )
+        return dumps(self.to_manifest(), indent=indent, sort_keys=True)
 
     @classmethod
     def from_json(cls, document):
-        data = _read_json(document)
-        _fields(data, ("schema_version", "controller", "controller_id"))
-        if data["schema_version"] != cls.schema_version:
-            raise ValueError("unsupported affine controller schema")
+        return cls.from_dict(read_json(document))
+
+    @classmethod
+    def from_dict(cls, data):
+        require_fields(data, ("schema_version", "controller", "controller_id"))
+        require_schema(data, cls.schema_version)
         try:
             result = cls(**data["controller"])
         except TypeError as exc:
             raise ValueError("invalid affine controller fields") from exc
-        if data["controller_id"] != result.controller_id:
-            raise ValueError("controller identity mismatch")
+        check_identity(data["controller_id"], result.controller_id)
         return result
 
 

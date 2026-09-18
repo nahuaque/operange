@@ -4,10 +4,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, fields, is_dataclass
 from functools import cached_property
-import json
 from collections.abc import Mapping
 from typing import Any, ClassVar, Literal
 
+from ._artifact_json import (
+    check_identity,
+    dumps,
+    read_json,
+    require_fields,
+    require_schema,
+)
 from .contract_types import (
     ArtifactRef,
     Diagnostic,
@@ -84,16 +90,19 @@ class _Result(Record):
         return {**self._body(), "result_id": self.result_id}
 
     def to_json(self, *, indent=2, compact=False):
-        return json.dumps(
+        return dumps(
             self.to_dict(compact=compact),
             indent=indent,
             sort_keys=True,
-            allow_nan=False,
         )
 
     @classmethod
     def from_json(cls, text):
-        result = result_from_json(text)
+        return cls.from_dict(read_json(text))
+
+    @classmethod
+    def from_dict(cls, data):
+        result = result_from_dict(data)
         if not isinstance(result, cls):
             raise ValueError(f"expected {cls.__name__}")
         return result
@@ -395,8 +404,7 @@ def _expand_bundle(data):
                 contracts[key] = ProcessContract(**raw)
             except TypeError as exc:
                 raise ValueError("invalid compact contract fields") from exc
-            if contracts[key].ref.artifact_id != key:
-                raise ValueError("contract artifact digest mismatch")
+            check_identity(key, contracts[key].ref.artifact_id)
         expanded = []
         for identity in evaluations:
             evaluation = data["evaluations"].get(identity)
@@ -435,10 +443,8 @@ def _decode(data):
         "diagnostics",
         "artifacts",
     }
-    if not isinstance(data, dict) or set(data) != expected:
-        raise ValueError("invalid result envelope fields")
-    if data["schema_version"] != "process_result/v1":
-        raise ValueError("unsupported result schema")
+    require_fields(data, expected)
+    require_schema(data, "process_result/v1")
     classes = {
         "evaluation": EvaluationResult,
         "sensitivity": SensitivityResult,
@@ -468,8 +474,9 @@ def _decode(data):
         contract_ref = ArtifactRef(**data["contract_ref"])
     except (TypeError, KeyError) as exc:
         raise ValueError("invalid result fields") from exc
-    if result.contract_ref != contract_ref or result.result_id != data["result_id"]:
-        raise ValueError("artifact digest mismatch")
+    if result.contract_ref != contract_ref:
+        raise ValueError("contract artifact digest mismatch")
+    check_identity(data["result_id"], result.result_id)
     return result
 
 
@@ -481,14 +488,11 @@ def result_from_json(
     Use ``verify_result`` for independent checks of supported certificates.
     """
 
-    def pairs(items):
-        unique(tuple(k for k, _ in items), "JSON keys")
-        return dict(items)
+    return result_from_dict(read_json(text))
 
-    def constant(value):
-        raise ValueError(f"nonfinite JSON number: {value}")
 
-    data = json.loads(text, object_pairs_hook=pairs, parse_constant=constant)
+def result_from_dict(data) -> EvaluationResult | SensitivityResult | RobustnessResult:
+    """Load a decoded result envelope, including compact artifact tables."""
     if (
         isinstance(data, dict)
         and data.get("schema_version") == "process_result_bundle/v1"

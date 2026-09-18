@@ -2,12 +2,17 @@
 
 from dataclasses import dataclass
 from functools import cached_property
-import json
 from typing import ClassVar, Literal
 
+from ._artifact_json import (
+    check_identity,
+    dumps,
+    read_json,
+    require_fields,
+    require_schema,
+)
 from .affine import AffineOutput, AffineRequirement
 from .contract_types import Record, nonempty, reference, unique
-from .controllers import _fields, _read_json
 from .domains import ParameterSpace
 from .measurements import MeasurementModel
 from .objectives import ControlTrackingObjective, LinearObjective
@@ -268,24 +273,24 @@ class ProcessNetwork(Record):
         return reference(self._body(), self.schema_version)
 
     def to_json(self, *, indent=2):
-        return json.dumps(
+        return dumps(
             {**self._body(), "network_id": self.ref.artifact_id},
             indent=indent,
             sort_keys=True,
-            allow_nan=False,
         )
 
     @classmethod
     def from_json(cls, document):
         """Load declarations without executing a solver or an equipment callback."""
-        data = _read_json(document)
-        _fields(data, ("schema_version", "network", "network_id"))
-        if data["schema_version"] != cls.schema_version:
-            raise ValueError("unsupported process network schema")
+        return cls.from_dict(read_json(document))
+
+    @classmethod
+    def from_dict(cls, data):
+        require_fields(data, ("schema_version", "network", "network_id"))
+        require_schema(data, cls.schema_version)
         try:
             network = cls(**data["network"])
         except TypeError as exc:
             raise ValueError("invalid process network fields") from exc
-        if data["network_id"] != network.ref.artifact_id:
-            raise ValueError("process network identity mismatch")
+        check_identity(data["network_id"], network.ref.artifact_id)
         return network

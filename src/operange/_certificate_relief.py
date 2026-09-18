@@ -2,7 +2,6 @@
 
 from dataclasses import replace
 from fractions import Fraction as F
-import json
 
 from ._certificate_math import (
     Context,
@@ -15,7 +14,7 @@ from ._certificate_math import (
     vector_equal,
 )
 from ._certificate_results import evidence
-from .engineering_results import result_from_json
+from .engineering_results import result_from_dict
 from .contract_types import plain
 
 
@@ -381,7 +380,7 @@ def relief(ctx, result, verify_nested):
                 "candidate dispatch refers to different scenarios",
             )
             changed.system(block["realization"]).feasible(dispatch["controls"])
-        nested = result_from_json(json.dumps(plain(candidate["reaudit"])))
+        nested = result_from_dict(plain(candidate["reaudit"]))
         require(
             nested.contract == changed.claim.contract
             and candidate["reaudit_ref"] == nested.ref.to_dict()

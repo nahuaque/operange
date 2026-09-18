@@ -1,15 +1,16 @@
 """Independent, solver-free verification of exported engineering certificates."""
 
 from dataclasses import dataclass
-import json
 from typing import ClassVar, Literal
 
+from ._artifact_json import (
+    dumps,
+)
 from .contract_types import ArtifactRef, Record
 from .engineering_results import (
     EvaluationResult,
     RobustnessResult,
     SensitivityResult,
-    result_from_json,
 )
 
 
@@ -52,9 +53,7 @@ class CertificateVerification(Record):
         }
 
     def to_json(self, *, indent=2):
-        return json.dumps(
-            self.to_dict(), indent=indent, sort_keys=True, allow_nan=False
-        )
+        return dumps(self.to_dict(), indent=indent, sort_keys=True)
 
 
 class _Verifier:
@@ -235,7 +234,8 @@ def verify_result(
     from collections.abc import Mapping
     from .operating_limits import OperatingLimitResult
     from .dispatch_sensitivity import DispatchSensitivityResult
-    from .controllers import _read_json
+    from ._artifact_json import read_json
+    from .artifact_io import _artifact_from_dict
 
     verifier = _Verifier(max_checks)
     result = None
@@ -263,20 +263,19 @@ def verify_result(
         ):
             document = document.to_json()
         elif isinstance(document, Mapping):
-            document = json.dumps(document, allow_nan=False)
+            document = dumps(document)
         elif isinstance(document, bytes):
             document = document.decode("utf-8")
         if not isinstance(document, str) or len(document.encode("utf-8")) > max_bytes:
             raise ValueError("expected result JSON within max_bytes")
-        header = _read_json(document)
-        result = (
-            DispatchSensitivityResult.from_json(document)
-            if isinstance(header, Mapping)
-            and header.get("schema_version") == DispatchSensitivityResult.schema_version
-            else OperatingLimitResult.from_json(document)
-            if isinstance(header, Mapping)
-            and header.get("schema_version") == OperatingLimitResult.schema_version
-            else result_from_json(document)
+        result = _artifact_from_dict(
+            read_json(document),
+            schemas={
+                "process_result/v1",
+                "process_result_bundle/v1",
+                OperatingLimitResult.schema_version,
+                DispatchSensitivityResult.schema_version,
+            },
         )
     except (ValueError, TypeError, UnicodeError, RecursionError, OverflowError) as exc:
         return CertificateVerification(

@@ -2,9 +2,14 @@
 
 from dataclasses import dataclass
 from fractions import Fraction
-import json
 from numbers import Real
 
+from .._artifact_json import (
+    dumps,
+    read_json,
+    require_fields,
+    require_schema,
+)
 from ..affine import AffineOutput, AffineRequirement, AffineTerm
 from ..contract_types import ProcessContract, Record
 from ..linear_process import LinearControl, LinearState, LinearProcessAdapter
@@ -149,18 +154,25 @@ class IdaesLinearExport(Record):
         )
 
     def to_json(self):
-        return json.dumps(
+        return dumps(
             {"schema_version": "idaes_linear_export/v1", **self.to_dict()},
             indent=2,
-            allow_nan=False,
         )
 
     @classmethod
     def from_json(cls, text):
-        data = json.loads(text)
-        if data.pop("schema_version", None) != "idaes_linear_export/v1":
-            raise ValueError("Unsupported IDAES linear export schema")
-        return cls(**data)
+        return cls.from_dict(read_json(text))
+
+    @classmethod
+    def from_dict(cls, data):
+        require_schema(data, "idaes_linear_export/v1")
+        require_fields(
+            data, ("schema_version", "adapter", "source_contract", "actuator_names")
+        )
+        try:
+            return cls(**{k: v for k, v in data.items() if k != "schema_version"})
+        except (TypeError, KeyError) as exc:
+            raise ValueError("invalid IDAES linear export fields") from exc
 
 
 def export_linear(source):

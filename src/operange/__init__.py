@@ -43,6 +43,7 @@ from .geometries import BudgetSet, EllipsoidSet, SimplexSet
 from .polytope import LinearConstraint, PolytopeSet
 from .composition import Intersection, Product, Union
 from .domain_io import domain_from_json, domain_from_manifest
+from .artifact_io import artifact_from_json
 from ._geometry import LinearSupport
 from .claim import AdapterCapabilities, Capability, Claim, ModelAdapter
 from .changes import (
@@ -151,6 +152,7 @@ __all__ = [
     "Intersection",
     "Product",
     "Union",
+    "artifact_from_json",
     "domain_from_json",
     "domain_from_manifest",
     "LinearSupport",

@@ -34,6 +34,11 @@ preserve the distinction between solver outcomes and certificates, and improve
 equipment capacity/outage studies across the shared model binding. The small
 native equipment compiler remains useful for transparent certified linear studies.
 
+[Artifact transport](../docs/artifact-serialization.md) now shares strict parsing,
+encoding, schema dispatch and identity checks. Existing schemas and identities
+are preserved; each result family still owns its semantic qualifications, and
+independent certificate verification remains a separate step.
+
 The [scope decision](package-boundary.md) fixes the target as a process-engineering
 sensitivity and robustness DSL. Its [result contract](result-contract.md)
 now implements evaluation, sensitivity, and robustness outputs, validated against

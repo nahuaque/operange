@@ -2,9 +2,11 @@
 
 from dataclasses import dataclass
 from functools import cached_property
-import json
 from typing import ClassVar
 
+from ._artifact_json import (
+    dumps,
+)
 from .claim import Claim
 from .contract_types import Diagnostic, Evidence, freeze, plain, reference, snapshot
 from .controllers import AffineController
@@ -95,11 +97,10 @@ class ControllerSynthesis:
         return {**self._body(compact), "synthesis_id": self.ref.artifact_id}
 
     def to_json(self, *, compact=False, indent=2):
-        return json.dumps(
+        return dumps(
             self.to_dict(compact=compact),
             indent=indent,
             sort_keys=True,
-            allow_nan=False,
         )
 
 

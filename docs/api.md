@@ -306,6 +306,7 @@ claiming a general `TrajectorySet` or dynamic simulator.
 | Purpose | Public names |
 | --- | --- |
 | Result families and loading | `EvaluationResult`, `SensitivityResult`, `RobustnessResult`, `result_from_json` |
+| Loading other portable schemas | `artifact_from_json` |
 | Contract registry | `ProcessContract`, `QuantitySpec`, `QuantityValue`, `ConstraintSpec`, `ConstraintCheck`, `ArtifactRef` |
 | Evidence records | `Evidence`, `Measurement`, `Diagnostic`, `Membership` |
 | Query payloads | `EvaluationPayload`, `SensitivityPayload`, `RobustnessPayload`, `Derivative` |
@@ -334,6 +335,9 @@ a model or re-proving the recorded evidence.
 Results serialize model and operating declarations, not Python adapter code.
 Content identities support evidence joins and integrity checks. They do not
 replace independent verification of a consumer model or solver.
+
+See [artifact serialization](artifact-serialization.md) for supported schema
+dispatch, strict JSON parsing, and the boundary between loading and validation.
 
 ## Reference-model imports
 

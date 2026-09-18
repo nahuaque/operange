@@ -5,9 +5,14 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import cached_property
-import json
 from typing import Any, ClassVar, Literal
 
+from ._artifact_json import (
+    canonical_json,
+    dumps,
+    read_json,
+    require_schema,
+)
 from ._change_contracts import ContractComparison, FieldChange, compare_contracts
 from .claim import Claim, rejected_result
 from .contract_types import (
@@ -18,7 +23,7 @@ from .contract_types import (
     reference,
     unique,
 )
-from .engineering_results import RobustnessResult, result_from_json
+from .engineering_results import RobustnessResult, result_from_dict
 
 
 @dataclass(frozen=True)
@@ -234,37 +239,25 @@ class ChangeComparison(Record):
         }
 
     def to_json(self, *, indent=2, compact=False):
-        return json.dumps(
+        return dumps(
             self.to_dict(compact=compact),
             indent=indent,
             sort_keys=True,
-            allow_nan=False,
         )
 
     @classmethod
     def from_json(cls, text):
-        def unique_object(pairs):
-            result = {}
-            for key, value in pairs:
-                if key in result:
-                    raise ValueError(f"duplicate JSON key: {key}")
-                result[key] = value
-            return result
+        return cls.from_dict(read_json(text))
 
-        def nonfinite(value):
-            raise ValueError(f"nonfinite JSON value: {value}")
-
+    @classmethod
+    def from_dict(cls, data):
+        require_schema(data, cls.schema_version)
         try:
-            data = json.loads(
-                text, object_pairs_hook=unique_object, parse_constant=nonfinite
-            )
-            if data["schema_version"] != cls.schema_version:
-                raise ValueError("unsupported change comparison schema")
             if set(data["artifacts"]) != {"audits"}:
                 raise ValueError("invalid comparison artifact registry")
             audits = {}
             for key, value in data["artifacts"]["audits"].items():
-                audit = result_from_json(json.dumps(value, allow_nan=False))
+                audit = result_from_dict(value)
                 if not isinstance(audit, RobustnessResult) or key != audit.result_id:
                     raise ValueError("invalid audit identity")
                 _validate_audit(audit)
@@ -297,10 +290,7 @@ class ChangeComparison(Record):
             actual = {k: v for k, v in data.items() if k != "artifacts"}
 
             # Canonical JSON comparison also distinguishes bool from numeric 1.
-            def canonical(value):
-                return json.dumps(value, sort_keys=True, allow_nan=False)
-
-            if canonical(expected) != canonical(actual):
+            if canonical_json(expected) != canonical_json(actual):
                 raise ValueError(
                     "comparison metadata or identity does not match audits"
                 )
