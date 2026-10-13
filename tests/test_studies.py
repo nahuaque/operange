@@ -191,6 +191,58 @@ def test_dependency_discovery_and_evidence_requirements_prevent_execution(monkey
     assert composed.check_study(EvaluationRequest(loads.nominal)).supported  # nosec B101
 
 
+@pytest.mark.parametrize("adapter", ("affine", "controller"))
+@pytest.mark.parametrize("composition", ("intersection", "nested", "union", "product"))
+def test_missing_support_backend_survives_coarse_capability_rejection(
+    monkeypatch, adapter, composition
+):
+    from operange import BoxSet, Claim, Intersection, Product, Union
+    from operange import _cvxpy_backend, _intersection_support, _study_dispatch
+    from examples.frozen_controllers import allocation, example as controller_model
+
+    model, loads = header()
+    domain = Intersection((loads, loads), backend="cvxpy")
+    if composition == "nested":
+        domain = Intersection((domain, loads), backend="cvxpy")
+    elif composition == "union":
+        domain = Union((domain, loads))
+    elif composition == "product":
+        left = BoxSet((loads.parameter("dryer"),))
+        right = BoxSet((loads.parameter("evaporator"),))
+        domain = Product((Intersection((left, left), backend="cvxpy"), right))
+    if adapter == "controller":
+        model, _ = controller_model()
+        claim = model.as_claim(domain, controller=allocation("Test rule", 0.6, 0.4))
+    else:
+        claim = model.as_claim(domain)
+
+    real_find = _study_dispatch.find_spec
+
+    def missing(name):
+        return None if name == "cvxpy" else real_find(name)
+
+    # Simulate the base install at both discovery points, including in an
+    # environment where CVXPY is actually installed.
+    monkeypatch.setattr(_intersection_support, "find_spec", missing)
+    monkeypatch.setattr(_study_dispatch, "find_spec", missing)
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("dependency preflight executed or loaded a solver")
+
+    monkeypatch.setattr(Claim, "_run", forbidden)
+    monkeypatch.setattr(_cvxpy_backend, "load_cvxpy", forbidden)
+    assert not claim.capabilities.audit.supported  # nosec B101
+    report = claim.check_study(AuditRequest())
+    assert report.status == "unsupported" and report.dependencies == ("cvxpy",)  # nosec B101
+    assert "Missing optional study dependencies: cvxpy" == report.scope  # nosec B101
+    assert not report.evidence and report.coverage == "none"  # nosec B101
+    with pytest.raises(StudyRequestError) as error:
+        claim.run_study(AuditRequest())
+    assert error.value.capability == report  # nosec B101
+    point = claim.check_study(EvaluationRequest(loads.nominal))
+    assert point.supported and not point.dependencies  # nosec B101
+
+
 @pytest.mark.parametrize(
     "study",
     (

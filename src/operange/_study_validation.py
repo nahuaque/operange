@@ -27,6 +27,13 @@ def _support_dependencies(domain):
     return set()
 
 
+def audit_dependencies(claim):
+    """Retain declared support backends even when coarse support is unavailable."""
+    if type(claim.adapter) in (AffineProcessAdapter, _ControllerAdapter):
+        return tuple(sorted(_support_dependencies(claim.domain)))
+    return ()
+
+
 def _sensitivity(claim, options):
     heat = type(claim.adapter) is HeatRecoveryAdapter
     response = "optimized" if heat else "fixed"
@@ -203,9 +210,7 @@ def validate_basic(claim, operation, point, options):
     if kind not in known:
         return "adapter_declared", (), dependencies
     if operation == "audit":
-        dependencies = tuple(
-            sorted(set(dependencies) | _support_dependencies(claim.domain))
-        )
+        dependencies = tuple(sorted(set(dependencies) | set(audit_dependencies(claim))))
     joint = kind in (ThermalStorageAdapter, _StorageControllerAdapter)
     if operation == "evaluation":
         if joint:

@@ -203,6 +203,18 @@ def main():
     )
     witness = results["audit"].payload.witness
     model, loads = consumer["example"]()
+    composed = model.as_claim(process.Intersection((loads, loads), backend="cvxpy"))
+    capability = composed.check_study(process.AuditRequest())
+    require(
+        capability.status == "unsupported" and capability.dependencies == ("cvxpy",),
+        "coarse audit rejection must preserve the missing support-backend dependency",
+    )
+    point = composed.check_study(process.EvaluationRequest(loads.nominal))
+    require(
+        point.supported and not point.dependencies,
+        "point preflight must not require a domain support solver",
+    )
+    require("cvxpy" not in sys.modules, "dependency preflight imported CVXPY")
     metric = process.NormalizedL2(loads.space)
     require(
         metric.measure({"dryer": 12, "evaporator": 8}) > 1.4,

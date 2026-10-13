@@ -67,11 +67,21 @@ def _backend(backend):
 
 
 def _basic(claim, request):
-    from ._study_validation import validate_basic
+    from ._study_validation import audit_dependencies, validate_basic
 
     capability = getattr(claim.capabilities, request.operation)
     if not capability.supported:
-        raise NotImplementedError(capability.scope)
+        # Coarse domain support can already be false because its backend is
+        # absent. Preserve that declaration before request-specific validation.
+        return StudyCapability(
+            request.operation,
+            "unsupported",
+            capability.scope,
+            dependencies=audit_dependencies(claim)
+            if request.operation == "audit"
+            else (),
+            limitations=_QUALIFICATION,
+        )
     point, options = basic_arguments(request)
     declaration = getattr(claim.adapter, "query_options", None)
     if declaration is None:
