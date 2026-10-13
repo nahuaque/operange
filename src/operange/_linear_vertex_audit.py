@@ -2,23 +2,20 @@
 
 from dataclasses import replace
 from functools import partial
-from itertools import product
 
+from ._domain_generators import generator_count, generators
 from ._finite_audit import audit_finite
 from .claim import rejected_result
 from .convex_hull import ConvexHullSet
-from .domains import Scenario
 from .primitives import BoxSet
 
 
 def vertex_count(domain):
-    if type(domain) is BoxSet:
-        return 2 ** sum(p.lower != p.upper for p in domain.scalar_parameters)
-    if type(domain) is ConvexHullSet:
-        return len(domain.vertices)
-    raise ValueError(
-        "Continuous recourse requires a BoxSet or an explicit ConvexHullSet."
-    )
+    if type(domain) not in (BoxSet, ConvexHullSet):
+        raise ValueError(
+            "Continuous recourse requires a BoxSet or an explicit ConvexHullSet."
+        )
+    return generator_count(domain)
 
 
 def audit_vertices(claim, *, backend, max_vertices, evaluate=None):
@@ -36,7 +33,6 @@ def audit_vertices(claim, *, backend, max_vertices, evaluate=None):
         )
     domain = claim.domain
     if type(domain) is BoxSet:
-        parameters = sorted(domain.scalar_parameters, key=lambda p: p.name)
         count = vertex_count(domain)
         kind = "all_box_corners"
     elif type(domain) is ConvexHullSet:
@@ -58,24 +54,10 @@ def audit_vertices(claim, *, backend, max_vertices, evaluate=None):
             "No generators were evaluated; increase the explicit limit to enumerate them all.",
             code="vertex_limit_exceeded",
         )
-    if type(domain) is BoxSet:
-        vertices = (
-            Scenario(
-                f"corner_{i}",
-                dict(zip((p.name for p in parameters), values)),
-                "Exhaustive physical box endpoints; constant coordinates appear once",
-            )
-            for i, values in enumerate(
-                product(
-                    *(
-                        (p.lower,) if p.lower == p.upper else (p.lower, p.upper)
-                        for p in parameters
-                    )
-                )
-            )
-        )
-    else:
-        vertices = domain.vertices
+    vertices = generators(
+        domain,
+        provenance="Exhaustive physical box endpoints; constant coordinates appear once",
+    )
     scope = {
         "controls": "fixed as declared or independently adjustable after all inputs are observed",
         "coverage": "continuous convex hull of every enumerated generator",

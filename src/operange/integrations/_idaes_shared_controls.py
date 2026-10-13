@@ -10,7 +10,7 @@ from ._idaes_shared_result import IdaesSharedControlResult, fixed_policy
 from ._idaes_execution import Candidate, OperatingPointRequest, PointExecution
 
 
-def optimize_shared_controls(adapter, domain, *, operating=None):
+def prepare(adapter, domain, *, operating=None):
     if type(domain) is not FiniteSet:
         raise ValueError("Shared-control optimization requires a FiniteSet")
     adapter.input_space.check_alignment(domain.space)
@@ -45,6 +45,13 @@ def optimize_shared_controls(adapter, domain, *, operating=None):
         "unit": unit(objective.expr),
         "aggregation": "worst_case",
     }
+    return pyo, fixed, requested_policy, objective, objective_spec
+
+
+def optimize_shared_controls(adapter, domain, *, operating=None):
+    pyo, fixed, requested_policy, objective, objective_spec = prepare(
+        adapter, domain, operating=operating
+    )
     preparation, solver, commands, objective_values = {}, {}, {}, {}
     audit = None
     stage = "scenario_setup"

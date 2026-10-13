@@ -45,6 +45,12 @@ rows, variable roles, bounds and objectives. Dispatch normalization, sensitivity
 scenario replication, equipment relief and controller proposals retain common
 source metadata; the independent verifier continues to reconstruct its own rows.
 
+[Typed study requests](../docs/study-requests.md) now expose request-specific
+capabilities for the original queries, synthesis, operating limits, dispatch
+sensitivity, shared IDAES commands and local uncertainty propagation. Preflight
+shares static study validation without executing solvers. Generator traversal is
+shared; study coverage arguments and result semantics remain separate.
+
 The [scope decision](package-boundary.md) fixes the target as a process-engineering
 sensitivity and robustness DSL. Its [result contract](result-contract.md)
 now implements evaluation, sensitivity, and robustness outputs, validated against

@@ -319,10 +319,8 @@ class LinearProcessAdapter(Record):
             return Claim(adapter, domain, recourse, requirements, distance)
         return Claim(self, domain, recourse, requirements, distance)
 
-    def run(self, claim, operation, realization, options):
-        from ._linear_process_results import audit_result, evaluate_result
-
-        allowed = (
+    def query_options(self, claim, operation):
+        return (
             {"diagnose", "relief", "backend"}
             if operation == "evaluation"
             else {"backend", "max_vertices", "relief"}
@@ -331,6 +329,11 @@ class LinearProcessAdapter(Record):
             if operation == "audit"
             else set()
         )
+
+    def run(self, claim, operation, realization, options):
+        from ._linear_process_results import audit_result, evaluate_result
+
+        allowed = self.query_options(claim, operation)
         if set(options) - allowed:
             return rejected_result(
                 claim.contract,

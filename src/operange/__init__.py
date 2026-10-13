@@ -100,7 +100,44 @@ from .primitives import BoxSet, Parameter
 from .convex_hull import ConvexHullSet
 from .claim import bind_contract, rejected_result
 
+
+from .studies import (
+    StudyRequest,
+    EvidenceRequirement,
+    EvaluationRequest,
+    SensitivityRequest,
+    AuditRequest,
+    BoundaryRequest,
+    BreakingRequest,
+    ControllerSynthesisRequest,
+    OperatingLimitRequest,
+    DispatchSensitivityRequest,
+    SharedControlsRequest,
+    UncertaintyPropagationRequest,
+    StudyCapability,
+    StudyRequestError,
+    check_study,
+    run_study,
+)
+
+
 __all__ = [
+    "StudyRequest",
+    "EvidenceRequirement",
+    "EvaluationRequest",
+    "SensitivityRequest",
+    "AuditRequest",
+    "BoundaryRequest",
+    "BreakingRequest",
+    "ControllerSynthesisRequest",
+    "OperatingLimitRequest",
+    "DispatchSensitivityRequest",
+    "SharedControlsRequest",
+    "UncertaintyPropagationRequest",
+    "StudyCapability",
+    "StudyRequestError",
+    "check_study",
+    "run_study",
     "ParameterPoint",
     "ParameterBinding",
     "ParameterCovariance",

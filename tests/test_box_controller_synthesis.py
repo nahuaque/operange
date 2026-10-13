@@ -42,12 +42,13 @@ def test_twenty_loads_need_no_generators_for_search_audit_or_verification(
     cp, monkeypatch
 ):
     from operange._certificate_math import Context
+    from operange import _domain_generators
 
     def no_enumeration(*args, **kwargs):
         raise AssertionError("a million-corner box must not enumerate generators")
 
     monkeypatch.setattr(synthesis, "_generators", no_enumeration)
-    monkeypatch.setattr(synthesis, "product", no_enumeration)
+    monkeypatch.setattr(_domain_generators, "product", no_enumeration)
     monkeypatch.setattr(Context, "generators", no_enumeration)
     claim = example()
     original = claim.contract

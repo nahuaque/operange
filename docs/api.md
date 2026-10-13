@@ -12,6 +12,7 @@ Import these from `operange`:
 | Purpose | Public names |
 | --- | --- |
 | Claim and adapter contract | `Claim`, `ModelAdapter`, `AdapterCapabilities`, `Capability`, `bind_contract`, `rejected_result` |
+| Typed studies and preflight | `StudyRequest`, `StudyCapability`, `check_study`, `run_study`; see [study requests](study-requests.md) for query-specific request types |
 | Named inputs and coordinates | `Parameter`, `VectorParameter`, `Coordinate`, `ParameterSpace`, `Axis` |
 | Domain protocol and evidence | `UncertaintySet`, `DomainCapabilities`, `MembershipCheck`, `LinearSupport` |
 | Concrete domains | `BoxSet`, `FiniteSet`, `ConvexHullSet`, `Scenario`, `SimplexSet`, `BudgetSet`, `EllipsoidSet`, `PolytopeSet`, `LinearConstraint` |

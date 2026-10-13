@@ -215,6 +215,9 @@ class _StorageControllerAdapter:
         )
         return AdapterCapabilities(yes, no, yes, no, no)
 
+    def query_options(self, claim, operation):
+        return ()
+
     def run(self, claim, operation, realization, options):
         from ._storage_controller_results import audit_result, evaluate_result
 

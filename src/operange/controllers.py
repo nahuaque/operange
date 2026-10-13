@@ -281,16 +281,19 @@ class _ControllerAdapter(Record):
             search,
         )
 
-    def run(self, claim, operation, realization, options):
-        from ._controller_results import audit_result, evaluate_result
-
-        allowed = (
+    def query_options(self, claim, operation):
+        return (
             {"constraints", "distance_tolerance", "backend"}
             if operation == "boundary"
             else {"constraints", "violation_margins", "distance_tolerance", "backend"}
             if operation == "breaking"
             else set()
         )
+
+    def run(self, claim, operation, realization, options):
+        from ._controller_results import audit_result, evaluate_result
+
+        allowed = self.query_options(claim, operation)
         if set(options) - allowed:
             return rejected_result(
                 claim.contract,

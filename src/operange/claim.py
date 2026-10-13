@@ -212,6 +212,18 @@ class Claim:
             )
         return result
 
+    def check_study(self, request):
+        """Inspect one typed request under this claim's operating permissions."""
+        from .studies import check_study
+
+        return check_study(self, request)
+
+    def run_study(self, request):
+        """Preflight and execute a typed request, retaining its result family."""
+        from .studies import run_study
+
+        return run_study(self, request)
+
     def evaluate_result(self, realization=None, **options):
         return self._run("evaluation", realization, **options)
 

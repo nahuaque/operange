@@ -3,7 +3,7 @@
 Copy steam_header.py, linear_dispatch.py, failure_distance.py, engineering_changes.py,
 frozen_controllers.py, storage_replay.py, startup.py, pinch.py,
 uncertainty_compositions.py, measurement_uncertainty.py, operating_limits.py,
-equipment_network.py, operating_roles.py, dispatch_sensitivity.py and
+equipment_network.py, operating_roles.py, dispatch_sensitivity.py, study_requests.py and
 the saved *_v1.json fixtures here.
 There are no pytest, repository, optional solver, or test-environment imports.
 """
@@ -148,6 +148,28 @@ def main():
             process.result_from_json(result.to_json(compact=True)) == result,
             "composed audit did not round trip",
         )
+
+    studies = runpy.run_path(str(directory / "study_requests.py"))["run_example"]()
+    require(
+        studies["audit_capability"]["status"] == "supported",
+        "typed audit preflight failed",
+    )
+    require(
+        studies["budget_capability"]["status"] == "unsupported",
+        "generator budget was not enforced",
+    )
+    require(
+        studies["verification"]["status"] == "verified",
+        "typed audit certificate failed",
+    )
+    require(
+        studies["controller_capability"]["status"] == "unsupported",
+        "base wheel must report the missing CVXPY dependency",
+    )
+    require(
+        "cvxpy" not in sys.modules and "pyomo.environ" not in sys.modules,
+        "preflight loaded an optional modeling backend",
+    )
 
     consumer = runpy.run_path(str(directory / "steam_header.py"))
     exported = consumer["run_example"]()

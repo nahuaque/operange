@@ -166,6 +166,7 @@ local-uncertainty
 parameter-data-and-execution
 variable-roles-and-operation
 linear-problem-representation
+study-requests
 continuous-dispatch
 shared-relief
 dispatch-objectives

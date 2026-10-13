@@ -16,6 +16,49 @@ from .linear_process import LinearProcessAdapter
 from .objectives import LinearObjective
 
 
+def prepare(
+    claim, realization, changes, backend, max_refinements, *, check_backend=True
+):
+    if type(claim.adapter) is not LinearProcessAdapter or not isinstance(
+        claim.adapter.objective, LinearObjective
+    ):
+        raise NotImplementedError(
+            "Dispatch sensitivities require a declarative linear adapter with a linear objective and no saved controller."
+        )
+    model = claim.adapter
+    try:
+        model._permissions(claim)
+    except ValueError as exc:
+        raise NotImplementedError(str(exc)) from exc
+    if (
+        len(model.variables) > 64
+        or len(model.operating_limits)
+        + len(model.requirements)
+        + 4 * len(model.variables)
+        > 4096
+    ):
+        raise NotImplementedError(
+            "Exact basis recovery is limited to 64 controls and 4096 physical rows."
+        )
+    if (
+        not isinstance(changes, (tuple, list))
+        or not changes
+        or len(changes) > 64
+        or any(type(c) is not DispatchChange for c in changes)
+    ):
+        raise ValueError("provide between 1 and 64 declarative DispatchChange objects")
+    if len({c.change_id for c in changes}) != len(changes):
+        raise ValueError("duplicate dispatch sensitivity changes")
+    if type(max_refinements) is not int or not 0 <= max_refinements <= 32:
+        raise ValueError("max_refinements must be an integer between 0 and 32")
+    if check_backend:
+        validate_backend(backend)
+    point = model.input_space.validate(realization)
+    system = problem(claim, point)
+    derivatives = [change_rates(claim, system, change) for change in changes]
+    return model, point, system, derivatives
+
+
 def analyze(claim, realization, changes, backend, max_refinements):
     request = snapshot(
         {
@@ -44,46 +87,11 @@ def analyze(claim, realization, changes, backend, max_refinements):
             ),
         )
 
-    if type(claim.adapter) is not LinearProcessAdapter or not isinstance(
-        claim.adapter.objective, LinearObjective
-    ):
-        return rejected(
-            "Dispatch sensitivities require a declarative linear adapter with a linear objective and no saved controller."
-        )
-    model = claim.adapter
     try:
-        model._permissions(claim)
-    except ValueError as exc:
-        return rejected(str(exc))
-    if (
-        len(model.variables) > 64
-        or len(model.operating_limits)
-        + len(model.requirements)
-        + 4 * len(model.variables)
-        > 4096
-    ):
-        return rejected(
-            "Exact basis recovery is limited to 64 controls and 4096 physical rows."
+        model, point, system, derivatives = prepare(
+            claim, realization, changes, backend, max_refinements
         )
-    try:
-        if (
-            not isinstance(changes, (tuple, list))
-            or not changes
-            or len(changes) > 64
-            or any(type(c) is not DispatchChange for c in changes)
-        ):
-            raise ValueError(
-                "provide between 1 and 64 declarative DispatchChange objects"
-            )
-        if len({c.change_id for c in changes}) != len(changes):
-            raise ValueError("duplicate dispatch sensitivity changes")
-        if type(max_refinements) is not int or not 0 <= max_refinements <= 32:
-            raise ValueError("max_refinements must be an integer between 0 and 32")
-        validate_backend(backend)
-        point = model.input_space.validate(realization)
-        system = problem(claim, point)
-        derivatives = [change_rates(claim, system, change) for change in changes]
-    except BackendUnavailable as exc:
+    except (NotImplementedError, BackendUnavailable) as exc:
         return rejected(str(exc))
     except (ValueError, TypeError, OverflowError) as exc:
         return rejected(str(exc), "invalid")

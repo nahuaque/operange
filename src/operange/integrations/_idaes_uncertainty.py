@@ -1,7 +1,7 @@
 """Local responses using source derivatives or checked upstream solver calls."""
 
 from collections.abc import Mapping
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 import numpy as np
 
@@ -53,7 +53,24 @@ def _active(model, rows, tolerance):
     )
 
 
-def propagate_uncertainty(
+@dataclass(frozen=True)
+class PropagationPlan:
+    parameters: tuple
+    covariance: np.ndarray
+    point: dict
+    theta: ParameterPoint
+    mapping: dict
+    responses: tuple
+    rows: dict
+    commands: dict | None
+    reoptimize: bool
+    steps: dict
+    relative_tolerance: float
+    absolute_tolerance: float
+    provenance: dict | None
+
+
+def prepare(
     adapter,
     *,
     parameters,
@@ -187,6 +204,67 @@ def propagate_uncertainty(
     if not responses:
         raise ValueError("Select at least one output or margin")
     unique(tuple(r.name for r in responses), "response names")
+    return PropagationPlan(
+        parameters,
+        covariance,
+        point,
+        theta,
+        mapping,
+        responses,
+        rows,
+        commands,
+        reoptimize,
+        steps,
+        relative_tolerance,
+        absolute_tolerance,
+        provenance,
+    )
+
+
+def propagate_uncertainty(
+    adapter,
+    *,
+    parameters,
+    covariance,
+    realization,
+    outputs,
+    margins,
+    fixed_controls,
+    reoptimize,
+    steps,
+    relative_tolerance,
+    absolute_tolerance,
+    provenance=None,
+    operating=None,
+):
+    plan = prepare(
+        adapter,
+        parameters=parameters,
+        covariance=covariance,
+        realization=realization,
+        outputs=outputs,
+        margins=margins,
+        fixed_controls=fixed_controls,
+        reoptimize=reoptimize,
+        steps=steps,
+        relative_tolerance=relative_tolerance,
+        absolute_tolerance=absolute_tolerance,
+        provenance=provenance,
+        operating=operating,
+    )
+    parameters = plan.parameters
+    covariance = plan.covariance
+    point = plan.point
+    theta = plan.theta
+    mapping = plan.mapping
+    responses = plan.responses
+    rows = plan.rows
+    commands = plan.commands
+    reoptimize = plan.reoptimize
+    steps = plan.steps
+    relative_tolerance = plan.relative_tolerance
+    absolute_tolerance = plan.absolute_tolerance
+    provenance = plan.provenance
     baseline, operating = _evaluate(adapter, point, commands)
     values, jacobian, probes, diagnostics, numerical = (), (), [], [], {}
     try:

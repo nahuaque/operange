@@ -295,10 +295,8 @@ class AffineProcessAdapter(Record):
             recourse = RecoursePolicy("fixed", ())
         return Claim(self, domain, recourse, requirements, distance)
 
-    def run(self, claim, operation, realization, options):
-        from .affine_results import audit_result, evaluate_result, sensitivity_result
-
-        allowed = (
+    def query_options(self, claim, operation):
+        return (
             {
                 "inputs",
                 "outputs",
@@ -317,6 +315,11 @@ class AffineProcessAdapter(Record):
             if operation == "breaking"
             else set()
         )
+
+    def run(self, claim, operation, realization, options):
+        from .affine_results import audit_result, evaluate_result, sensitivity_result
+
+        allowed = self.query_options(claim, operation)
         if set(options) - allowed:
             return rejected_result(
                 claim.contract,

@@ -219,6 +219,9 @@ class IdaesAdapter:
             unsupported,
         )
 
+    def query_options(self, claim, operation):
+        return ()
+
     def run(self, claim, operation, realization, options):
         from ._idaes_results import audit_result, evaluate_result
 
@@ -252,6 +255,18 @@ class IdaesAdapter:
         from ._idaes_shared_controls import optimize_shared_controls
 
         return optimize_shared_controls(self, domain, operating=operating)
+
+    def check_study(self, request):
+        """Preflight a shared-command or local-propagation request without solving."""
+        from ..studies import check_study
+
+        return check_study(self, request)
+
+    def run_study(self, request):
+        """Run a typed adapter study and retain its established result semantics."""
+        from ..studies import run_study
+
+        return run_study(self, request)
 
     def with_parameters(self, point, *, parameter_map):
         """Bind provider-independent parameter values on a fresh model snapshot."""

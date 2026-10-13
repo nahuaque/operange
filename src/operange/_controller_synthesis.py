@@ -2,9 +2,9 @@
 
 from dataclasses import replace
 from fractions import Fraction as F
-from itertools import product
 
 from ._controller_envelope import ControllerEnvelope
+from ._domain_generators import generator_count, generators
 from ._linear_compile import compile_model
 from ._linear_problem import bound_rows
 from ._cvxpy_backend import BackendUnavailable, load_cvxpy, numeric_vector
@@ -21,41 +21,19 @@ from .primitives import BoxSet, finite
 
 
 def _generators(domain, limit):
-    if type(domain) is BoxSet:
-        parameters = sorted(domain.scalar_parameters, key=lambda p: p.name)
-        count = 2 ** sum(p.lower != p.upper for p in parameters)
-    elif type(domain) is FiniteSet:
-        count = len(domain.scenarios)
-    elif type(domain) is ConvexHullSet:
-        count = len(domain.vertices)
-    else:
+    if type(domain) not in (BoxSet, FiniteSet, ConvexHullSet):
         raise NotImplementedError(
             "Synthesis supports built-in boxes, finite sets and explicit convex hulls."
         )
+    count = generator_count(domain)
     if count > limit:
         raise NotImplementedError(
             f"Complete coverage needs {count} generators, exceeding max_vertices={limit}; none were solved."
         )
-    if type(domain) is BoxSet:
-        return tuple(
-            Scenario(
-                f"corner_{i}",
-                dict(zip((p.name for p in parameters), values)),
-                "Complete synthesis box corners",
-            )
-            for i, values in enumerate(
-                product(
-                    *(
-                        (p.lower,) if p.lower == p.upper else (p.lower, p.upper)
-                        for p in parameters
-                    )
-                )
-            )
-        )
-    return domain.scenarios if type(domain) is FiniteSet else domain.vertices
+    return tuple(generators(domain, provenance="Complete synthesis box corners"))
 
 
-def _validate(claim, objective, name, max_vertices):
+def _validate(claim, objective, name, max_vertices, *, materialize=True):
     model = (
         claim.adapter.model
         if type(claim.adapter) is _ControllerAdapter
@@ -112,6 +90,13 @@ def _validate(claim, objective, name, max_vertices):
     # distinguishes this route from a finite collection of scenarios.
     if type(claim.domain) is BoxSet and type(objective) is LinearObjective:
         return model, objective, None
+    if not materialize:
+        count = generator_count(claim.domain)
+        if count > max_vertices:
+            raise NotImplementedError(
+                f"Complete coverage needs {count} generators, exceeding max_vertices={max_vertices}; none were solved."
+            )
+        return model, objective, ()
     scenarios = _generators(claim.domain, max_vertices)
     for scenario in scenarios:
         if claim.domain.membership(scenario.values).status != "inside":

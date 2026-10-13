@@ -27,6 +27,7 @@ All examples use synthetic engineering data and state the scope of their claims.
 | Biased demand meter | Synthesize a rule that serves the true load despite bounded sensor error, verify the audit, and test a wider bias range. | [Measurement uncertainty](measurement-uncertainty.md) |
 | Guaranteed production | Compare checked throughput limits under a saved boiler rule and adjustable dispatch, retaining the limiting realization. | [Operating limits](operating-limits.md) |
 | Marginal fuel and bottlenecks | Check fuel needed for extra demand, fuel saved by a capacity upgrade, and a burner limit that blocks that upgrade. | [Dispatch sensitivities](dispatch-sensitivity.md) |
+| Study preflight | Inspect operation, policy, coverage, dependency and evidence support before executing a typed request. | [Study requests](study-requests.md) |
 | Independent certificate verification | Verify an exported equipment plan and reject incorrect proof arithmetic even after content identities are recomputed. | [Certificate verification](certificate-verification.md) |
 | Causal storage replay | Preserve preparation signals, carried energy and terminal checks when a saved rule faces held-out paths. | [Storage replay](storage-replay.md) |
 | Compressor starts | Staggering fixed starts reduces the peak from 700 kVA to 480 kVA against a 500 kVA limit over the same 65 scenarios. | [Startup loads](startup.md) |

@@ -247,6 +247,9 @@ class QuadraticProcessAdapter(Record):
             no,
         )
 
+    def query_options(self, claim, operation):
+        return ()
+
     def run(self, claim, operation, realization, options):
         if options:
             return rejected_result(

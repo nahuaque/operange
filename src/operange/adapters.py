@@ -112,11 +112,8 @@ class HeatRecoveryAdapter:
             search,
         )
 
-    def run(self, claim, operation, realization, options):
-        from .heat_results import audit_result, evaluate_result, threshold_result
-        from .heat_sensitivity import sensitivity_result
-
-        allowed = (
+    def query_options(self, claim, operation):
+        return (
             (
                 "inputs",
                 "outputs",
@@ -132,6 +129,12 @@ class HeatRecoveryAdapter:
             if operation == "breaking"
             else ()
         )
+
+    def run(self, claim, operation, realization, options):
+        from .heat_results import audit_result, evaluate_result, threshold_result
+        from .heat_sensitivity import sensitivity_result
+
+        allowed = self.query_options(claim, operation)
         invalid = _invalid_options(claim, operation, realization, options, allowed)
         if invalid:
             return invalid
@@ -225,10 +228,15 @@ class ThermalStorageAdapter:
             search,
         )
 
+    def query_options(self, claim, operation):
+        return ()
+
     def run(self, claim, operation, realization, options):
         from .storage_contract import audit_result, evaluate_result
 
-        invalid = _invalid_options(claim, operation, realization, options, ())
+        invalid = _invalid_options(
+            claim, operation, realization, options, self.query_options(claim, operation)
+        )
         if invalid:
             return invalid
         if realization is not None:

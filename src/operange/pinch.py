@@ -251,6 +251,9 @@ class HeatCascadeAdapter(Record):
             requirements,
         )
 
+    def query_options(self, claim, operation):
+        return ()
+
     def run(self, claim, operation, realization, options):
         from ._pinch_results import audit, evaluate
 
